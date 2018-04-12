@@ -24,7 +24,7 @@ class DofSpace(object):
             i row corresponds to inod
             j column corresponds to jtype
             idof = dofspace[inod,jtype]
-        idof = latest dof index
+        idof = last dof index
     Public Methods:
         DofSpace(nnod, ntyp)
         Type Methods:
@@ -122,12 +122,8 @@ class DofSpace(object):
         return len(self.types)
 
     def getTypeName(self, jtype):
-        """
-        Input:
-            jtype = dof type index
-        Output:
-            string of dof type name
-        """
+        """ Input: jtype = dof type index
+            Output: string of dof type name """
         return self.types[jtype]
 
     #-------------------------------------------------------------------
@@ -175,24 +171,14 @@ class DofSpace(object):
         return self.idof
 
     def getDofIndex(self, inod, dof):
-        """
-        Input:
-            inod = node index
-            dof = string of dof name
-        Output:
-            idof = dof index
-        """
+        """ Input: inod = node index, dof = string of dof name
+            Output: idof = dof index """
         jtype = self.types.index(dof)
         return int(self.dofspace[inod,jtype])
 
     def getDofIndices(self, inodes, dofs):
-        """
-        Input:
-            inodes = node indices
-            dofs = list of strings of dof names
-        Output:
-            idofs = list of dof indices
-        """
+        """ Input: inodes = node indices, dofs = list of strings of dof names
+            Output: idofs = list of dof indices """
         idofs = []
         if isinstance(inodes, (list,tuple,range,np.ndarray)):
             for inod in inodes:

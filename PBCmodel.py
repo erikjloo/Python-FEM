@@ -17,6 +17,7 @@ class PBCmodel(Mesh):
         self.__setTolerances()
         self.__findBoundaryNodes()
         self.__sortBoundaryNodes()
+        #self.__createTractionMesh()
         return self.boundaryNodes
 
     def plotBoundary(self):
