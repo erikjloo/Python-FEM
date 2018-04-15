@@ -5,28 +5,70 @@ import matplotlib.pyplot as plt
 from tkinter import Tk, filedialog
 
 #Import Local Libraries
-from mesh import Mesh
-#sfrom itemset import NodeSet, ElementSet
+from solidModel import SolidModel
+from shapes import Line2, Tri3
 
-class PBCmodel(Mesh):
+class PBCmodel(SolidModel):
             
+    # Public:
+    def __init__(self, path, rank=2):
+        self.coords = []
+        self.inod = -1
+        self.nnod = 0
 
-    def getBoundaryNodes(self):
-        """ Output: boundaryNodes = [ xmin, xmax, ymin, ymax ] """
+        self.connectivity = []
+        self.iele = -1
+        self.nele = 0
+
+        self.props = []
+        self.Phys = {}
+        self.nPhys = 0
+
+        self.types = []
+        self.idof = 0
+        self.ndof = 0
+
+        # Read Mesh
+        self.readMesh(path)
+        self.rank = rank
+
+        # Get dofs
+        self.dofspace = np.empty((self.nnod, rank))
+        self.dofspace[:] = np.nan
+        self.addTypes(["u", "v"])
+        self.shape = Tri3()
+
+        # Add dofs
+        self.addDofs(range(self.nnod), self.types)
+        # Add displacement doftypes
+
+        # Create boundary element
+        self.bshape = Line2()
+        self.nIP_ = self.bshape.nIP
+        self.nnod_ = self.bshape.nnod
+        self.localrank_ = self.bshape.ndim
+
         self.__boundingBox()
         self.__setTolerances()
-        self.__findBoundaryNodes()
-        self.__sortBoundaryNodes()
-        #self.__createTractionMesh()
-        return self.boundaryNodes
+        self.__findBndNodes()
+        self.__sortBndNodes()
+        self.__createTractionMesh()
+
+    def getBndNodes(self):
+        """ Output: bndNodes = [ xmin, xmax, ymin, ymax ] """
+        return self.bndNodes
+
+    def getTrNodes(self):
+        """ Output: trNodes = [ xmin, ymin ] """
+        return self.trNodes
 
     def plotBoundary(self):
         """ Plots the boundary nodes """
         fig = plt.figure(figsize=(6, 6))
         ax = fig.add_subplot(111)
 
-        for row in self.boundaryNodes:
-            coords = self.getCoords(row)
+        for face in self.bndNodes:
+            coords = self.getCoords(face)
             ax.plot(coords[:, 0], coords[:, 1],
                     marker='o', linewidth=0.3, markersize=3, color='k')
             ax.plot([coords[3, 0]], [coords[3, 1]],
@@ -36,53 +78,78 @@ class PBCmodel(Mesh):
         plt.show()
 
     def __boundingBox(self):
-        """ Sets xmin, xmax, ymin and ymax coordinates """
-        coord = self.coords[0]
-        self.xmin = self.xmax = coord[0]
-        self.ymin = self.ymax = coord[1]
+        """ Sets box = [xmin, xmax, ymin, ymax] """
+        self.box = np.ones(4)
+        self.box[0:2] *= self.coords[0][0]
+        self.box[2:4] *= self.coords[0][1]
         for coord in self.coords:
-            if coord[0] > self.xmax:
-                self.xmax = coord[0]
-            if coord[0] < self.xmin:
-                self.xmin = coord[0]
-            if coord[1] > self.ymax:
-                self.ymax = coord[1]
-            if coord[1] < self.ymin:
-                self.ymin = coord[1]
+            if coord[0] > self.box[1]:
+                self.box[1] = coord[0]
+            if coord[0] < self.box[0]:
+                self.box[0] = coord[0]
+            if coord[1] > self.box[3]:
+                self.box[3] = coord[1]
+            if coord[1] < self.box[2]:
+                self.box[2] = coord[1]
 
     def __setTolerances(self):
         """ Sets tolerances for finding boundary nodes """
-        self.xtol = abs(self.xmax - self.xmin)/1000000
-        self.ytol = abs(self.ymax - self.ymin)/1000000
+        self.xtol = abs(self.box[1] - self.box[0])/1000000
+        self.ytol = abs(self.box[3] - self.box[2])/1000000
 
-    def __findBoundaryNodes(self):
+    def __findBndNodes(self):
         """ Finds boundary nodes according to the set tolerances """
-        self.boundaryNodes = [[], [], [], []]
+        self.bndNodes = [[], [], [], []]
         for inod, coord in enumerate(self.coords):
-            if abs(coord[0] - self.xmin) < self.xtol:
-                self.boundaryNodes[0].append(inod)
-            if abs(coord[0] - self.xmax) < self.xtol:
-                self.boundaryNodes[1].append(inod)
-            if abs(coord[1] - self.ymin) < self.ytol:
-                self.boundaryNodes[2].append(inod)
-            if abs(coord[1] - self.ymax) < self.ytol:
-                self.boundaryNodes[3].append(inod)
+            if abs(coord[0] - self.box[0]) < self.xtol:
+                self.bndNodes[0].append(inod)
+            if abs(coord[0] - self.box[1]) < self.xtol:
+                self.bndNodes[1].append(inod)
+            if abs(coord[1] - self.box[2]) < self.ytol:
+                self.bndNodes[2].append(inod)
+            if abs(coord[1] - self.box[3]) < self.ytol:
+                self.bndNodes[3].append(inod)
 
-    def __sortBoundaryNodes(self):
+    def __sortBndNodes(self):
         """ Sorts boundary nodes in ascending x or y coordinate """
-        for irow, row in enumerate(self.boundaryNodes):
-            row = self.__sortBoundaryRow(row)
-            self.boundaryNodes[irow] = row
+        for face, bndFace in enumerate(self.bndNodes):
+            bndFace = self.__sortBndFace(bndFace)
+            self.bndNodes[face] = bndFace
         
-    def __sortBoundaryRow(self, row):
-        """ Sorts boundary row in ascending x or y coordinate """
-        for i in range(len(row)):
-            for j in range(len(row) - 1 - i):
-                c1 = self.coords[row[j+1]]
-                c0 = self.coords[row[j]]
+    def __sortBndFace(self, bndFace):
+        """ Sorts boundary face in ascending x or y coordinate """
+        for i in range(len(bndFace)):
+            for j in range(len(bndFace) - 1 - i):
+                c1 = self.coords[bndFace[j+1]]
+                c0 = self.coords[bndFace[j]]
                 if c0[1] > c1[1] or c0[0] > c1[0]:
-                    row[j + 1], row[j] = row[j], row[j+1]
-        return row
+                    bndFace[j + 1], bndFace[j] = bndFace[j], bndFace[j+1]
+        return bndFace
+
+    def __createTractionMesh(self):
+
+        self.trNodes = [[], []]
+        # loop over face pairs (ix)
+        for ix in range(self.rank):
+            inodes = self.bndNodes[ix*2]
+            jnodes = self.bndNodes[ix*2 + 1]
+
+            # loop over node indices in inodes
+            for inod in inodes:
+                coord = self.getCoords(inod)
+                knod = self.addNode(coord)
+                self.trNodes[ix].append(knod)
+            
+            # loop over node indices in jnodes
+            for jnod in jnodes:
+                coord = self.getCoords(jnod)
+                knod = self.addNode(coord)
+                self.trNodes[ix].append(knod)
+            
+            self.trNodes[ix] = self.__sortBndFace(self.trNodes[ix])
+
+
+            
 
     def getCornerNodes(self):
         pass
@@ -97,9 +164,10 @@ class PBCmodel(Mesh):
 
 if __name__ == '__main__':
 
-    mesh = PBCmodel()
-    mesh.readMesh("rve.msh")
-    boundaryNodes = mesh.getBoundaryNodes()
-    print(boundaryNodes)
+    mesh = PBCmodel("rve.msh",rank=2)
+    bndNodes = mesh.getBndNodes()
+    trNodes = mesh.getTrNodes()
+    print("\n Boundary Nodes: \n", bndNodes)
+    print("\n Traction Nodes: \n", trNodes)
     mesh.plotBoundary()
 

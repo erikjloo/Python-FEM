@@ -17,6 +17,7 @@ class DofSpace(object):
         __type_int__ = "Input is not int!"
         __type_str__ = "Input is not str!"
         __renumber__ = "Erasing dofs: Dof numbers will be renumbered!"
+
     Instance Members:
         nnod = number of nodes
         types = list of dof type names
@@ -24,9 +25,11 @@ class DofSpace(object):
             i row corresponds to inod
             j column corresponds to jtype
             idof = dofspace[inod,jtype]
-        idof = last dof index
+        idof = last dof index = ndof - 1
+
     Public Methods:
         DofSpace(nnod, ntyp)
+
         Type Methods:
             addType(dof)
             addTypes(dofs)
@@ -35,6 +38,7 @@ class DofSpace(object):
             eraseTypes(dofs)
             ntyp = typeCount()
             dof = getTypeName(jtype)
+
         Dof Methods:
             addDof(inod, dofs)
             addDofs(inodes, dofs)
@@ -44,8 +48,10 @@ class DofSpace(object):
             idof = getDofIndex(inod, dof)
             idofs = getDofIndices(inodes, dofs)
             printDofSpace()
+
     Private Methods:
         __renumberDofs()
+
     """
     # Static:
     __type__ = "Input is not list or array!"

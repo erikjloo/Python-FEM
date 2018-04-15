@@ -13,8 +13,10 @@ class MatrixBuilder(object):
 
     Static Members:
         __type_int__ = "Input indices are not int!"
+
     Instance Members:
         K = global stiffness matrix
+        
     Public Methods:
         MatrixBuilder(ndof)
         resize(ndof)
@@ -26,9 +28,11 @@ class MatrixBuilder(object):
         block = getBlock(idofs, jdofs)
         K = getMatrix()
         print()
+
     Private Methods:
         __inputIndices(idof, jdof)
         __inputLists(idofs, jdofs)
+        
     """
     # Static:
     __type_int__ = "Input indices are not int!"

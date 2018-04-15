@@ -14,18 +14,21 @@ class NodeSet(object):
 
     Static Members:
         __type__ = "Input is not list or array!"
+
     Instance Members:
         coords = list of nodal coordinates
-        inod = last node index
+        inod = last node index = nnod - 1
+
     Public Methods:
         NodeSet()
-        addNode(coord)
-        addNodes(coords)
-        setNode(coord)
+        inod = addNode(coord)
+        inodes = addNodes(coords)
+        setNode(inod, coord)
         eraseNode(inod)
         eraseNodes(inodes)
         nnod = nodeCount()
         coord[s] = getCoords(inod[es])
+        
     """
     # Static:
     __type__ = "Input is not list or array!"
@@ -109,18 +112,21 @@ class ElementSet(object):
 
     Static Members:
         __type__ = "Input is not list or array!"
+
     Instance Members:
         connectivity = list of element connectivities
-        iele = last element index
+        iele = last element index = nele - 1
+
     Public Methods:
         ElementSet()
-        addElement(connect)
-        addElements(connect)
-        setElement(connect)
+        iele = addElement(connect)
+        ielements = addElements(connect)
+        setElement(iele, connect)
         eraseElement(iele)
         eraseElements(ielements)
         nele = elemCount()
         connect[ivity] = getNodes(iele[ments])
+
     """
     # Static:
     __type__ = "Input is not list or array!"

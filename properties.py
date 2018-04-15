@@ -33,6 +33,7 @@ class Properties(object):
     Static Members:
         __type__ = "Input is not list or array!"
         __type_str__ = "Input is not str!"
+
     Instance Members:
         nele = number of elements
         materials = list of Materials
@@ -40,11 +41,13 @@ class Properties(object):
         properties = array of property indices
             etype = properties[iele,0]
             imat = properties[iele,1]
+
     Public Methods:
         Material Methods:
             addMaterial(name, **kwargs)
             setMaterial(imat, name, **kwargs)
             eraseMaterial(name)
+
         Type Methods:
             addType(prop)
             addTypes(props)
@@ -53,15 +56,16 @@ class Properties(object):
             eraseTypes(props)
             ntyp = typeCount()
             prop = getTypeName(jtype)
+
         Property Methods:
             setProperty(iele, "mat", name)
             setProperty(iele, "etype", type)
             setProperty(iele, "other", value)
             [etype, mat, ...] = getProperties(iele,["etype","mat",...])
-            etype = getEleType(iele)
-            mat = getEleMat(iele)
+
     Private Methods:
         __attachMaterial(iele, name)
+        
     """
     # Static:
     __type__ = "Input is not list or array!"
@@ -164,12 +168,8 @@ class Properties(object):
         return len(self.types)
 
     def getTypeName(self, jtype):
-        """
-        Input:
-            jtype = property type index
-        Output:
-            string of property type name
-        """
+        """ Input: jtype = property type index
+            Output: string of property type name """
         return self.types[jtype]
 
     #-------------------------------------------------------------------
@@ -177,12 +177,9 @@ class Properties(object):
     #-------------------------------------------------------------------
 
     def setProperty(self, iele, prop, tag):
-        """ 
-        Input: 
-            iele = element index
-            prop = "etype", "mat", or user-specified property 
-            tag = etype number, material name, or user value
-        """
+        """ Input:  iele = element index
+                    prop = "etype", "mat", or user-specified property 
+                    tag = etype number, material name, or user value """
         if prop == "etype":
             self.properties[iele, 0] = tag
         elif prop == "mat":
@@ -192,21 +189,17 @@ class Properties(object):
             self.properties[iele, jtype] = tag
 
     def getProperties(self, iele, props):
-        """
-        Input:
-            iele = element index
-            props = list of property type names
-        Output:
-            specified by props
-        """
+        """ Input:  iele = element index
+                    props = list of property type names
+            Output: specified by props """
         output = []
         for prop in props:
             if prop == "mat":
-                imat = int(self.properties[iele, 1])
+                imat = int(self.properties[iele][1])
                 output.append(self.materials[imat])
             else:
                 jtype = self.types.index(prop)
-                output.append(self.properties[iele,jtype])
+                output.append(self.properties[iele][jtype])
         return output
 
     # Private:

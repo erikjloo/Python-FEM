@@ -1,20 +1,12 @@
 # Import Standard Libraries
 import scipy as np
-import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as font_manager
-from mpl_toolkits.mplot3d import proj3d
+from mpl_toolkits.mplot3d import Axes3D
 from tkinter import Tk, filedialog
 
 #Import Local Libraries
 from itemset import NodeSet, ElementSet
 
-
-def orthogonal_plot():
-    fig = plt.figure(figsize=(6, 6))
-    return fig.add_subplot(111, projection='3d')
-
-    
 #===========================================================================
 #   Mesh
 #===========================================================================
@@ -23,30 +15,41 @@ def orthogonal_plot():
 class Mesh(NodeSet,ElementSet):
     """ Mesh class
 
+    Static Members:
+        __type__ = "Input is not list or array!"
+
     Instance Members:
-        coords
-        connectivity
-        props
-        Phys
-        nnodes
-        nele
-        nprops
+        coords = list of nodal coordinates
+        inod = last node index = nnod - 1
+        nnod = number of nodes
+
+        connectivity = list of element connectivities
+        iele = last element index = nele - 1
+        nele = number of elements
+
+        props = list of element type and physical group of each element
+        Phys = names of physical groups
+        nPhys = number of physical groups
+
     Public Methods:
         readMesh(__path__)
         plotMesh()
+
     """
-    
     # Public:
     def __init__(self):
 
         self.coords = []
+        self.inod = -1
+        self.nnod = 0
+        
         self.connectivity = []
+        self.iele = -1
+        self.nele = 0
+        
         self.props = []
         self.Phys = {}
-
-        self.nnodes = 0
-        self.nele = 0
-        self.nprops = 0
+        self.nPhys = 0
 
     def readMesh(self, __path__=None):
         """ Input: __path__ = path_to_file """
@@ -70,9 +73,9 @@ class Mesh(NodeSet,ElementSet):
             
             if line.find('$PhysicalNames') == 0:
                 data = fid.readline().split()
-                self.nprops = int(data[0])
+                self.nPhys = int(data[0])
 
-                for _ in range(self.nprops):
+                for _ in range(self.nPhys):
                     line = fid.readline()
                     newkey = int(line.split()[0])
                     qstart = line.find('"')+1
@@ -87,10 +90,11 @@ class Mesh(NodeSet,ElementSet):
             #-----------------------------------------------------
             
             if line.find('$Nodes') == 0:
-                nnodes = fid.readline().split()
-                self.nnodes = int(nnodes[0])
+                nnod = fid.readline().split()
+                self.nnod = int(nnod[0])
+                self.inod += self.nnod
 
-                for _ in range(self.nnodes):
+                for _ in range(self.nnod):
                     coord = fid.readline().split()      # coords as str
                     coord = list(map(float, coord[1:])) # coords as float
                     self.coords.append(coord)
@@ -105,6 +109,7 @@ class Mesh(NodeSet,ElementSet):
             if line.find('$Elements') == 0:
                 nele = fid.readline().split()
                 self.nele = int(nele[0])
+                self.iele += self.nele
 
                 for _ in range(self.nele):
                     data = fid.readline().split()
@@ -115,7 +120,7 @@ class Mesh(NodeSet,ElementSet):
                         physid = int(data[3])       # set physical id
                         if physid not in self.Phys:
                             self.Phys[physid] = ('Physical Entity {}').format(physid)
-                            self.nprops += 1
+                            self.nPhys += 1
 
                     self.props.append([etype,physid])
                     
@@ -128,12 +133,17 @@ class Mesh(NodeSet,ElementSet):
                     raise ValueError('expecting EndElements')
         fid.close()
 
-    def plotMesh(self):
-        
-        #ax = orthogonal_plot()
-        fig = plt.figure(figsize=(6, 6))
-        ax = fig.add_subplot(111)
-        
+    def plotMesh(self, rank=2):
+        """ Input: rank = number of dimensions """
+        # Determine whether 2D or 3D plot
+        if rank == 1 or rank == 2:
+            fig = plt.figure(figsize=(6, 6))
+            ax = fig.add_subplot(111)
+        elif rank == 3:
+            fig = plt.figure(figsize=(6, 6))
+            ax = fig.add_subplot(111, projection='3d')
+
+        # Plot Mesh
         for connect in self.connectivity:
             coords = self.getCoords(connect)
             ax.plot(coords[:,0],coords[:,1], linewidth = 0.5, color='k')
@@ -148,7 +158,7 @@ class Mesh(NodeSet,ElementSet):
 if __name__ == '__main__':
 
     mesh = Mesh()
-    mesh.readMesh("rve.msh")
+    mesh.readMesh("square.msh")
     mesh.plotMesh()
     
     coords = mesh.getCoords(range(10))
