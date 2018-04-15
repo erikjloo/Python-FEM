@@ -32,27 +32,44 @@ class PBCmodel(SolidModel):
         self.readMesh(path)
         self.rank = rank
 
-        # Get dofs
-        self.dofspace = np.empty((self.nnod, rank))
-        self.dofspace[:] = np.nan
-        self.addTypes(["u", "v"])
-        self.shape = Tri3()
-
-        # Add dofs
-        self.addDofs(range(self.nnod), self.types)
-        # Add displacement doftypes
+        # Create interior element
+        if rank == 2:
+            self.shape = Tri3()
 
         # Create boundary element
-        self.bshape = Line2()
+        if rank == 2:
+            self.bshape = Line2()
+        elif rank == 3:
+            self.bshape = Tri3()
+        
         self.nIP_ = self.bshape.nIP
         self.nnod_ = self.bshape.nnod
         self.localrank_ = self.bshape.ndim
+        
+        # Add displacement dofs
+        self.dofspace = np.empty((self.nnod, rank))
+        self.dofspace[:] = np.nan
+        self.addTypes(["u", "v"])
+        if rank == 3:
+            self.addType("w")
+        self.addDofs(range(self.nnod), self.types)
+        
+        # Add traction dofs
+        self.addTypes(["tx","ty"])
+        if rank == 3:
+            self.addType("tz")
 
+        # Get boundary nodes
         self.__boundingBox()
         self.__setTolerances()
         self.__findBndNodes()
         self.__sortBndNodes()
+
+        # Create traction mesh
         self.__createTractionMesh()
+
+        # Find corner nodes
+        self.__findCornerNodes()
 
     def getBndNodes(self):
         """ Output: bndNodes = [ xmin, xmax, ymin, ymax ] """
@@ -112,48 +129,85 @@ class PBCmodel(SolidModel):
 
     def __sortBndNodes(self):
         """ Sorts boundary nodes in ascending x or y coordinate """
-        for face, bndFace in enumerate(self.bndNodes):
-            bndFace = self.__sortBndFace(bndFace)
-            self.bndNodes[face] = bndFace
+        print("\n Boundary Nodes: \n")
         
-    def __sortBndFace(self, bndFace):
+        # Loop over faces of bndNodes
+        for face, bndFace in enumerate(self.bndNodes):
+            
+            # Map face onto ix
+            ix = np.floor(face/2)
+            # Get correct index for sortBndFace
+            index = [1 if (ix == 0) else 0][0]
+            # Sorting bndFace
+            bndFace = self.__sortBndFace(bndFace, index)
+            self.bndNodes[face] = bndFace
+            # Print to verify
+            print(" bndNodes[",face,"] =",self.bndNodes[face])
+        
+    def __sortBndFace(self, bndFace, index):
         """ Sorts boundary face in ascending x or y coordinate """
+
+        # Bubblesort algorithm
         for i in range(len(bndFace)):
             for j in range(len(bndFace) - 1 - i):
+
+                # Get nodal coordinates
                 c1 = self.coords[bndFace[j+1]]
                 c0 = self.coords[bndFace[j]]
-                if c0[1] > c1[1] or c0[0] > c1[0]:
+
+                # Swap indices if necessary
+                if c0[index] > c1[index]:  
                     bndFace[j + 1], bndFace[j] = bndFace[j], bndFace[j+1]
+                    
         return bndFace
 
     def __createTractionMesh(self):
-
+        print("\n Traction Nodes: \n")
         self.trNodes = [[], []]
-        # loop over face pairs (ix)
+        # Loop over face pairs (ix)
         for ix in range(self.rank):
             inodes = self.bndNodes[ix*2]
             jnodes = self.bndNodes[ix*2 + 1]
 
-            # loop over node indices in inodes
+            # Loop over node indices in inodes
             for inod in inodes:
                 coord = self.getCoords(inod)
                 knod = self.addNode(coord)
                 self.trNodes[ix].append(knod)
             
-            # loop over node indices in jnodes
+            # Loop over node indices in jnodes
             for jnod in jnodes:
                 coord = self.getCoords(jnod)
                 knod = self.addNode(coord)
                 self.trNodes[ix].append(knod)
-            
-            self.trNodes[ix] = self.__sortBndFace(self.trNodes[ix])
+
+            # Sorting trFace (workds only for 2D)
+            index = [1 if (ix == 0) else 0][0]
+            self.trNodes[ix] = self.__sortBndFace(self.trNodes[ix], index)
+
+            # Print to verify
+            print(" trNodes[",ix,"] =",self.trNodes[ix])
 
 
-            
+    def __findCornerNodes(self):
+        print("\n Corner Nodes: \n")
+        if self.rank == 2:
+            self.corner0 = list(set(self.bndNodes[0]).intersection(self.bndNodes[2]))
+            self.cornerx = list(set(self.bndNodes[1]).intersection(self.bndNodes[2]))
+            self.cornery = list(set(self.bndNodes[0]).intersection(self.bndNodes[3]))
+            print(" corner0 = ",self.corner0 )
+            print(" cornerx = ",self.cornerx )
+            print(" cornery = ",self.cornery )
+        elif self.rank == 3:
+            pass
+        
+    def __augmentKsys(self):
+        print("\n Augmenting Matrix: \n")
 
-    def getCornerNodes(self):
-        pass
-    def augmentKsys(self):
+        # Loop over faces of bndNodes
+        for face in range(2*self.rank):
+
+            # Loop over 
         pass
 
 
@@ -167,7 +221,7 @@ if __name__ == '__main__':
     mesh = PBCmodel("rve.msh",rank=2)
     bndNodes = mesh.getBndNodes()
     trNodes = mesh.getTrNodes()
-    print("\n Boundary Nodes: \n", bndNodes)
-    print("\n Traction Nodes: \n", trNodes)
+    
+
     mesh.plotBoundary()
 

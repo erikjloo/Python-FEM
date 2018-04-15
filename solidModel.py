@@ -106,11 +106,16 @@ class SolidModel(Mesh,DofSpace):
     def assemble(self, mbuild, F_int):
         """ Input & Output: mbuild = MatrixBuilder = Ksys
                             F_int = internal force vector """
+                            
         # Iterate over elements assigned to model
-        for iele in range(self.nele):
-            inods = self.getNodes(iele)
-            coords = self.getCoords(inods)
-            idofs = self.getDofIndices(inods, self.types)
+        for iele, inodes in enumerate(self.connectivity):
+            
+            # Get nodal coordintates
+            coords = self.getCoords(inodes)
+
+            # Get the element degrees of freedom
+            idofs = self.getDofIndices(inodes, self.types)
+
             # pylint: disable = unbalanced-tuple-unpacking
             [etype, mat] = self.props.getProperties(iele, ["etype", "mat"])
 
