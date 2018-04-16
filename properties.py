@@ -48,15 +48,6 @@ class Properties(object):
             setMaterial(imat, name, **kwargs)
             eraseMaterial(name)
 
-        Type Methods:
-            addType(prop)
-            addTypes(props)
-            setType(jtype, prop)
-            eraseType(prop)
-            eraseTypes(props)
-            ntyp = typeCount()
-            prop = getTypeName(jtype)
-
         Property Methods:
             setProperty(iele, "mat", name)
             setProperty(iele, "etype", type)
@@ -117,60 +108,6 @@ class Properties(object):
         """ Input: names = list of string of material names to be erased """
         for name in names:
             self.eraseMaterial(name)
-
-    #-------------------------------------------------------------------
-    #   types vector
-    #-------------------------------------------------------------------
-
-    def addType(self, prop):
-        """ Input: prop = string of property type name """
-        if isinstance(prop, str):
-            self.types.append(prop)
-        else:
-            raise TypeError(self.__type_str__)
-        # Check if dofspace has enough columns for all dof types
-        c_reqd = len(self.types) - np.size(self.properties, 1)
-        if c_reqd > 0:
-            c_new = np.empty((self.nele, c_reqd))
-            c_new[:] = np.nan
-            self.properties = np.c_[self.properties, c_new]
-
-    def addTypes(self, props):
-        """ Input: props =  list of string of property type names """
-        if isinstance(props, (list, np.ndarray)):
-            for prop in props:
-                self.addType(prop)
-        else:
-            raise TypeError(self.__type__)
-
-    def setType(self, jtype, prop):
-        """ Input: jtype = prop type index, prop = string of property type name """
-        if isinstance(prop, str) and jtype > 1:
-            self.types[jtype] = prop
-        else:
-            raise TypeError(self.__type_str__)
-
-    def eraseType(self, prop):
-        """ Input: prop = string of property type name to be erased """
-        # Delete column from dofspace
-        if prop != "etype" and prop != "mat":
-            jtype = self.types.index(prop)
-            self.properties = np.delete(self.properties, jtype, 1)
-            del self.types[jtype]
-
-    def eraseTypes(self, props):
-        """ Input: props = list of strings of property type names to be erased """
-        for prop in props:
-            self.eraseType(prop)
-
-    def typeCount(self):
-        """ Output: number of property types """
-        return len(self.types)
-
-    def getTypeName(self, jtype):
-        """ Input: jtype = property type index
-            Output: string of property type name """
-        return self.types[jtype]
 
     #-------------------------------------------------------------------
     #   properties
