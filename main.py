@@ -11,27 +11,102 @@ from properties import Properties, ElementType
 from algebra import MatrixBuilder
 
 
-path = '/home/erik/Documents/Python/FEM/rve.msh'
+# userInput =
+# {
+#     modules = ["mesh", "pbcgroups", "hardening", "loads"]
+
+#     mesh =
+#     {
+#         type = "GmshInput"
+#         file = "rve.msh"
+#         doElemGroups = true
+#     }
+
+#     pbcgroups =
+#     {
+#         type = "PBCGroupInput"
+#     }
+
+#     hardening =
+#     {
+#         type = "Input"
+#         file = "mises.data"
+#     }
+
+#     loads =
+#     {
+#         type = "Input"
+#         file = "load.data"
+#     }
+# }
+
+#   model       =
+#   {
+#     type   = "Multi";
+#     models = [ "matrix", "fibers", "arclen" ];
+
+#     matrix =
+#     {
+#       type     = "Solid";
+#       elements = "gmsh1";
+
+#       material =
+#       {
+#         type   = "Melro";
+#         dim    = 2;
+#         state  = "PLANE_STRAIN";   
+        
+#         young      = 3760.;
+#         poisson    = 0.3;
+#         poissonP   = 0.39;
+#         rmTolerance = 1.e-10;
+#         sigmaT = "st(x)";
+#         sigmaC = "st(x)";
+#       };
+      
+#       shape.type = "Triangle3";
+#       shape.intScheme = "Gauss1";
+#     };
+
+#     fibers = 
+#     {
+#       type = "Solid";
+#       elements = "gmsh0";
+
+#       material = 
+#       {
+#         type = "Hooke";
+#         dim = 2;
+#         state = "PLANE_STRAIN";
+
+#         young = 74000.;
+#         poisson = 0.2;
+#       };
+
+#       shape.type = "Triangle3";
+#       shape.intScheme = "Gauss1";
+#     };
+
+#     arclen = 
+#     {
+#       type = "DispArclen";
+#      };
+
+#       constraints = 
+#       {
+#         nodeGroups = [ "cornery","cornerx" ];
+#         dofs = [ "dx","dy" ];
+#         loaded = -1;
+#         loads.loadTable = "load";
+#       };
+#     };
+#   };
+# };
 
 
-print(("Mesh read with {} nodes and {} elements").format(nnod,nele))
+# properties props()
+# props.parseFile('input.pro')
 
-config = ConfigParser()
-config.read('square.pro')
-ConfigParser
-u = np.empty(ndof)
-
-shape = Tri3()
-
-
-mbuild = MatrixBuilder(ndof)
-
-solid = SolidModel()
-solid.readMesh(path)
-solid.initialize(2)
-rank = 2
-
-K,f = solid.assemble(mbuild)
 
 # output:
 # u, strain, sigma, f_int, K

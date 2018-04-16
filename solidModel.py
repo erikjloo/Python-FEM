@@ -14,7 +14,7 @@ from shapes import Line2, Tri3, Quad4
 #===========================================================================
 
 
-class SolidModel(Mesh,DofSpace):
+class SolidModel(Mesh, DofSpace):
     """ Solid Model
 
     Static Members:
@@ -50,7 +50,6 @@ class SolidModel(Mesh,DofSpace):
     Public Methods:
         SolidModel()
 
-
     Private Methods:
         __verifyShape()
         __getBmatrix()
@@ -60,17 +59,17 @@ class SolidModel(Mesh,DofSpace):
 
     # Static:
     __rank_error__ = "Rank has to be between 1 and 3"
-    
+
     # Public:
     def __init__(self, path, rank=2):
         self.coords = []
         self.inod = -1
         self.nnod = 0
-        
+
         self.connectivity = []
         self.iele = -1
         self.nele = 0
-        
+
         self.props = []
         self.Phys = {}
         self.nPhys = 0
@@ -78,7 +77,7 @@ class SolidModel(Mesh,DofSpace):
         self.types = []
         self.idof = 0
         self.ndof = 0
-        
+
         self.readMesh(path)
         self.rank = rank
         self.dofspace = np.empty((self.nnod, rank))
@@ -95,9 +94,9 @@ class SolidModel(Mesh,DofSpace):
             self.shape = Quad4()
         else:
             raise ValueError(self.__rank_error__)
-        
+
         # Add dofs
-        self.addDofs(range(self.nnod),self.types)
+        self.addDofs(range(self.nnod), self.types)
 
         self.props = Properties(self.nele, self.props)
         self.props.addMaterial("Matrix", E=9000, v=0.3)
@@ -106,10 +105,10 @@ class SolidModel(Mesh,DofSpace):
     def assemble(self, mbuild, F_int):
         """ Input & Output: mbuild = MatrixBuilder = Ksys
                             F_int = internal force vector """
-                            
+
         # Iterate over elements assigned to model
         for iele, inodes in enumerate(self.connectivity):
-            
+
             # Get nodal coordintates
             coords = self.getCoords(inodes)
 
@@ -166,7 +165,7 @@ class SolidModel(Mesh,DofSpace):
             self.shape = Tri3()
         elif etype == ElementType.quad4 and not isinstance(self.shape, Quad4):
             self.shape = Quad4()
-    
+
     def __getBmatrix(self, coords):
         """ Returns the B and w given the element nodal coordinates """
         if self.rank == 1:
@@ -185,10 +184,9 @@ class SolidModel(Mesh,DofSpace):
 
 if __name__ == '__main__':
 
-    model = SolidModel("rve.msh", rank=2)
+    model = SolidModel("Examples/rve.msh", rank=2)
 
     ndof = model.dofCount()
     F_int = np.zeros(ndof)
     mbuild = MatrixBuilder(ndof)
-    mbuild = model.assemble(mbuild,F_int)
-
+    mbuild = model.assemble(mbuild, F_int)

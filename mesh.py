@@ -33,8 +33,9 @@ class Mesh(NodeSet, ElementSet):
         nPhys = number of physical groups
 
     Public Methods:
-        readMesh(__path__)
-        plotMesh()
+        readMesh(__path__) - reads gmsh 2.0 file
+        readXML(__path__) - reads .xml file
+        plotMesh(rank=2) - plots 2D or 3D mesh
 
     """
     # Public:
@@ -53,9 +54,9 @@ class Mesh(NodeSet, ElementSet):
         self.Phys = {}
         self.nPhys = 0
 
-    #=============================================================
+    #=======================================================================
     #   readMesh
-    #=============================================================
+    #=======================================================================
 
     def readMesh(self, __path__=None):
         """ Input: __path__ = path_to_file """
@@ -73,9 +74,9 @@ class Mesh(NodeSet, ElementSet):
         while line:
             line = fid.readline()
 
-            #-----------------------------------------------------
+            #---------------------------------------------------------------
             #   Physical Names
-            #-----------------------------------------------------
+            #---------------------------------------------------------------
 
             if line.find('$PhysicalNames') == 0:
                 data = fid.readline().split()
@@ -91,9 +92,9 @@ class Mesh(NodeSet, ElementSet):
                 if fid.readline().find('$EndPhysicalNames') != 0:
                     raise ValueError('expecting EndPhysicalNames')
 
-            #-----------------------------------------------------
+            #---------------------------------------------------------------
             #   Nodes
-            #-----------------------------------------------------
+            #---------------------------------------------------------------
 
             if line.find('$Nodes') == 0:
                 nnod = fid.readline().split()
@@ -108,9 +109,9 @@ class Mesh(NodeSet, ElementSet):
                 if fid.readline().find('$EndNodes') != 0:
                     raise ValueError('expecting EndNodes')
 
-            #-----------------------------------------------------
+            #---------------------------------------------------------------
             #   Elements
-            #-----------------------------------------------------
+            #---------------------------------------------------------------
 
             if line.find('$Elements') == 0:
                 nele = fid.readline().split()
@@ -138,11 +139,14 @@ class Mesh(NodeSet, ElementSet):
                 line = fid.readline()
                 if line.find('$EndElements') != 0:
                     raise ValueError('expecting EndElements')
+
+        print(("Mesh read with {} nodes and {} elements").format(
+            self.nnod, self.nele))
         fid.close()
 
-    #=============================================================
+    #=======================================================================
     #   readXML
-    #=============================================================
+    #=======================================================================
 
     def readXML(self, __path__=None):
         """ Input: __path__ = path_to_file """
@@ -175,9 +179,9 @@ class Mesh(NodeSet, ElementSet):
 
                 if len(data) > 0 and data[0].isdigit():
 
-                    #-----------------------------------------------------
+                    #-------------------------------------------------------
                     #   Nodes
-                    #-----------------------------------------------------
+                    #-------------------------------------------------------
 
                     if flag_n is True:
 
@@ -185,9 +189,9 @@ class Mesh(NodeSet, ElementSet):
                         self.coords.append(coord)
                         self.inod += 1
 
-                    #-----------------------------------------------------
+                    #-------------------------------------------------------
                     #   Elements
-                    #-----------------------------------------------------
+                    #-------------------------------------------------------
 
                     if flag_e is True:
 
@@ -196,9 +200,12 @@ class Mesh(NodeSet, ElementSet):
                         self.connectivity.append(connect)
                         self.iele += 1
 
-    #=============================================================
+        print(("Mesh read with {} nodes and {} elements").format(
+            self.nnod, self.nele))
+
+    #=======================================================================
     #   plotMesh
-    #=============================================================
+    #=======================================================================
 
     def plotMesh(self, rank=2):
         """ Input: rank = number of dimensions """
@@ -226,7 +233,7 @@ class Mesh(NodeSet, ElementSet):
 if __name__ == '__main__':
 
     mesh = Mesh()
-    mesh.readXML("example.xml")
+    mesh.readXML("Examples/example.xml")
 
     coords = mesh.getCoords()
     print(coords)
@@ -237,7 +244,7 @@ if __name__ == '__main__':
     mesh.plotMesh(rank=2)
 
     mesh1 = Mesh()
-    mesh1.readMesh("square.msh")
+    mesh1.readMesh("Examples/square.msh")
 
     coords = mesh1.getCoords(range(10))
     print(coords)
