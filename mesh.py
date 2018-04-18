@@ -35,7 +35,7 @@ class Mesh(NodeSet, ElementSet):
     Public Methods:
         readMesh(__path__) - reads gmsh 2.0 file
         readXML(__path__) - reads .xml file
-        plotMesh(rank=2) - plots 2D or 3D mesh
+        plotMesh(rank=2) - plots 2D or 3D
 
     """
     # Public:

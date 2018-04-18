@@ -22,7 +22,7 @@ class SolidModel(Mesh, DofSpace):
         __type_int__ = "Input is not int!"
         __type_str__ = "Input is not str!"
         __renumber__ = "Erasing dofs: Dof numbers will be renumbered!"
-        __rank_error__ = "Rank has to be between 1 and 3"
+        __rank_error__ = "Rank has to be 1, 2 or 3!"
         
     Instance Members:
         coords = list of nodal coordinates
@@ -42,8 +42,9 @@ class SolidModel(Mesh, DofSpace):
         idof = last dof index = ndof - 1
         ndof = number of dofs
 
-        shape = element shape (may change if more than one element type)
         rank = number of dimensions
+        
+        shape = element shape
 
         material = ?
 
@@ -58,38 +59,29 @@ class SolidModel(Mesh, DofSpace):
     """
 
     # Static:
-    __rank_error__ = "Rank has to be between 1 and 3"
+    __rank_error__ = "Rank has to be 1, 2 or 3!"
 
     # Public:
     def __init__(self, path, rank=2):
-        self.coords = []
-        self.inod = -1
-        self.nnod = 0
 
-        self.connectivity = []
-        self.iele = -1
-        self.nele = 0
-
-        self.props = []
-        self.Phys = {}
-        self.nPhys = 0
-
-        self.types = []
-        self.idof = 0
-        self.ndof = 0
-
+        # Call the Mesh constructor
+        Mesh.__init__(self)
         self.readMesh(path)
         self.rank = rank
-        self.dofspace = np.empty((self.nnod, rank))
-        self.dofspace[:] = np.nan
+
+        # Call the DofSpace constructor
+        DofSpace.__init__(self, self.nnod, self.rank)
+
+    def initialize(self):
+
         # Add types and shape
-        if rank == 1:
+        if self.rank == 1:
             self.addType("u")
             self.shape = Line2()
-        elif rank == 2:
+        elif self.rank == 2:
             self.addTypes(["u", "v"])
             self.shape = Tri3()
-        elif rank == 3:
+        elif self.rank == 3:
             self.addTypes(["u", "v", "w"])
             self.shape = Quad4()
         else:
@@ -185,6 +177,7 @@ class SolidModel(Mesh, DofSpace):
 if __name__ == '__main__':
 
     model = SolidModel("Examples/rve.msh", rank=2)
+    model.initialize()
 
     ndof = model.dofCount()
     F_int = np.zeros(ndof)
