@@ -1,8 +1,33 @@
 # Import Standard Libraries
 import numpy as np
 import itertools
+from numpy import ix_
 from numpy.linalg import cond
 
+
+#===========================================================================
+#   Solver
+#===========================================================================
+
+
+class Solver(object):
+
+    def __init__(self, method, cons):
+
+        self.method = method
+        self.ndof = cons.dofCount()
+        self.fdof = cons.get_fdof()
+
+    def solve(self, K, lhs, rhs, hbw=None):
+        """ Solves Ax = b """
+        hbw is self.ndof if hbw is None else hbw
+
+        if self.method is "rtfreechol":
+            lhs[self.fdof] = rtfreechol(K[ix_(self.fdof, self.fdof)], rhs[self.fdof], hbw)[0]
+        elif self.method is "gauss_seidel":
+            lhs[self.fdof] = gauss_seidel(K[ix_(self.fdof, self.fdof)], rhs[self.fdof])[0]
+
+        return lhs, rhs
 
 #===========================================================================
 #   Root Free Cholesky

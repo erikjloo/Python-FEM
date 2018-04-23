@@ -4,7 +4,8 @@ import scipy as np
 #Import Local Libraries
 from mesh import Mesh
 from dofspace import DofSpace
-from properties import Properties, ElementType
+from properties import Properties
+from elements import ElementType
 from algebra import MatrixBuilder
 from shapes import Line2, Tri3, Quad4
 
@@ -62,15 +63,25 @@ class SolidModel(Mesh, DofSpace):
     __rank_error__ = "Rank has to be 1, 2 or 3!"
 
     # Public:
-    def __init__(self, path, rank=2):
+
+    #-----------------------------------------------------------------------
+    #   Constructor
+    #-----------------------------------------------------------------------
+
+    def __init__(self, name, props, rank=2):
+
+        # myProps = props.getProperties(name)
+        # myConf = props.makeProperties(name)
 
         # Call the Mesh constructor
+        path = props.get("userInput.mesh.file")
         Mesh.__init__(self)
         self.readMesh(path)
         self.rank = rank
 
         # Call the DofSpace constructor
         DofSpace.__init__(self, self.nnod, self.rank)
+
 
     def initialize(self):
 
@@ -90,16 +101,15 @@ class SolidModel(Mesh, DofSpace):
         # Add dofs
         self.addDofs(range(self.nnod), self.types)
 
-        self.props = Properties(self.nele, self.props)
-        self.props.addMaterial("Matrix", E=9000, v=0.3)
-        self.props.addMaterial("Fibers", E=29000, v=0.2)
-
-    def assemble(self, mbuild, F_int):
+    def get_Matrix_0(self, mbuild, F_int):
         """ Input & Output: mbuild = MatrixBuilder = Ksys
                             F_int = internal force vector """
 
         # Iterate over elements assigned to model
-        for iele, inodes in enumerate(self.connectivity):
+        for iele in range(self.nele):
+
+            # Get element nodes
+            inodes = self.getNodes(iele)
 
             # Get nodal coordintates
             coords = self.getCoords(inodes)
@@ -108,7 +118,6 @@ class SolidModel(Mesh, DofSpace):
             idofs = self.getDofIndices(inodes, self.types)
 
             # pylint: disable = unbalanced-tuple-unpacking
-            [etype, mat] = self.props.getProperties(iele, ["etype", "mat"])
 
             # get nodal displacements
 
@@ -118,12 +127,12 @@ class SolidModel(Mesh, DofSpace):
             ndof = len(idofs)
             kele = np.zeros((ndof, ndof))
 
-            E, v = mat.E, mat.v
+            E, v = 29000, 0.3
             la = v*E/((1+v)*(1-2*v))
             mu = E/(2*(1+v))
             D = np.array([[la+2*mu, la, 0], [la, la+2*mu, 0], [0, 0, mu]])
 
-            self.__verifyShape(etype)
+            # self.__verifyShape(etype)
             B, w = self.__getBmatrix(coords)
 
             for ip in range(self.shape.nIP):
@@ -135,7 +144,7 @@ class SolidModel(Mesh, DofSpace):
 
                 # Compute element stiffness matrix (kele):
                 kele += (B[ip].transpose() @ D @ B[ip])*w[ip]
-
+            
                 # Compute the element force vector (fint):
                 # fint += w[ip] * B[ip].transpose @ stress
 
@@ -145,7 +154,7 @@ class SolidModel(Mesh, DofSpace):
             # Add fint to the global force vector (Fint):
             # Fint[idofs] += fint
 
-            return mbuild, F_int
+        return mbuild, F_int
         # output:
         # u, strain, sigma, f_int, K
 
@@ -176,10 +185,15 @@ class SolidModel(Mesh, DofSpace):
 
 if __name__ == '__main__':
 
-    model = SolidModel("Examples/rve.msh", rank=2)
+    file = "Examples/square.pro"
+    props = Properties()
+    props.parseFile(file)
+
+    model = SolidModel("model.matrix", props, rank=2)
     model.initialize()
 
     ndof = model.dofCount()
-    F_int = np.zeros(ndof)
+    f_int = np.zeros(ndof)
     mbuild = MatrixBuilder(ndof)
-    mbuild = model.assemble(mbuild, F_int)
+    mbuild, f_int = model.get_Matrix_0(mbuild, f_int)
+    mbuild.print()

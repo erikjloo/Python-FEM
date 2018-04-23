@@ -47,9 +47,9 @@ class PBCmodel(SolidModel):
         T_doftypes = traction dof types
         shape = element shape
         bshape = boundary element shape
-        nIP = number of integration points of boundary element
-        nnod = number of nodes of boundary element
-        localrank = local rank of boundary element
+        nIP_ = number of integration points of boundary element
+        nnod_ = number of nodes of boundary element
+        localrank_ = local rank of boundary element
 
         bndNodes = boundary nodes = [xmin, xmax, ymin, ymax]
         trNodes = traction nodes = [xmin, ymin]
@@ -138,6 +138,9 @@ class PBCmodel(SolidModel):
                     marker='o', markersize=6, color="green")
             ax.plot([coords[7, 0]], [coords[7, 1]],
                     marker='o', markersize=6, color="red")
+        
+        #self.trNodes[0] = [ 2361, 2363, 2366, 2369, 2372, 2374, 2377, 2380, 2383, 2386, 2389, 2392, 2395, 2398, 2401, 2448 ]
+        #self.trNodes[1] = [ 2449, 2450, 2452, 2455, 2458, 2460, 2462, 2465, 2468, 2470, 2472, 2475, 2477, 2479, 2520 ]
         
         for ix, trFace in enumerate(self.trNodes):
             coords = self.getCoords(trFace)
@@ -312,15 +315,13 @@ class PBCmodel(SolidModel):
             # Loop over indices of inodes
             for inod in inodes:
                 coord = self.getCoords(inod)
-                jnod = self.addNode(coord)
-                trFace.append(jnod)
+                trFace.append(self.addNode(coord))
 
             # Loop over indices of jnodes
             for inod in jnodes:
                 coord = self.getCoords(inod)
                 coord[ix] = self.box[2*ix]
-                jnod = self.addNode(coord)
-                trFace.append(jnod)
+                trFace.append(self.addNode(coord))
 
             # Get correct index
             index = 1 if (ix == 0) else 0
@@ -329,7 +330,7 @@ class PBCmodel(SolidModel):
             trFace = self.__sortBndFace(trFace, index)
 
             # Coarsen trFace (works only for 2D)
-            trFace = self.__coarsenMesh(trFace, index)
+            trFace = self.__coarsenMesh(trFace)
 
             # Assign trFace to trNodes[ix]
             self.trNodes[ix] = trFace
@@ -337,25 +338,37 @@ class PBCmodel(SolidModel):
             # Print to verify
             print(" trNodes[", ix, "] =", self.trNodes[ix])
 
-    def __coarsenMesh(self, trFace, index):
+        # Loop over faces of trNodes
+        # for trFace in self.trNodes:
+            # self.addDofs(trFace,self.T_doftypes)
+
+    #-----------------------------------------------------------------------
+    #   __coarsenMesh
+    #-----------------------------------------------------------------------
+
+    def __coarsenMesh(self, trFace):
         """ Coarsens the traction mesh """
-        dx = self.dx0/0.1
-        
-        cn = self.coords[trFace[-1]]
+        factor = 0.3
+        dx = (self.dx0[0]+self.dx0[1])/(2*factor)
+        cn = self.getCoords(trFace[-1])
         
         # Loop over indices of trFace:
         for inod in range(len(trFace)):
 
             # Get nodal coordinates
-            c0 = self.coords[trFace[inod]]
-            c1 = self.coords[trFace[inod+1]]
+            c0 = self.getCoords(trFace[inod])
+            c1 = self.getCoords(trFace[inod+1])
 
-            # Delete indices
-            while c1[index] - c0[index] < dx[index]:
+            # Delete indices until c1 - c0 > dx
+            while np.linalg.norm(c1 - c0) < dx:
+                # Delete current index
                 del trFace[inod+1]
-                c1 = self.coords[trFace[inod+1]]
+                # Assign next node coords to c1
+                c1 = self.getCoords(trFace[inod+1])
 
-            if cn[index] - c1[index] < dx[index]:
+            # Check distance to last node
+            if np.linalg.norm(cn - c1) < dx:
+                # Delete all nodes up to but not including the last one
                 del trFace[inod+1:-1]
                 break
 
@@ -400,13 +413,16 @@ class PBCmodel(SolidModel):
     #-----------------------------------------------------------------------
 
     def __augmentMatrix(self):
+
         print("\n Augmenting Matrix: \n")
+        
+        # Matrix to be assembled: K[idofs, jdofs] += w[ip]*N[ip]*H[ip]
+        N = np.zeros((self.rank, self.nnod_))
+        H = np.zeros((self.rank, self.nnod_))
+        Ke = np.zeros((self.nnod_*self.rank, self.nnod_*self.rank))
 
         # Loop over faces of bndNodes
-        for face in range(2*self.rank):
-
-            # Assign bndNodes[face] to bndFace
-            bndFace = self.bndNodes[face]
+        for face, bndFace in enumerate(self.bndNodes):
 
             # Loop over indices of bndFace
             for inod in range(len(bndFace)-1):
@@ -416,16 +432,28 @@ class PBCmodel(SolidModel):
                 idofs = self.getDofIndices(connect, ['u', 'v'])
                 coords = self.getCoords(connect)
                 w = self.bshape.getIntegrationWeights(coords)
-                N = self.bshape.getShapeFunctions()
+                n = self.bshape.getShapeFunctions()
                 X = self.bshape.getGlobalIntegrationPoints(coords)
 
-                # Get jdofs and H from traction mesh
+                # Get jdofs from traction mesh
                 connect = self.__getTractionMeshNodes(X[0], face)
                 jdofs = self.getDofIndices(connect, ['tx', 'ty'])
                 coords = self.getCoords(connect)
                 
-                for ip in self.bshape.nIP:
-                    pass
+                for ip in range(self.nIP_):
+                    
+                    # Assemble N matrix
+                    N[0,0] = N[1,1] = n[ip,0]
+                    N[0,2] = N[1,2] = n[ip,1]
+
+                    # Assemble H matrix
+                    xi = self.bshape.getLocalPoint(X[ip], coords)
+                    h = self.bshape.evalShapeFunctions(xi)
+                    H[0,0] = H[1,1] = h[0]
+                    H[0,2] = H[1,2] = h[1]
+
+                    Ke += w[ip] * H.transpose() @ N
+                    KeT += w[ip] * N.transpose() @ H
 
 
 
