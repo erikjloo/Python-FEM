@@ -68,13 +68,14 @@ class SolidModel(Mesh, DofSpace):
     #   Constructor
     #-----------------------------------------------------------------------
 
-    def __init__(self, name, props, rank=2):
+    def __init__(self, props, name, rank=2):
 
         # myProps = props.getProperties(name)
         # myConf = props.makeProperties(name)
 
         # Call the Mesh constructor
-        path = props.get("userInput.mesh.file")
+        # path = props.get("userInput.mesh.file")
+        path = "Examples/rve.msh"
         Mesh.__init__(self)
         self.readMesh(path)
         self.rank = rank
@@ -189,7 +190,7 @@ if __name__ == '__main__':
     props = Properties()
     props.parseFile(file)
 
-    model = SolidModel("model.matrix", props, rank=2)
+    model = SolidModel(props, "model.matrix", rank=2)
     model.initialize()
 
     ndof = model.dofCount()

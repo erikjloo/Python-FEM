@@ -1,33 +1,58 @@
+# Import Local Libraries
 from properties import Properties
+from solidModel import SolidModel
+from PBCmodel import PBCmodel
 
-class MultiModel(object):
 
-    def __init__(self, props):
-        props = props.getProps("model")
-        self.models = props.get("models")
-        self.createModels(props)
+#===========================================================================
+#   Example
+#===========================================================================
 
-    def createModels(self, props):
-
-        for model in enumerate(self.models):
-            print(model+".type")
-            type = props.getProps(model+".type")
-            model = ModelFactory(props)
 
 class ModelFactory(object):
-    
-    def __init__(self, props):
-        self.type = props.get("model.type")
 
-    def createModel(self, type, props, globdat=None):
+    def __init__(self, props, name="model"):
+        self.type = props.get(name+".type")
+        self.props = props
+        self.name = name
+
+    def createModel(self):
+
         if self.type == "Multi":
-            return MultiModel(props) 
+            models = MultiModel(self.props)
+            return models.createModels()
+
         elif self.type == "Solid":
-            from solidModel import SolidModel
-            return SolidModel("model", props)
+
+            return SolidModel(self.props, self.name)
+
         elif self.type == "Periodic":
-            from PBCmodel import PBCmodel
-            return PBCmodel("model", props)
+
+            return PBCmodel(self.props, self.name)
+
+
+#===========================================================================
+#   MultiModel
+#===========================================================================
+
+
+class MultiModel(ModelFactory):
+
+    def __init__(self, props):
+        self.names = props.get("model.models")
+        self.props = props.getProps("model")
+
+    def createModels(self):
+
+        models = []
+
+        for name in self.names:
+            
+            sub_model = ModelFactory(self.props, name)
+            sub_model = sub_model.createModel()
+            models.append(sub_model) 
+        
+        return models
 
 
 #===========================================================================
@@ -42,5 +67,9 @@ if __name__ == "__main__":
     props = Properties()
     props.parseFile(file)
 
-    model = ModelFactory()
-    model.createModel(props)
+    model = ModelFactory(props)
+    models = model.createModel()
+    
+    models[0].initialize()
+    ndof = models[0].dofCount()
+    print(ndof)

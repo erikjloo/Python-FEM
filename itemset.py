@@ -88,7 +88,7 @@ class NodeSet(object):
 
     def nodeCount(self):
         """ Output: number of nodes """
-        return len(self.coords)
+        return self.inod + 1
 
     def getCoords(self, inodes=None):
         """ Input: inodes = node index or node indices

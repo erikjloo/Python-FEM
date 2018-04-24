@@ -1,9 +1,10 @@
 # Import Local Libraries
 from algebra import MatrixBuilder
-from dofspace import DofSpace
-from properties import Properties, ElementType
-from solidModel import SolidModel
-from constraints import Constraints
+
+from properties import Properties
+from factory import ModelFactory
+
+
 from nonlin import multistep
 
 
@@ -13,12 +14,12 @@ props = Properties()
 props.parseFile(file)
 props.print()
 
-userInput = props.getProps("userInput")
-models = props.getProps("models")
+model = ModelFactory(props)
+models = model.createModel()
 
-model = modelFactory(props)
 
-multistep(model)
+
+# multistep(model)
 
 
 # output:

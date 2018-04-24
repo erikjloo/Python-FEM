@@ -19,7 +19,7 @@ class DofSpace(object):
         __renumber__ = "Erasing dofs: Dof numbers will be renumbered!"
 
     Instance Members:
-        nnod = number of nodes
+        nrow = number of rows (nodes)
         types = list of dof type names
         dofspace = array of dof indices (idofs)
             i row corresponds to inod
@@ -28,8 +28,15 @@ class DofSpace(object):
         idof = last dof index = ndof - 1
 
     Public Methods:
-        DofSpace(nnod, ntyp)
+        DofSpace(nrow, ntyp)
 
+        Row Methods:
+            nrow = addRow()
+            nrow = addRows(nrow)
+            eraseRow(irow)
+            eraseRows(irows)
+            nrow = rowCount()
+            
         Type Methods:
             addType(dof)
             addTypes(dofs)
@@ -60,16 +67,57 @@ class DofSpace(object):
     __renumber__ = "Erasing dofs: Dof numbers will be renumbered!"
 
     # Public:
-    def __init__(self, nnod, ntyp):
-        """ Input: nnod = number of nodes, ntyp = number of dof types """
-        self.nnod = nnod
+    def __init__(self, nrow, ntyp=1):
+        """ Input: nrow = number of rows (nodes), ntyp = number of dof types """
+        self.nrow = nrow
         self.types = []
-        self.dofspace = np.empty((nnod, ntyp))
+        self.dofspace = np.empty((nrow, ntyp))
         self.dofspace[:] = np.nan
         self.idof = 0
 
     #-------------------------------------------------------------------
-    #   types vector
+    #   Row Methods
+    #-------------------------------------------------------------------
+
+    def addRow(self):
+        """ Adds a new row to dofspace """
+        r_reqd = np.size(self.dofspace, 1)
+        r_new = np.empty((1,r_reqd))
+        r_new[:] = np.nan
+        self.dofspace = np.vstack((self.dofspace, r_new))
+        self.nrow += 1
+        return self.nrow
+
+    def addRows(self, nrow):
+        """ Input: nrow = number of rows (nodes) to be added """
+        r_reqd = np.size(self.dofspace, 1)
+        r_new = np.empty((nrow,r_reqd))
+        r_new[:] = np.nan
+        self.dofspace = np.vstack((self.dofspace, r_new))
+        self.nrow += nrow
+        return self.nrow
+    
+    def eraseRow(self, irow):
+        """ Input: irow = index of row (node) to be erased """
+        self.dofspace = np.delete(self.dofspace, irow, 0)
+        warnings.warn(self.__renumber__)
+        self.__renumberDofs()
+        self.nrow -= 1
+    
+    def eraseRows(self, irows):
+        """ Input: irows = indices of rows (nodes) to be erased """
+        if isinstance(irows, (list, tuple, range, np.ndarray)):
+            for irow in sorted(irows, reverse=True):
+                self.eraseRow(irow)
+        else:
+            self.eraseRow(irows)
+
+    def rowCount(self):
+        """ Output: number of rows (nodes) """
+        return self.nrow
+
+    #-------------------------------------------------------------------
+    #   Type Methods
     #-------------------------------------------------------------------
 
     def addType(self, dof):
@@ -81,9 +129,9 @@ class DofSpace(object):
         # Check if dofspace has enough columns for all dof types
         c_reqd = len(self.types) - np.size(self.dofspace, 1)
         if c_reqd > 0:
-            c_new = np.empty((self.nnod, c_reqd))
+            c_new = np.empty((self.nrow, c_reqd))
             c_new[:] = np.nan
-            self.dofspace = np.c_[self.dofspace, c_new]
+            self.dofspace = np.hstack((self.dofspace, c_new))
 
     def addTypes(self, dofs):
         """ Input: dofs =  list of string of dof type names """
@@ -133,7 +181,7 @@ class DofSpace(object):
         return self.types[jtype]
 
     #-------------------------------------------------------------------
-    #   dofspace array
+    #   Dof Methods
     #-------------------------------------------------------------------
 
     def addDof(self, inod, dofs):
@@ -223,11 +271,15 @@ class DofSpace(object):
 if __name__ == '__main__':
 
     print("\nDofSpace :")
-    dofs = DofSpace(5, 1)
+    dofs = DofSpace(1, 1)
+    dofs.addRows(10)
+    dofs.eraseRows([5,6,7,8,9,10])
+    dofs.addRow()
+
     dofs.addType('u')
     dofs.addTypes(['v', 'j', 'rotx', 'roty', 'rotz'])
     dofs.setType(2, 'w')
-    dofs.addDofs((0,2,4), ['u', 'v', 'w', 'rotx'])
+    dofs.addDofs((0,2,4,5), ['u', 'v', 'w', 'rotx'])
     dofs.printDofSpace()
 
     dofs.eraseType('w')
@@ -238,11 +290,13 @@ if __name__ == '__main__':
     dofs.addType('w')
     dofs.addDof(0,'u')
     dofs.addDof(0,['u','v','w'])
-    dofs.addDofs(range(5),['u','v','w'])
+    dofs.addDofs(range(6),['u','v','w'])
     dofs.printDofSpace()
 
     dofs.eraseDof(0, ['u', 'v','w'])
     dofs.eraseDofs([1,2],'u')
     dofs.eraseDofs(1,'v')
+
+    dofs.eraseRow(4)
     dofs.printDofSpace()
     print("Dof count :", dofs.dofCount())

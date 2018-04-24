@@ -6,6 +6,7 @@ from tkinter import Tk, filedialog
 
 #Import Local Libraries
 from solidModel import SolidModel
+from properties import Properties
 from shapes import Line2, Tri3
 
 
@@ -33,9 +34,9 @@ class PBCmodel(SolidModel):
         iele = last element index = nele - 1
         nele = number of elements
 
-        props = list of element type and physical group of each element
-        Phys = names of physical groups
-        nPhys = number of physical groups
+        groups = list of elements in each physical group
+        groupNames = names of physical groups
+        ngroups = number of physical groups
 
         dofspace = array of dof indices (idofs)
         types = list of dof type names
@@ -74,10 +75,10 @@ class PBCmodel(SolidModel):
     """
 
     # Public:
-    def __init__(self, path, rank=2):
+    def __init__(self, props, name, rank=2):
 
         # Call the SolidModel constructor
-        SolidModel.__init__(self, path, rank)
+        SolidModel.__init__(self, props, name, rank)
         self.__initialize()
         
     #-----------------------------------------------------------------------
@@ -465,6 +466,12 @@ class PBCmodel(SolidModel):
 
 if __name__ == '__main__':
 
-    mesh = PBCmodel("Examples/rve.msh", rank=2)
+    file = "Examples/square.pro"
+    props = Properties()
+    props.parseFile(file)
 
-    mesh.plotBoundary()
+    model = PBCmodel(props, "model.matrix", rank=2)
+    #model.initialize()
+
+
+    model.plotBoundary()

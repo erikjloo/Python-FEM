@@ -1,6 +1,7 @@
 # Import Standard Libraries
 import scipy as np
 import matplotlib.pyplot as plt
+# import xml.etree.ElementTree as ET
 from mpl_toolkits.mplot3d import Axes3D
 from tkinter import Tk, filedialog
 
@@ -28,9 +29,9 @@ class Mesh(NodeSet, ElementSet):
         iele = last element index = nele - 1
         nele = number of elements
 
-        props = list of element type and physical group of each element
-        Phys = names of physical groups
-        nPhys = number of physical groups
+        props = list of element type and groupNamesical group of each element
+        groupNames = names of groupNamesical groups
+        ngroups = number of groupNamesical groups
 
     Public Methods:
         readMesh(__path__) - reads gmsh 2.0 file
@@ -50,9 +51,9 @@ class Mesh(NodeSet, ElementSet):
         self.iele = -1
         self.nele = 0
 
-        self.props = []
-        self.Phys = {}
-        self.nPhys = 0
+        self.groups = []
+        self.groupNames = {}
+        self.ngroups = 0
 
     #=======================================================================
     #   readMesh
@@ -75,22 +76,23 @@ class Mesh(NodeSet, ElementSet):
             line = fid.readline()
 
             #---------------------------------------------------------------
-            #   Physical Names
+            #   groupNamesical Names
             #---------------------------------------------------------------
 
-            if line.find('$PhysicalNames') == 0:
+            if line.find('$groupNamesicalNames') == 0:
                 data = fid.readline().split()
-                self.nPhys = int(data[0])
-
-                for _ in range(self.nPhys):
+                self.ngroups = int(data[0])
+                self.groups = [[] for _ in range(self.ngroups)]
+                
+                for _ in range(self.ngroups):
                     line = fid.readline()
                     newkey = int(line.split()[0])
                     qstart = line.find('"')+1
                     qend = line.find('"', -1, 0)-1
-                    self.Phys[newkey] = line[qstart:qend]
+                    self.groupNames[newkey] = line[qstart:qend]
 
-                if fid.readline().find('$EndPhysicalNames') != 0:
-                    raise ValueError('expecting EndPhysicalNames')
+                if fid.readline().find('$EndgroupNamesicalNames') != 0:
+                    raise ValueError('expecting EndgroupNamesicalNames')
 
             #---------------------------------------------------------------
             #   Nodes
@@ -118,19 +120,19 @@ class Mesh(NodeSet, ElementSet):
                 self.nele = int(nele[0])
                 self.iele += self.nele
 
-                for _ in range(self.nele):
+                for iele in range(self.nele):
                     data = fid.readline().split()
                     etype = int(data[1])           # element type
                     ntags = int(data[2])           # number of tags
 
                     if ntags > 0:
-                        physid = int(data[3])       # set physical id
-                        if physid not in self.Phys:
-                            self.Phys[physid] = (
-                                'Physical Entity {}').format(physid)
-                            self.nPhys += 1
+                        Id = int(data[3])       # set groupNamesical id
+                        if Id not in self.groupNames:
+                            self.groupNames[Id] = ('Group {}').format(Id)
+                            self.ngroups += 1
+                            self.groups.append([])
 
-                    self.props.append([etype, physid])
+                    self.groups[Id].append(iele)
 
                     connect = list(map(int, data[3+ntags:]))
                     connect = [x-1 for x in connect]
@@ -233,7 +235,7 @@ class Mesh(NodeSet, ElementSet):
 if __name__ == '__main__':
 
     mesh = Mesh()
-    mesh.readXML("Examples/example.xml")
+    mesh.readXML("Examples/square.xml")
 
     coords = mesh.getCoords()
     print(coords)
