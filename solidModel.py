@@ -1,13 +1,11 @@
 # Import Standard Libraries
 import scipy as np
+import re
 
 #Import Local Libraries
-from mesh import Mesh
-from dofspace import DofSpace
-from properties import Properties
-from elements import ElementType
+from models import Model
 from algebra import MatrixBuilder
-from shapes import Line2, Tri3, Quad4
+from shapes import ShapeFactory
 
 
 #===========================================================================
@@ -15,40 +13,21 @@ from shapes import Line2, Tri3, Quad4
 #===========================================================================
 
 
-class SolidModel(Mesh, DofSpace):
+class SolidModel(Model):
     """ Solid Model
-
-    Static Members:
-        __type__ = "Input is not list or array!"
-        __type_int__ = "Input is not int!"
-        __type_str__ = "Input is not str!"
-        __renumber__ = "Erasing dofs: Dof numbers will be renumbered!"
-        __rank_error__ = "Rank has to be 1, 2 or 3!"
         
     Instance Members:
-        coords = list of nodal coordinates
-        inod = last node index = nnod - 1
-        nnod = number of nodes
-
-        connectivity = list of element connectivities
-        iele = last element index = nele - 1
-        nele = number of elements
-
-        props = list of element type and physical group of each element
-        Phys = names of physical groups
-        nPhys = number of physical groups
-
-        dofspace = array of dof indices (idofs)
-        types = list of dof type names
-        idof = last dof index = ndof - 1
-        ndof = number of dofs
-
+        ielements = element indices
         rank = number of dimensions
-        
+
         shape = element shape
+        nIP = number of integration points of shape
+        nnod = number of nodes of shape
+        localrank = local rank of shape
 
-        material = ?
+        types = displacement dof types
 
+        
     Public Methods:
         SolidModel()
 
@@ -59,64 +38,57 @@ class SolidModel(Mesh, DofSpace):
         __getStress()
     """
 
-    # Static:
-    __rank_error__ = "Rank has to be 1, 2 or 3!"
-
     # Public:
 
     #-----------------------------------------------------------------------
-    #   Constructor
+    #   initialize
     #-----------------------------------------------------------------------
 
-    def __init__(self, props, name, rank=2):
+    def __init__(self, name, props, mesh):
 
-        # myProps = props.getProperties(name)
-        # myConf = props.makeProperties(name)
+        # Model name
+        self.name = name
+        self.rank = mesh.rank
 
-        # Call the Mesh constructor
-        # path = props.get("userInput.mesh.file")
-        path = "Examples/rve.msh"
-        Mesh.__init__(self)
-        self.readMesh(path)
-        self.rank = rank
+        # Get element group
+        gmsh_group = props.get("elements")
+        group = int(re.search(r'\d+', gmsh_group).group())
+        self.ielements = mesh.groups[group]
 
-        # Call the DofSpace constructor
-        DofSpace.__init__(self, self.nnod, self.rank)
+        # Create element
+        self.shape = ShapeFactory(props)
+        self.nIP = self.shape.nIP
+        self.nnod = self.shape.nnod
+        self.localrank = self.shape.ndim
 
-
-    def initialize(self):
-
-        # Add types and shape
-        if self.rank == 1:
-            self.addType("u")
-            self.shape = Line2()
-        elif self.rank == 2:
-            self.addTypes(["u", "v"])
-            self.shape = Tri3()
-        elif self.rank == 3:
-            self.addTypes(["u", "v", "w"])
-            self.shape = Quad4()
-        else:
-            raise ValueError(self.__rank_error__)
+        # Add types
+        types = ['u', 'v', 'w']
+        self.types = [ types[x] for x in range(self.rank)]
+        mesh.addTypes(self.types)
 
         # Add dofs
-        self.addDofs(range(self.nnod), self.types)
+        inodes = mesh.getNodeIndices(self.ielements)
+        mesh.addDofs(inodes, self.types)
 
-    def get_Matrix_0(self, mbuild, F_int):
+    #-----------------------------------------------------------------------
+    #   get_Matrix_0
+    #-----------------------------------------------------------------------
+
+    def get_Matrix_0(self, mesh, mbuild, f_int):
         """ Input & Output: mbuild = MatrixBuilder = Ksys
                             F_int = internal force vector """
 
         # Iterate over elements assigned to model
-        for iele in range(self.nele):
+        for iele in self.ielements:
 
             # Get element nodes
-            inodes = self.getNodes(iele)
+            inodes = mesh.getNodes(iele)
 
             # Get nodal coordintates
-            coords = self.getCoords(inodes)
+            coords = mesh.getCoords(inodes)
 
             # Get the element degrees of freedom
-            idofs = self.getDofIndices(inodes, self.types)
+            idofs = mesh.getDofIndices(inodes, self.types)
 
             # pylint: disable = unbalanced-tuple-unpacking
 
@@ -155,18 +127,22 @@ class SolidModel(Mesh, DofSpace):
             # Add fint to the global force vector (Fint):
             # Fint[idofs] += fint
 
-        return mbuild, F_int
         # output:
         # u, strain, sigma, f_int, K
 
-    def __verifyShape(self, etype):
-        """ Verifies if a new shape type is necessary """
-        if etype == ElementType.line2 and not isinstance(self.shape, Line2):
-            self.shape = Line2()
-        elif etype == ElementType.tri3 and not isinstance(self.shape, Tri3):
-            self.shape = Tri3()
-        elif etype == ElementType.quad4 and not isinstance(self.shape, Quad4):
-            self.shape = Quad4()
+    #-----------------------------------------------------------------------
+    #   get_Ext_Vector
+    #-----------------------------------------------------------------------
+
+    def get_Ext_Vector(self, f_ext):
+        pass
+
+    #-----------------------------------------------------------------------
+    #   get_Constraints
+    #-----------------------------------------------------------------------
+
+    def get_Constraints(self, mesh, constraints):
+        pass
 
     def __getBmatrix(self, coords):
         """ Returns the B and w given the element nodal coordinates """
@@ -186,15 +162,22 @@ class SolidModel(Mesh, DofSpace):
 
 if __name__ == '__main__':
 
-    file = "Examples/square.pro"
+    from properties import Properties
+    from models import ModelFactory
+    from mesh import Mesh
+
+    file = "Examples/rve.pro"
     props = Properties()
     props.parseFile(file)
 
-    model = SolidModel(props, "model.matrix", rank=2)
-    model.initialize()
+    mesh = Mesh()
+    mesh.initialize(props, rank=2)
 
-    ndof = model.dofCount()
+    model = ModelFactory("model", props, mesh)
+
+    ndof = mesh.dofCount()
     f_int = np.zeros(ndof)
     mbuild = MatrixBuilder(ndof)
-    mbuild, f_int = model.get_Matrix_0(mbuild, f_int)
+
+    model.get_Matrix_0(mesh, mbuild, f_int)
     mbuild.print()

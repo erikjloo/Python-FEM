@@ -1,4 +1,5 @@
 # Import Standard Libraries
+import scipy as np
 from pprint import pprint
 from enum import IntEnum
 
@@ -9,6 +10,20 @@ from enum import IntEnum
 
 
 class ElementType(IntEnum):
+    """ Element Type
+    
+    Static Members:
+        # First order elements
+        line2, tri3, quad4, tetra4, cube8, prism6, pyramid5 = range(1,8)
+        # Second order elements
+        line3, tri6, quad9, tetra10, cube27, prism18 = range(8,14)
+        # Additional elements
+        pyramid14, point1, quad8, cube20, prism15, pyramid13 = range(14,20)
+
+    Class (static) Methods:
+        etype.name = getTypeName(etype)
+    """
+    
     # First order elements
     line2, tri3, quad4, tetra4, cube8, prism6, pyramid5 = range(1,8)
     # Second order elements
@@ -154,7 +169,7 @@ class Elements(object):
 
 if __name__ == "__main__":
 
-    props = Properties(10)
+    props = Elements(10)
     props.addMaterial("Matrix", E = 9000, v = 0.3)
     props.addMaterial("Matrix", E=9000, v=0.3)
     props.addMaterial("Matrix", E=9000, v=0.3)

@@ -1,12 +1,12 @@
 # Import Standard Libraries
 import scipy as np
 import matplotlib.pyplot as plt
-# import xml.etree.ElementTree as ET
 from mpl_toolkits.mplot3d import Axes3D
 from tkinter import Tk, filedialog
 
 #Import Local Libraries
 from itemset import NodeSet, ElementSet
+from dofspace import DofSpace
 
 
 #===========================================================================
@@ -14,7 +14,7 @@ from itemset import NodeSet, ElementSet
 #===========================================================================
 
 
-class Mesh(NodeSet, ElementSet):
+class Mesh(NodeSet, ElementSet, DofSpace):
     """ Mesh class
 
     Static Members:
@@ -22,16 +22,19 @@ class Mesh(NodeSet, ElementSet):
 
     Instance Members:
         coords = list of nodal coordinates
-        inod = last node index = nnod - 1
-        nnod = number of nodes
+        nnod = last node index + 1
 
         connectivity = list of element connectivities
-        iele = last element index = nele - 1
-        nele = number of elements
+        nele = last element index + 1
 
-        props = list of element type and groupNamesical group of each element
-        groupNames = names of groupNamesical groups
-        ngroups = number of groupNamesical groups
+        groups = list of elements in each physical group
+        groupNames = names of physical groups
+        ngroups = number of physical groups
+
+        dofspace = array of dof indices (idofs)
+        types = list of dof type names
+        idof = last dof index = ndof - 1
+        ndof = number of dofs
 
     Public Methods:
         readMesh(__path__) - reads gmsh 2.0 file
@@ -41,25 +44,50 @@ class Mesh(NodeSet, ElementSet):
     """
     # Public:
 
+    #=======================================================================
+    #   constructor
+    #=======================================================================
+
     def __init__(self):
 
-        self.coords = []
-        self.inod = -1
-        self.nnod = 0
-
-        self.connectivity = []
-        self.iele = -1
-        self.nele = 0
-
+        NodeSet.__init__(self)
+        ElementSet.__init__(self)
         self.groups = []
         self.groupNames = {}
         self.ngroups = 0
 
-    #=======================================================================
-    #   readMesh
-    #=======================================================================
+    #-----------------------------------------------------------------------
+    #   initialize
+    #-----------------------------------------------------------------------
 
-    def readMesh(self, __path__=None):
+    def initialize(self, props, rank=1):
+
+        # Read Mesh
+        type = props.get("Input.mesh.type")
+        path = props.get("Input.mesh.file")
+        self.readMesh(type, path)
+
+        # Initialize DofSpace
+        self.rank = rank
+        DofSpace.__init__(self, self.nnod, rank)
+
+    #-----------------------------------------------------------------------
+    #   readMesh
+    #-----------------------------------------------------------------------
+
+    def readMesh(self, type, __path__):
+        if type == "Gmsh":
+            self.readGmsh(__path__)
+        elif type == "XML":
+            self.readXML(__path__)
+        else:
+            print("Type can only be Gmsh or XML!")
+
+    #-----------------------------------------------------------------------
+    #   readGmsh
+    #-----------------------------------------------------------------------
+
+    def readGmsh(self, __path__=None):
         """ Input: __path__ = path_to_file """
 
         if __path__ is None:
@@ -76,14 +104,14 @@ class Mesh(NodeSet, ElementSet):
             line = fid.readline()
 
             #---------------------------------------------------------------
-            #   groupNamesical Names
+            #   Groups
             #---------------------------------------------------------------
 
-            if line.find('$groupNamesicalNames') == 0:
+            if line.find('$PhysicalNames') == 0:
                 data = fid.readline().split()
                 self.ngroups = int(data[0])
                 self.groups = [[] for _ in range(self.ngroups)]
-                
+
                 for _ in range(self.ngroups):
                     line = fid.readline()
                     newkey = int(line.split()[0])
@@ -91,42 +119,34 @@ class Mesh(NodeSet, ElementSet):
                     qend = line.find('"', -1, 0)-1
                     self.groupNames[newkey] = line[qstart:qend]
 
-                if fid.readline().find('$EndgroupNamesicalNames') != 0:
-                    raise ValueError('expecting EndgroupNamesicalNames')
-
             #---------------------------------------------------------------
             #   Nodes
             #---------------------------------------------------------------
 
             if line.find('$Nodes') == 0:
-                nnod = fid.readline().split()
-                self.nnod = int(nnod[0])
-                self.inod += self.nnod
+                data = fid.readline().split()
+                nnod = int(data[0])
 
-                for _ in range(self.nnod):
+                for _ in range(nnod):
                     coord = fid.readline().split()      # coords as str
                     coord = list(map(float, coord[1:]))  # coords as float
-                    self.coords.append(coord)
-
-                if fid.readline().find('$EndNodes') != 0:
-                    raise ValueError('expecting EndNodes')
+                    self.addNode(coord)
 
             #---------------------------------------------------------------
             #   Elements
             #---------------------------------------------------------------
 
             if line.find('$Elements') == 0:
-                nele = fid.readline().split()
-                self.nele = int(nele[0])
-                self.iele += self.nele
+                data = fid.readline().split()
+                nele = int(data[0])
 
-                for iele in range(self.nele):
+                for iele in range(nele):
                     data = fid.readline().split()
                     etype = int(data[1])           # element type
                     ntags = int(data[2])           # number of tags
 
                     if ntags > 0:
-                        Id = int(data[3])       # set groupNamesical id
+                        Id = int(data[3])       # set group Id
                         if Id not in self.groupNames:
                             self.groupNames[Id] = ('Group {}').format(Id)
                             self.ngroups += 1
@@ -136,19 +156,15 @@ class Mesh(NodeSet, ElementSet):
 
                     connect = list(map(int, data[3+ntags:]))
                     connect = [x-1 for x in connect]
-                    self.connectivity.append(connect)
-
-                line = fid.readline()
-                if line.find('$EndElements') != 0:
-                    raise ValueError('expecting EndElements')
+                    self.addElement(connect)
 
         print(("Mesh read with {} nodes and {} elements").format(
             self.nnod, self.nele))
         fid.close()
 
-    #=======================================================================
+    #-----------------------------------------------------------------------
     #   readXML
-    #=======================================================================
+    #-----------------------------------------------------------------------
 
     def readXML(self, __path__=None):
         """ Input: __path__ = path_to_file """
@@ -169,12 +185,10 @@ class Mesh(NodeSet, ElementSet):
                     flag_n = True
                 elif line.startswith("</Nodes>"):
                     flag_n = False
-                    self.nnod = self.inod + 1
                 elif line.startswith("<Elements>"):
                     flag_e = True
                 elif line.startswith("</Elements>"):
                     flag_e = False
-                    self.nele = self.iele + 1
 
                 data = line.split(';')
                 data = data[0].split()
@@ -188,8 +202,7 @@ class Mesh(NodeSet, ElementSet):
                     if flag_n is True:
 
                         coord = list(map(float, data[1:]))
-                        self.coords.append(coord)
-                        self.inod += 1
+                        self.addNode(coord)
 
                     #-------------------------------------------------------
                     #   Elements
@@ -199,15 +212,14 @@ class Mesh(NodeSet, ElementSet):
 
                         connect = list(map(int, data[1:]))
                         connect = [x-1 for x in connect]
-                        self.connectivity.append(connect)
-                        self.iele += 1
+                        self.addElement(connect)
 
         print(("Mesh read with {} nodes and {} elements").format(
             self.nnod, self.nele))
 
-    #=======================================================================
+    #-----------------------------------------------------------------------
     #   plotMesh
-    #=======================================================================
+    #-----------------------------------------------------------------------
 
     def plotMesh(self, rank=2):
         """ Input: rank = number of dimensions """
@@ -234,24 +246,17 @@ class Mesh(NodeSet, ElementSet):
 
 if __name__ == '__main__':
 
+    from properties import Properties
+    
     mesh = Mesh()
     mesh.readXML("Examples/square.xml")
-
-    coords = mesh.getCoords()
-    print(coords)
-
-    connect = mesh.getNodes()
-    print(connect)
-
     mesh.plotMesh(rank=2)
 
-    mesh1 = Mesh()
-    mesh1.readMesh("Examples/square.msh")
+    file = "Examples/square.pro"
+    props = Properties()
+    props.parseFile(file)
 
-    coords = mesh1.getCoords(range(10))
-    print(coords)
-
-    connect = mesh1.getNodes(range(10))
-    print(connect)
-
-    mesh1.plotMesh()
+    mesh = Mesh()
+    mesh.initialize(props)
+    mesh.printDofSpace()
+    mesh.plotMesh()

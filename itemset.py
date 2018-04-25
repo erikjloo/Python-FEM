@@ -1,6 +1,7 @@
 # Import Standard Libraries
 import scipy as np
 import warnings
+from itertools import chain
 from scipy import ix_
 
 
@@ -17,7 +18,7 @@ class NodeSet(object):
 
     Instance Members:
         coords = list of nodal coordinates
-        inod = last node index = nnod - 1
+        nnod = last node index + 1
 
     Public Methods:
         NodeSet()
@@ -28,15 +29,15 @@ class NodeSet(object):
         eraseNodes(inodes)
         nnod = nodeCount()
         coord[s] = getCoords(inod[es])
-        
     """
+
     # Static:
     __type__ = "Input is not list or array!"
 
     # Public:
     def __init__(self):
         self.coords = []
-        self.inod = -1
+        self.nnod = 0
 
     def addNode(self, coord):
         """ Input: coord = coordinates of new node 
@@ -47,8 +48,8 @@ class NodeSet(object):
             self.coords.append(coord.tolist())
         else:
             raise TypeError(self.__type__)
-        self.inod += 1
-        return self.inod
+        self.nnod += 1
+        return self.nnod - 1
 
     def addNodes(self, coords):
         """ Input: coords = list of coordinates of new nodes 
@@ -76,7 +77,7 @@ class NodeSet(object):
     def eraseNode(self, inod):
         """ Input: inod = index of node to be erased """
         del self.coords[inod]
-        self.inod -= 1
+        self.nnod -= 1
 
     def eraseNodes(self, inodes):
         """ Input: inodes = indices of nodes to be erased """
@@ -88,7 +89,7 @@ class NodeSet(object):
 
     def nodeCount(self):
         """ Output: number of nodes """
-        return self.inod + 1
+        return self.nnod
 
     def getCoords(self, inodes=None):
         """ Input: inodes = node index or node indices
@@ -115,7 +116,7 @@ class ElementSet(object):
 
     Instance Members:
         connectivity = list of element connectivities
-        iele = last element index = nele - 1
+        nele = last element index + 1
 
     Public Methods:
         ElementSet()
@@ -126,15 +127,16 @@ class ElementSet(object):
         eraseElements(ielements)
         nele = elemCount()
         connect[ivity] = getNodes(iele[ments])
-
+        inodes = getNodeIndices(iele[ments])
     """
+
     # Static:
     __type__ = "Input is not list or array!"
 
     # Public:
     def __init__(self):
         self.connectivity = []
-        self.iele = -1
+        self.nele = 0
 
     def addElement(self, connect):
         """ Input: connect = node indices of new element 
@@ -145,8 +147,8 @@ class ElementSet(object):
             self.connectivity.append(connect.tolist())
         else:
             raise TypeError(self.__type__)
-        self.iele += 1
-        return self.iele
+        self.nele += 1
+        return self.nele - 1
 
     def addElements(self, connectivity):
         """ Input: connectivity = list of node indices of new elements 
@@ -174,7 +176,7 @@ class ElementSet(object):
     def eraseElement(self, iele):
         """ Input: iele = index of element to be erased """
         del self.connectivity[iele]
-        self.iele -= 1
+        self.nele -= 1
 
     def eraseElements(self, ielements):
         """ Input: ieles = indices of elements to be erased """
@@ -191,7 +193,6 @@ class ElementSet(object):
     def getNodes(self, ielements=None):
         """ Input: ielements = element index or element indices
             Output: element connectivity vector(s) of ielements (if given) """
-        # connectivity = np.array(self.connectivity)
         if ielements is None:
             return self.connectivity
         elif isinstance(ielements, (list, tuple, range, np.ndarray)):
@@ -201,6 +202,12 @@ class ElementSet(object):
             return connectivity
         else:
             return self.connectivity[ielements]
+    
+    def getNodeIndices(self, ielements=None):
+        """ Input: ielements = element index or element indices
+            Output: inodes = node indices of given element indices """
+        connectivity = self.getNodes(ielements)
+        return list(set(chain.from_iterable(connectivity)))
 
 
 #===========================================================================
@@ -242,3 +249,6 @@ if __name__ == '__main__':
     print("\nElements ", ielements, " created again.\n")
     print("Elements :\n", elems.getNodes(range(5)))
     print("Elem count :", elems.elemCount(), "\n")
+
+    inodes = elems.getNodeIndices(ielements)
+    print("\n Node indices :\n", inodes)

@@ -1,14 +1,13 @@
 # Import Local Libraries
-from algebra import MatrixBuilder
 
 from properties import Properties
-from factory import ModelFactory
-
-
+from models import ModelFactory
+from algebra import MatrixBuilder
 from nonlin import multistep
 
 
-file = "Examples/square.pro"
+# Initialization
+file = "Examples/rve.pro"
 
 props = Properties()
 props.parseFile(file)
@@ -16,6 +15,14 @@ props.print()
 
 model = ModelFactory(props)
 models = model.createModel()
+
+
+
+# Solver
+
+
+
+# Output
 
 
 

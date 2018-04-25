@@ -1,7 +1,6 @@
-
 # Import Standard Libraries
 import scipy as np
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 
 
 #===========================================================================
@@ -9,24 +8,23 @@ from abc import ABC, abstractmethod
 #===========================================================================
 
 
-class Material(ABC):
+class Material(metaclass=ABCMeta):
 
 	def __init__(self, props):
+		for name, val in props:
+			setattr(self, name, val)
 
-    	for name, val in props:
-      		setattr(self, name, val)
+		self.initHistory = {}
+		self.current = []
+		self.iIter = -1
 
-    self.initHistory = {}
-    self.current = []
-    self.iIter = -1
-
-  	def setIter(self, iIter):
+	def setIter(self, iIter):
 		self.iIter = iIter
 
-  	def setHistoryParameter(self, name, val):
+	def setHistoryParameter(self, name, val):
 
-    	if self.iIter == -1:
-      		self.initHistory[name] = val
+		if self.iIter == -1:
+			self.initHistory[name] = val
       		return
 
     	if len(self.current) == self.iIter:

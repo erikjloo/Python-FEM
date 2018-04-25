@@ -31,9 +31,9 @@ class MatrixBuilder(object):
 
     Private Methods:
         __inputIndices(idof, jdof)
-        __inputLists(idofs, jdofs)
-        
+        __inputLists(idofs, jdofs) 
     """
+
     # Static:
     __type_int__ = "Input indices are not int!"
 
@@ -51,31 +51,21 @@ class MatrixBuilder(object):
     #-----------------------------------------------------------------
 
     def setValue(self, idof, jdof, val):
-        """
-        Input:
-            idof = row index
-            jdof = col index
-            val = value to be set in K[idof,jdof]
-        """
+        """ Input:  idof = row index
+                    jdof = col index
+                    val = value to be set in K[idof,jdof] """
         self.K[idof, jdof] = val
 
     def addValue(self,idof,jdof,val):
-        """
-        Input:
-            idof = row index
-            jdof = col index
-            val = value to be added to K[idof,jdof]
-        """
+        """ Input:  idof = row index
+                    jdof = col index
+                    val = value to be added to K[idof,jdof] """
         self.K[idof,jdof] += val
                 
     def getValue(self,idof,jdof):
-        """
-        Input:
-            idof = row index
-            jdof = col index
-        Output:
-            value of K[idof,jdof]  
-        """
+        """ Input:  idof = row index
+                    jdof = col index
+            Output: value of K[idof,jdof] """
         return self.K[idof,jdof]
 
     #-----------------------------------------------------------------
@@ -83,31 +73,21 @@ class MatrixBuilder(object):
     #-----------------------------------------------------------------
     
     def setBlock(self,idofs,jdofs,block):
-        """
-        Input:
-            idofs = list of row indices
-            jdofs = list of col indices
-            block = block to be set in K[idofs,jdofs]
-        """
+        """ Input:  idofs = list of row indices
+                    jdofs = list of col indices
+                    block = block to be set in K[idofs,jdofs] """
         self.K[ix_(idofs,jdofs)] = block
         
     def addBlock(self,idofs,jdofs,block):
-        """
-        Input:
-            idofs = list of row indices
-            jdofs = list of col indices
-            block = block to be added to K[idofs,jdofs]
-        """
+        """ Input:  idofs = list of row indices
+                    jdofs = list of col indices
+                    block = block to be added to K[idofs,jdofs] """
         self.K[ix_(idofs,jdofs)] += block
         
     def getBlock(self,idofs,jdofs):
-        """
-        Input:
-            idofs = list of row indices
-            jdofs = list of col indices
-        Output:
-            matrix block K[idofs,jdofs]
-        """
+        """ Input:  idofs = list of row indices
+                    jdofs = list of col indices
+            Output: matrix block K[idofs,jdofs] """
         return self.K[ix_(idofs,jdofs)]
     
     def getMatrix(self):

@@ -10,7 +10,12 @@ from scipy import ix_
 
 
 class Constraints(object):
-
+    """ Constraints
+    
+    Static Members:
+        __len_error__ = "jdofs and coeff are not the same length!"
+    
+    """
     __len_error__ = "jdofs and coeff are not the same length!"
 
     def __init__(self, ndof):

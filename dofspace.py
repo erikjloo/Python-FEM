@@ -58,8 +58,8 @@ class DofSpace(object):
 
     Private Methods:
         __renumberDofs()
-
     """
+    
     # Static:
     __type__ = "Input is not list or array!"
     __type_int__ = "Input is not int!"
@@ -194,9 +194,6 @@ class DofSpace(object):
                 if np.isnan(self.dofspace[inod, jtype]):
                     self.dofspace[inod, jtype] = self.idof
                     self.idof += 1
-                else:
-                    __dof__ = ("Node {} already has dof {}!").format(inod,dof)
-                    warnings.warn(__dof__)
         else:
             raise TypeError(self.__type_int__)
 
