@@ -48,7 +48,7 @@
             
             "shape" :
             {
-                "type" : "tri3",
+                "type" : "Tri3",
                 "scheme" : "Gauss"
             }
         },
@@ -70,7 +70,7 @@
 
             "shape" :
             {
-                "type" : "tri3",
+                "type" : "Tri3",
                 "scheme" : "Gauss"
             }
         }
