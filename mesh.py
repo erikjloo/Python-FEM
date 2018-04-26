@@ -31,22 +31,22 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         groupNames = names of physical groups
         ngroups = number of physical groups
 
-        dofspace = array of dof indices (idofs)
+        nrow = number of rows (nodes)
         types = list of dof type names
-        idof = last dof index = ndof - 1
-        ndof = number of dofs
+        dofspace = array of dof indices (idofs)
+        ndof = last dof index
 
     Public Methods:
-        readMesh(__path__) - reads gmsh 2.0 file
-        readXML(__path__) - reads .xml file
+        readMesh(path) - reads gmsh 2.0 file
+        readXML(path) - reads .xml file
         plotMesh(rank=2) - plots 2D or 3D
-
     """
+
     # Public:
 
-    #=======================================================================
+    #-----------------------------------------------------------------------
     #   constructor
-    #=======================================================================
+    #-----------------------------------------------------------------------
 
     def __init__(self):
 
@@ -60,12 +60,14 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #   initialize
     #-----------------------------------------------------------------------
 
-    def initialize(self, props, rank=1):
-
+    def initialize(self, props):
+        """ Input:  props = Properties
+                    rank = number of dimensions """
         # Read Mesh
-        type = props.get("Input.mesh.type")
-        path = props.get("Input.mesh.file")
-        self.readMesh(type, path)
+        type = props.get("type")
+        path = props.get("file")
+        rank = props.get("rank")
+        self.readMesh(type, path, rank)
 
         # Initialize DofSpace
         self.rank = rank
@@ -75,11 +77,11 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #   readMesh
     #-----------------------------------------------------------------------
 
-    def readMesh(self, type, __path__):
+    def readMesh(self, type, path, rank):
         if type == "Gmsh":
-            self.readGmsh(__path__)
+            self.readGmsh(path, rank)
         elif type == "XML":
-            self.readXML(__path__)
+            self.readXML(path, rank)
         else:
             print("Type can only be Gmsh or XML!")
 
@@ -87,16 +89,16 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #   readGmsh
     #-----------------------------------------------------------------------
 
-    def readGmsh(self, __path__=None):
-        """ Input: __path__ = path_to_file """
+    def readGmsh(self, path=None, rank=3):
+        """ Input: path = path_to_file """
 
-        if __path__ is None:
+        if path is None:
             Tk().withdraw()
-            self.__path__ = filedialog.askopenfilename()
+            self.path = filedialog.askopenfilename()
         else:
-            self.__path__ = __path__
+            self.path = path
 
-        fid = open(self.__path__, "r")
+        fid = open(self.path, "r")
 
         line = "start"
 
@@ -129,7 +131,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
                 for _ in range(nnod):
                     coord = fid.readline().split()      # coords as str
-                    coord = list(map(float, coord[1:]))  # coords as float
+                    coord = list(map(float, coord[1:rank+1]))  # coords as float
                     self.addNode(coord)
 
             #---------------------------------------------------------------
@@ -166,15 +168,15 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #   readXML
     #-----------------------------------------------------------------------
 
-    def readXML(self, __path__=None):
-        """ Input: __path__ = path_to_file """
-        if __path__ is None:
+    def readXML(self, path=None, rank=3):
+        """ Input: path = path_to_file """
+        if path is None:
             Tk().withdraw()
-            self.__path__ = filedialog.askopenfilename()
+            self.path = filedialog.askopenfilename()
         else:
-            self.__path__ = __path__
+            self.path = path
 
-        with open(__path__, 'r') as file:
+        with open(path, 'r') as file:
 
             flag_n = False
             flag_e = False
@@ -201,7 +203,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
                     if flag_n is True:
 
-                        coord = list(map(float, data[1:]))
+                        coord = list(map(float, data[1:rank+1]))
                         self.addNode(coord)
 
                     #-------------------------------------------------------
@@ -257,6 +259,7 @@ if __name__ == '__main__':
     props.parseFile(file)
 
     mesh = Mesh()
-    mesh.initialize(props)
+    mesh.initialize(props.getProps("input.mesh"))
+
     mesh.printDofSpace()
     mesh.plotMesh()

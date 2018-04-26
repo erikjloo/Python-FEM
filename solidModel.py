@@ -4,7 +4,6 @@ import re
 
 #Import Local Libraries
 from models import Model
-from algebra import MatrixBuilder
 from shapes import ShapeFactory
 
 
@@ -19,20 +18,20 @@ class SolidModel(Model):
     Instance Members:
         ielements = element indices
         rank = number of dimensions
+        types = displacement dof types
 
         shape = element shape
         nIP = number of integration points of shape
         nnod = number of nodes of shape
         localrank = local rank of shape
 
-        types = displacement dof types
-
-        
     Public Methods:
         SolidModel()
+        get_Matrix_0(mesh, mbuild, f_int)
+        get_Ext_Vector(f_ext)
+        get_Constraints(mesh, constraints)
 
     Private Methods:
-        __verifyShape()
         __getBmatrix()
         __getStrain()
         __getStress()
@@ -55,12 +54,6 @@ class SolidModel(Model):
         group = int(re.search(r'\d+', gmsh_group).group())
         self.ielements = mesh.groups[group]
 
-        # Create element
-        self.shape = ShapeFactory(props)
-        self.nIP = self.shape.nIP
-        self.nnod = self.shape.nnod
-        self.localrank = self.shape.ndim
-
         # Add types
         types = ['u', 'v', 'w']
         self.types = [ types[x] for x in range(self.rank)]
@@ -70,11 +63,17 @@ class SolidModel(Model):
         inodes = mesh.getNodeIndices(self.ielements)
         mesh.addDofs(inodes, self.types)
 
+        # Create element
+        self.shape = ShapeFactory(props)
+        self.nIP = self.shape.nIP
+        self.nnod = self.shape.nnod
+        self.localrank = self.shape.ndim
+
     #-----------------------------------------------------------------------
     #   get_Matrix_0
     #-----------------------------------------------------------------------
 
-    def get_Matrix_0(self, mesh, mbuild, f_int):
+    def get_Matrix_0(self, mbuild, f_int, mesh):
         """ Input & Output: mbuild = MatrixBuilder = Ksys
                             F_int = internal force vector """
 
@@ -105,8 +104,7 @@ class SolidModel(Model):
             mu = E/(2*(1+v))
             D = np.array([[la+2*mu, la, 0], [la, la+2*mu, 0], [0, 0, mu]])
 
-            # self.__verifyShape(etype)
-            B, w = self.__getBmatrix(coords)
+            B, w = self.shape.getBmatrix(coords)
 
             for ip in range(self.shape.nIP):
 
@@ -144,16 +142,6 @@ class SolidModel(Model):
     def get_Constraints(self, mesh, constraints):
         pass
 
-    def __getBmatrix(self, coords):
-        """ Returns the B and w given the element nodal coordinates """
-        if self.rank == 1:
-            B, w = self.shape.getGlobalGradients(coords[:, 0])
-        elif self.rank == 2:
-            B, w = self.shape.getBmatrix(coords[:, 0:2])
-        elif self.rank == 3:
-            B, w = self.shape.getBmatrix(coords)
-        return B, w
-
 
 #===========================================================================
 #   Example
@@ -163,6 +151,7 @@ class SolidModel(Model):
 if __name__ == '__main__':
 
     from properties import Properties
+    from algebra import MatrixBuilder
     from models import ModelFactory
     from mesh import Mesh
 
@@ -171,7 +160,7 @@ if __name__ == '__main__':
     props.parseFile(file)
 
     mesh = Mesh()
-    mesh.initialize(props, rank=2)
+    mesh.initialize(props.getProps("input.mesh"))
 
     model = ModelFactory("model", props, mesh)
 

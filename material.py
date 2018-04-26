@@ -4,12 +4,45 @@ from abc import ABCMeta, abstractmethod
 
 
 #===========================================================================
+#   MaterialFactory
+#===========================================================================
+
+
+def MaterialFactory(name, props, mesh):
+
+    props = props.getProps(name)
+    type = props.get("type")
+
+    if type == "Matrix":
+        # Creates the root
+        print("Creating a matrix model names", matrix)
+        return MatrixModel(name, props, mesh)
+
+    elif type == "Multi":
+        # Creates a node
+        print("Creating a multi model named", name)
+        return MultiModel(name, props, mesh)
+
+    elif type == "Solid":
+        # Creates a leaf
+        from solidModel import SolidModel
+        print("Creating a solid model named", name)
+        return SolidModel(name, props, mesh)
+
+    elif type == "Periodic":
+        # Creates a leaf
+        from PBCmodel import PBCmodel
+        print("Creating a periodic model named", name)
+        return PBCmodel(name, props, mesh)
+
+
+#===========================================================================
 #   Material
 #===========================================================================
 
 
 class Material(metaclass=ABCMeta):
-
+	""" Material """
 	def __init__(self, props):
 		for name, val in props:
 			setattr(self, name, val)

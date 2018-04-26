@@ -1,22 +1,20 @@
 # Import Local Libraries
 
 from properties import Properties
-from models import ModelFactory
 from algebra import MatrixBuilder
+from models import ModelFactory
 from nonlin import multistep
-
+from mesh import Mesh
 
 # Initialization
 file = "Examples/rve.pro"
-
 props = Properties()
 props.parseFile(file)
-props.print()
 
-model = ModelFactory(props)
-models = model.createModel()
+mesh = Mesh()
+mesh.initialize(props, rank=2)
 
-
+model = ModelFactory("model", props, mesh)
 
 # Solver
 

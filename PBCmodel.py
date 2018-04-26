@@ -2,11 +2,9 @@
 import scipy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
-from tkinter import Tk, filedialog
 
 #Import Local Libraries
-from mesh import Mesh
-from properties import Properties
+from models import Model
 from shapes import Line2
 
 
@@ -15,11 +13,10 @@ from shapes import Line2
 #===========================================================================
 
 
-class PBCmodel(BaseModel):
+class PBCmodel(Model):
     """ Periodic Boundary Conditions Model
         
     Instance Members:
-
         rank_ = number of dimensions
         U_doftypes_ = displacement dof types
         T_doftypes_ = traction dof types
@@ -36,18 +33,20 @@ class PBCmodel(BaseModel):
 
     Public Methods:
         PBCmodel(name, props, mesh)
+        get_Matrix_0(mesh, mbuild, f_int)
+        get_Ext_Vector(f_ext)
+        get_Constraints(mesh, constraints)
 
     Private Methods:
         __boundingBox(mesh)
         __setTolerances()
         __findBndNodes(mesh)
         __sortBndNodes(mesh)
-        bndFace = __sortBndFace(mesh, bndFace, index)
+        __sortBndFace(mesh, bndFace, index)
         __findCornerNodes()
-        __createTractionMesh(factor)
-        trFace = __coarsenMesh(mesh, trFace)
+        __createTractionMesh(mesh)
+        __coarsenMesh(mesh, trFace)
         __getTractionMeshNodes
-        __augmentMatrix
     """
 
     # Public:
@@ -112,9 +111,6 @@ class PBCmodel(BaseModel):
                     marker='o', markersize=6, color="green")
             ax.plot([coords[7, 0]], [coords[7, 1]],
                     marker='o', markersize=6, color="red")
-        
-        #self.trNodes[0] = [ 2361, 2363, 2366, 2369, 2372, 2374, 2377, 2380, 2383, 2386, 2389, 2392, 2395, 2398, 2401, 2448 ]
-        #self.trNodes[1] = [ 2449, 2450, 2452, 2455, 2458, 2460, 2462, 2465, 2468, 2470, 2472, 2475, 2477, 2479, 2520 ]
         
         for ix, trFace in enumerate(self.trNodes):
             coords = mesh.getCoords(trFace)
@@ -191,14 +187,14 @@ class PBCmodel(BaseModel):
         """ Sorts bndNodes in ascending x or y coordinate """
 
         # Loop over faces of bndNodes
-        for face, bndFace in enumerate(self.bndNodes):
+        for face in range(len(self.bndNodes)):
 
             # Map face onto ix
             ix = np.floor(face/2)
             # Get correct index
             index = 1 if (ix == 0) else 0
             # Perform bubblesort on bndFace
-            self.bndNodes[face] = self.__sortBndFace(mesh, bndFace, index)
+            self.__sortBndFace(mesh, self.bndNodes[face], index)
             # Print to verify
             print(" bndNodes[", face, "] =", self.bndNodes[face])
 
@@ -220,8 +216,6 @@ class PBCmodel(BaseModel):
                 # Swap indices if necessary
                 if c0[index] > c1[index]:
                     bndFace[jnod + 1], bndFace[jnod] = bndFace[jnod], bndFace[jnod + 1]
-
-        return bndFace
 
     #-----------------------------------------------------------------------
     #   __findCornerNodes
@@ -316,6 +310,9 @@ class PBCmodel(BaseModel):
         # Loop over faces of trNodes
         for trFace in self.trNodes:
             mesh.addDofs(trFace,self.T_doftypes_)
+        
+        # Obtain ndof --> Used in mbuild.resize(ndof)
+        self.ndof = mesh.dofCount()
 
     #-----------------------------------------------------------------------
     #   __coarsenMesh
@@ -346,8 +343,6 @@ class PBCmodel(BaseModel):
                 # Delete all nodes up to but not including the last one
                 del trFace[inod+1:-1]
                 break
-
-        return trFace
         
     #-----------------------------------------------------------------------
     #   __getTractionMeshNodes
@@ -384,13 +379,15 @@ class PBCmodel(BaseModel):
             raise NotImplementedError(" Not yet implemented. ")
 
     #-----------------------------------------------------------------------
-    #   __augmentMatrix
+    #   get_Matrix_0
     #-----------------------------------------------------------------------
 
-    def get_Matrix_0(self, mesh, mbuild, f_ext):
+    def get_Matrix_0(self, mbuild, f_ext, mesh):
 
         print("\n Augmenting Matrix: \n")
         
+        #mbuild.resize(self.ndof)
+
         # Matrix to be assembled: K[idofs, jdofs] += w[ip]*N[ip]*H[ip]
         N = np.zeros((self.rank_, self.nnod_))
         H = np.zeros((self.rank_, self.nnod_))
@@ -407,12 +404,16 @@ class PBCmodel(BaseModel):
                 connect = bndFace[inod:inod+2]
                 idofs = mesh.getDofIndices(connect, ['u', 'v'])
                 coords = mesh.getCoords(connect)
+
+                print(coords)
                 w = self.bshape_.getIntegrationWeights(coords)
+
+                print(w)
                 n = self.bshape_.getShapeFunctions()
                 X = self.bshape_.getGlobalIntegrationPoints(coords)
 
                 # Get jdofs from traction mesh
-                connect = mesh.__getTractionMeshNodes(X[0], face)
+                connect = mesh.__getTractionMeshNodes(mesh, X[0], face)
                 jdofs = mesh.getDofIndices(connect, ['tx', 'ty'])
                 coords = mesh.getCoords(connect)
                 
@@ -431,9 +432,26 @@ class PBCmodel(BaseModel):
                     Ke += w[ip] * H.transpose() @ N
                     KeT += w[ip] * N.transpose() @ H
                 
-                mbuild.addBlock()
-        
+                if face == 0 or face == 2:
+                    mbuild.addBlock(idofs, jdofs, -Ke)
+                    mbuild.addBlock(jdofs, idofs, -KeT)
+                else:
+                    mbuild.addBlock(idofs, jdofs, Ke)
+                    mbuild.addBlock(jdofs, idofs, KeT)
+
+    #-----------------------------------------------------------------------
+    #   get_Ext_Vector
+    #-----------------------------------------------------------------------
+
     def get_Ext_Vector(self, f_ext):
+
+        pass
+
+    #-----------------------------------------------------------------------
+    #   get_Constraints
+    #-----------------------------------------------------------------------
+
+    def get_Constraints(self, mesh, constraints):
         pass
 
 
@@ -445,15 +463,22 @@ class PBCmodel(BaseModel):
 if __name__ == '__main__':
 
     from properties import Properties
+    from algebra import MatrixBuilder
     from models import ModelFactory
+    from mesh import Mesh
 
     file = "Examples/rve.pro"
     props = Properties()
     props.parseFile(file)
 
     mesh = Mesh()
-    mesh.initialize(props, rank=2)
+    mesh.initialize(props.getProps("input.mesh"))
 
-    model = PBCmodel("pbc", props, mesh)
+    model = ModelFactory("model", props, mesh)
+    model.models[2].plotBoundary(mesh)
 
-    model.plotBoundary(mesh)
+    ndof = mesh.dofCount()
+    mbuild = MatrixBuilder(ndof)
+    f_int = np.zeros(ndof)
+
+    model.models[2].get_Matrix_0(mbuild, f_int, mesh)

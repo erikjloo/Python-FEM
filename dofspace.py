@@ -25,7 +25,7 @@ class DofSpace(object):
             i row corresponds to inod
             j column corresponds to jtype
             idof = dofspace[inod,jtype]
-        idof = last dof index = ndof - 1
+        ndof = last dof index
 
     Public Methods:
         DofSpace(nrow, ntyp)
@@ -73,7 +73,7 @@ class DofSpace(object):
         self.types = []
         self.dofspace = np.empty((nrow, ntyp))
         self.dofspace[:] = np.nan
-        self.idof = 0
+        self.ndof = 0
 
     #-------------------------------------------------------------------
     #   Row Methods
@@ -192,8 +192,8 @@ class DofSpace(object):
             for dof in dofs:
                 jtype = self.types.index(dof)
                 if np.isnan(self.dofspace[inod, jtype]):
-                    self.dofspace[inod, jtype] = self.idof
-                    self.idof += 1
+                    self.dofspace[inod, jtype] = self.ndof
+                    self.ndof += 1
         else:
             raise TypeError(self.__type_int__)
 
@@ -219,7 +219,7 @@ class DofSpace(object):
 
     def dofCount(self):
         """ Output: ndof = number of degrees of freedom """
-        return self.idof
+        return self.ndof
 
     def getDofIndex(self, inod, dof):
         """ Input: inod = node index, dof = string of dof name
@@ -252,12 +252,12 @@ class DofSpace(object):
     # Private:
     def __renumberDofs(self):
         """ Renumbers all defined dofs from 0 to ndof """
-        self.idof = 0
+        self.ndof = 0
         for i in range(np.size(self.dofspace, 0)):
             for j in range(np.size(self.dofspace, 1)):
                 if ~np.isnan(self.dofspace[i, j]):
-                    self.dofspace[i, j] = self.idof
-                    self.idof += 1
+                    self.dofspace[i, j] = self.ndof
+                    self.ndof += 1
 
 
 #===========================================================================

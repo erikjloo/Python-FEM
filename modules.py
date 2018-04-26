@@ -1,44 +1,47 @@
 # Import Standard Libraries
-import scipy as np
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractclassmethod
 
-class Module(ABC):
-    """ Abstract Module Class """
+
+class Module(metaclass=ABCMeta):
+    """ Abstract Module Class 
     
-    @abstractmethod
-    def __init__(self, name, props, mesh):
+    Virtual static methods:
+        init(name, props, mesh)
+    """
+    
+    @abstractclassmethod
+    def init(cls, name, props, mesh):
         # No need to implement
         pass
 
-    @abstractmethod
-    def run(self, mesh):
+    @abstractclassmethod
+    def run(cls, mesh):
         # No need to implement
         pass
 
-    @abstractmethod
-    def shutdown(self, mesh):
+    @abstractclassmethod
+    def shutdown(cls, mesh):
         # No need to implement
         pass
 
 class InitModule(Module):
 
-    def __init__(self, name, props, mesh):
-        self.__makeModel()
-        self.__makeConstraints()
-        self.__makeVectors()
+    @classmethod
+    def __init__(cls, name, props, mesh):
+        cls.__makeModel()
+        cls.__makeConstraints()
+        cls.__makeVectors()
 
-    def __makeModel(self):
+    @classmethod
+    def __makeModel(cls):
         pass
 
-    def __makeConstraints(self):
-        pass
-    
-    def __makeVectors(self):
-        pass
-
-class InputModule(Module):
-
-    def __init__(self, name, props, globdat):
-        myProps = props.findProps(name)
+    @classmethod
+    def __makeConstraints(cls):
         pass
     
+    @classmethod
+    def __makeVectors(cls):
+        pass
+
+

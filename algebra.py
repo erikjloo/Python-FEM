@@ -1,6 +1,6 @@
 # Import Standard Libraries
 import scipy as np
-from scipy import linalg, ix_
+from scipy import sparse, linalg, ix_
 
 
 #===========================================================================
@@ -9,7 +9,7 @@ from scipy import linalg, ix_
 
 
 class MatrixBuilder(object):
-    """ Matrix Builder
+    """ Dok Sparse Matrix Builder
 
     Static Members:
         __type_int__ = "Input indices are not int!"
@@ -40,7 +40,7 @@ class MatrixBuilder(object):
     # Public:
     def __init__(self,ndof):
         """ Input: ndof = size of square matrix """
-        self.K = np.zeros((ndof,ndof),dtype='float64')
+        self.K = sparse.dok_matrix((ndof,ndof),dtype="float64")
     
     def resize(self,ndof):
         """ Input: ndof = new size of square matrix K """
@@ -88,23 +88,27 @@ class MatrixBuilder(object):
         """ Input:  idofs = list of row indices
                     jdofs = list of col indices
             Output: matrix block K[idofs,jdofs] """
-        return self.K[ix_(idofs,jdofs)]
+        return self.K[ix_(idofs,jdofs)].todense()
     
     def getMatrix(self):
         """ Output: K """
         return self.K
     
     def print(self):
-        print("\n",self.K,"\n")
+        print("\n",self.K.todense(),"\n")
     
     # Private:
     def __inputIndices(self, idof, jdof):
+        """ Input:  idof = row index
+                    jdof = col index """
         if isinstance(idof, int) and isinstance(jdof, int):
             pass
         else:
             raise TypeError(self.__type_int__)
 
     def __inputLists(self, idofs, jdofs):
+        """ Input:  idofs = list of row indices
+                    jdofs = list of col indices """
         # future implementation
         pass
 
@@ -141,19 +145,25 @@ if __name__ == "__main__":
     mbuild.addValue(0,0,8)
     print("\nValue = ",mbuild.getValue(0,0))
 
-    # block
+    # Add block 1
     block = np.ones((6,6))
     idofs = [3,4,5,6,7,8]
     mbuild.setBlock(idofs, idofs, block)
 
+    # Add block 2
     idofs = range(1,7)
     mbuild.addBlock(idofs, idofs, block)
 
+    # Add block 3
     idofs = np.array([2,3,4,5,6,7])
     mbuild.addBlock(idofs, idofs, block)
     print("\nBlock =\n\n",mbuild.getBlock((1,2,3,4),(1,2,3)))
 
     print("\nSystem Matrix = ")
+    mbuild.print()
+
+    print("\nSystem Matrix = ")
+    mbuild.resize(5)
     mbuild.print()
 
 
