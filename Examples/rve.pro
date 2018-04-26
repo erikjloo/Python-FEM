@@ -1,5 +1,5 @@
  {
-    "Input":
+    "input":
     {
         "modules" : ["mesh", "hardening", "loads"],
 
@@ -7,6 +7,7 @@
         {
             "type" : "Gmsh",
             "file" : "Examples/rve.msh",
+            "rank" : 2,
             "doElemGroups" : true
         },
 
@@ -26,7 +27,7 @@
     "model" :
     {
         "type"   : "Multi",
-        "models" : [ "matrix", "fibers" ],
+        "models" : [ "matrix", "fibers", "pbc" ],
 
         "matrix" :
         {
@@ -36,7 +37,7 @@
             "material" :
             {
                 "type"   : "Melro",
-                "dim"    : 2,
+                "rank"    : 2,
                 "state"  : "PLANE_STRAIN",
                 "young"      : 3760,
                 "poisson"    : 0.3,
@@ -61,7 +62,7 @@
             "material" : 
             {
                 "type" : "Hooke",
-                "dim" : 2,
+                "rank" : 2,
                 "state" : "PLANE_STRAIN",
 
                 "young" : 74000,
@@ -73,6 +74,11 @@
                 "type" : "Tri3",
                 "scheme" : "Gauss"
             }
+        },
+        
+        "pbc" :
+        {
+            "type"     : "Periodic"
         }
     }
  }

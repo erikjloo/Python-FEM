@@ -1,11 +1,12 @@
  {
-    "Input":
+    "input":
     {
 
         "mesh" :
         {
             "type" : "Gmsh",
             "file" : "Examples/square.msh",
+            "rank" : 2,
             "doElemGroups" : false
         },
 
@@ -24,7 +25,7 @@
         "material" :
         {
             "type"   : "Melro",
-            "dim"    : 2,
+            "rank"    : 2,
             "state"  : "PLANE_STRAIN",
             "young"      : 3760,
             "poisson"    : 0.3,
