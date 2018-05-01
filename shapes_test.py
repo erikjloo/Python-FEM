@@ -82,10 +82,10 @@ if example == 4 or example == "all":
     #==Example 5=================================================#
     """ Line 2 Boundary Element """
 
-    coords = np.array([[0.2, 0.3],
-                       [0.8, 0.9]])
+    coords = np.array([[0.2, 0.3, 0.5],
+                       [0.8, 0.9, 0.5]])
 
-    x = np.array([0.5, 0.7])
+    x = np.array([0.5, 0.7, 0.5])
 
     line2 = Line2(scheme="Gauss2")
     N = line2.getShapeFunctions()

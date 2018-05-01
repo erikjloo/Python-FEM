@@ -281,8 +281,6 @@ class Shape(metaclass=ABCMeta):
 
         elif self.ndim == 1 and np.size(coords, axis=1) == 3:
 
-            warnings.warn("Unverified result, please verify!!")
-
             # Transformation matrix
             i_bar = coords[1, :] - coords[0, :] # [dx, dy, dz]
             j_bar = [0, 1, 0] # Assume j-bar points upwards
@@ -313,6 +311,9 @@ class Shape(metaclass=ABCMeta):
 
             # Remove z-coordinates
             return coords[:,0:2]
+        
+        elif self.ndim == 3 and np.size(coords, axis=1) > 3:
+            raise ValueError("Element dimensions exceeded !")
 
 
 #===========================================================================
@@ -369,31 +370,22 @@ class Line2(Shape):
             dx = coords[1] - coords[0]
             return 2*(x - coords[0])/dx - 1
 
-        elif np.size(coords,axis=1) == 2:
+        elif np.size(coords, axis=1) == 2 or np.size(coords, axis=1) == 3:
             
             # Find point on line closest to x
             x0 = coords[0]
             dx = coords[-1] - coords[0]
             t = -(np.dot(x0,dx) - np.dot(x,dx))/np.dot(dx,dx)
-            print(x)
+
             # Map x onto line:
             x = x0 + t*dx
-            print(x)
-            print("yes")
 
             # Transform to local coordinates
             coords = self.getLocalCoords(np.vstack((coords,x)))
-            print(coords)
-            coords = coords[:-1]
-            print(coords)
-            x = coords[-1]
-            print(x)
-            return self.getLocalPoint(x, coords)
+            return self.getLocalPoint(coords[-1], coords[:-1])
 
-        elif np.size(coords,axis=1) == 3:
-            raise NotImplementedError("Not implemented for 3D")
         else:
-            raise ValueError("Element dimensions exceeded!")
+            raise ValueError("Element dimensions exceeded !")
 
 
 #===========================================================================
