@@ -21,18 +21,23 @@ class Properties(object):
         else:
             self.properties = dict
 
+    #-----------------------------------------------------------------------
+    #   parseFile
+    #-----------------------------------------------------------------------
+
     def parseFile(self, file):
         """ Input: file_path """
         with open(file, 'r') as f:
             self.properties = json.load(f)
 
+    #-----------------------------------------------------------------------
+    #   writeFile
+    #-----------------------------------------------------------------------
+
     def writeFile(self, file):
         """ Input: file_path """
         with open(file, 'w') as f:
             json.dump(self.properties, f)
-
-    def set(self, prop, value):
-        pass
 
     #-----------------------------------------------------------------------
     #   makeProps
@@ -63,6 +68,13 @@ class Properties(object):
             print(" Cannot nest deeper than 3 ")
 
     #-----------------------------------------------------------------------
+    #   set
+    #-----------------------------------------------------------------------
+
+    def set(self, prop, value):
+        pass
+
+    #-----------------------------------------------------------------------
     #   getProps
     #-----------------------------------------------------------------------
 
@@ -90,5 +102,3 @@ if __name__ == "__main__":
 
     matrix_props = props.getProps("model.matrix")
     matrix_props.print()
-
-

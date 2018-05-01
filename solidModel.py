@@ -152,15 +152,17 @@ if __name__ == '__main__':
 
     from properties import Properties
     from algebra import MatrixBuilder
+    from modules import InputModule
     from models import ModelFactory
     from mesh import Mesh
 
     file = "Examples/rve.pro"
     props = Properties()
     props.parseFile(file)
-
     mesh = Mesh()
-    mesh.initialize(props.getProps("input.mesh"))
+
+    module = InputModule("input")
+    module.init(props, mesh)
 
     model = ModelFactory("model", props, mesh)
 
@@ -168,5 +170,5 @@ if __name__ == '__main__':
     f_int = np.zeros(ndof)
     mbuild = MatrixBuilder(ndof)
 
-    model.get_Matrix_0(mesh, mbuild, f_int)
+    model.get_Matrix_0(mbuild, f_int, mesh)
     mbuild.print()

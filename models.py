@@ -43,7 +43,7 @@ def ModelFactory(name, props, mesh):
 class Model(metaclass=ABCMeta):
     """ Abstract Model Class
     
-    Virtual Methods:
+    Pure Virtual Methods:
         Model(name, props, mesh)
         get_Matrix_0(mbuild, f_int, mesh)
         get_Ext_Vector(f_ext)

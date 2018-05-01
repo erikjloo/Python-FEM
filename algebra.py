@@ -1,6 +1,7 @@
 # Import Standard Libraries
 import scipy as np
-from scipy import sparse, linalg, ix_
+from scipy.sparse import dok_matrix
+from scipy.linalg import inv, det, norm
 
 
 #===========================================================================
@@ -40,7 +41,7 @@ class MatrixBuilder(object):
     # Public:
     def __init__(self,ndof):
         """ Input: ndof = size of square matrix """
-        self.K = sparse.dok_matrix((ndof,ndof),dtype="float64")
+        self.K = dok_matrix((ndof,ndof),dtype="float64")
     
     def resize(self,ndof):
         """ Input: ndof = new size of square matrix K """
@@ -76,19 +77,19 @@ class MatrixBuilder(object):
         """ Input:  idofs = list of row indices
                     jdofs = list of col indices
                     block = block to be set in K[idofs,jdofs] """
-        self.K[ix_(idofs,jdofs)] = block
+        self.K[np.ix_(idofs,jdofs)] = block
         
     def addBlock(self,idofs,jdofs,block):
         """ Input:  idofs = list of row indices
                     jdofs = list of col indices
                     block = block to be added to K[idofs,jdofs] """
-        self.K[ix_(idofs,jdofs)] += block
+        self.K[np.ix_(idofs,jdofs)] += block
         
     def getBlock(self,idofs,jdofs):
         """ Input:  idofs = list of row indices
                     jdofs = list of col indices
             Output: matrix block K[idofs,jdofs] """
-        return self.K[ix_(idofs,jdofs)].todense()
+        return self.K[np.ix_(idofs,jdofs)].todense()
     
     def getMatrix(self):
         """ Output: K """
@@ -118,17 +119,31 @@ class MatrixBuilder(object):
 #===========================================================================
 
 
-def det(v):
+def determinant(v):
     if isinstance(v,np.ndarray):
-        v = linalg.det(v)
+        v = det(v)
     return v
 
-def inv(v):
+def inverse(v):
     if isinstance(v,np.ndarray):
-        v = linalg.inv(v)
+        return inv(v)
     else:
-        v = 1/v
-    return v
+        return 1/v
+
+def gram_schmidt(u1, u2, u3=None):
+    if u3 is None:
+        v1 = u1/norm(u1)
+        v2 = u2 - np.dot(u2,v1)/np.dot(v1,v1)*v1
+        v2 = v2/norm(v2)
+        return v1, v2
+    else:
+        v1 = u1/norm(u1)
+        v2 = u2 - np.dot(u2,v1)/np.dot(v1,v1)*v1
+        v3 = u3 - np.dot(u3,v1)/np.dot(v1,v1)*v1 - \
+                - np.dot(u3, v2)/np.dot(v2, v2)*v2
+        v2 = v2/norm(v2)
+        v3 = v3/norm(v3)
+        return v1, v2, v3
 
 
 #===========================================================================

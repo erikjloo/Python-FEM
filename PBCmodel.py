@@ -408,7 +408,7 @@ class PBCmodel(Model):
                 print(coords)
                 w = self.bshape_.getIntegrationWeights(coords)
 
-                print(w)
+
                 n = self.bshape_.getShapeFunctions()
                 X = self.bshape_.getGlobalIntegrationPoints(coords)
 

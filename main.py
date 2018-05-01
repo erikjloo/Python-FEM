@@ -12,10 +12,20 @@ props = Properties()
 props.parseFile(file)
 
 mesh = Mesh()
-mesh.initialize(props, rank=2)
+mesh.initialize(props)
 
 model = ModelFactory("model", props, mesh)
 
+# Modules works as a series of commands
+
+
+def execute(module):
+    module.init()
+    module.run()
+    module.shutdown()
+
+if __name__ == "__main__":
+    execute(module)
 # Solver
 
 
