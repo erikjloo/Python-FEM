@@ -65,6 +65,10 @@ class Model(metaclass=ABCMeta):
     @abstractmethod
     def get_Constraints(self, mesh, constraints):
         pass
+    
+    @abstractmethod
+    def takeAction(self, action, mesh):
+        pass
 
 
 #===========================================================================
@@ -107,6 +111,9 @@ class MultiModel(Model):
         for model in self.models:
             model.get_Constraints(mesh, constraints)
 
+    def takeAction(self, action, mesh):
+        for model in self.models:
+            model.takeAction(action, mesh)
 
 #===========================================================================
 #   MatrixModel
@@ -144,6 +151,9 @@ class MatrixModel(Model):
     def get_Constraints(self, mesh, constraints):
         self.model.get_Constraints(mesh, constraints)
 
+    def takeAction(self, action, mesh):
+        self.model.takeAction(action, mesh)
+
 # LoadScaleModel
 
 # PointLoadModel
@@ -158,13 +168,15 @@ class MatrixModel(Model):
 if __name__ == "__main__":
 
     from properties import Properties
+    from modules import InputModule
     from mesh import Mesh
 
     file = "Examples/rve.pro"
     props = Properties()
     props.parseFile(file)
-
     mesh = Mesh()
-    mesh.initialize(props.getProps("input.mesh"))
+
+    module = InputModule("input")
+    module.init(props, mesh)
 
     model = ModelFactory("model", props, mesh)

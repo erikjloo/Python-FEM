@@ -2,7 +2,6 @@
 import re
 import warnings
 import scipy as np
-from numpy.matlib import repmat
 from abc import ABCMeta, abstractmethod
 
 # Import Local Libraries
@@ -59,8 +58,10 @@ class Shape(metaclass=ABCMeta):
 
     Public Methods:
         N[IP] = getShapeFunctions(IP=None)
+        N = getNmatrix(xi=None)
         N_xi[IP] = getLocalGradients(IP=None)
         N_x[IP] = getGlobalGradients(coords, IP=None)
+        B = getBmatrix(coords)
         [J,j] = getJacobian(coords, IP)
         x = getGlobalPoint(coords, xi)
         x[IP] = getGlobalIntegrationPoints(coords, IP=None)
@@ -127,6 +128,41 @@ class Shape(metaclass=ABCMeta):
             return self.N[IP]
 
     #-----------------------------------------------------------------------
+    #   getNmatrix
+    #-----------------------------------------------------------------------
+
+    def getNmatrix(self, xi=None):
+        """ Output: list of N matrices at each IP """
+
+        warnings.warn(" Does not work properly yet, please fix ")
+        
+        if self.ndim == 1:
+            if xi is None:
+                return self.getShapeFunctions()
+            else:
+                return self.evalShapeFunctions(xi)
+
+        elif self.ndim > 1:
+            if xi is None:
+                N = []
+                n = self.getShapeFunctions()
+                for IP in range(self.nIP):
+                    # Assemble N matrix at given IP
+                    h = np.zeros((self.ndim, self.ndim*self.nnod))
+                    for nod in range(self.nnod):
+                        for dim in range(self.ndim):
+                            h[dim, nod*self.ndim + dim] = n[IP][nod]
+                    N.append(h)
+
+            else:  # Assemble N matrix at given xi
+                n = self.evalShapeFunctions(xi)
+                N = np.zeros((self.ndim, self.ndim*self.nnod))
+                for nod in range(self.nnod):
+                    for dim in range(self.ndim):
+                        N[dim, nod*self.ndim + dim] = n[nod]
+            return N
+
+    #-----------------------------------------------------------------------
     #   getLocalGradients
     #-----------------------------------------------------------------------
 
@@ -157,7 +193,8 @@ class Shape(metaclass=ABCMeta):
         w = []
         for ip in range(self.nIP):
             [J, j] = self.getJacobian(coords, ip)  # J = N_xi * coords
-            DelN = np.dot(inverse(J), self.N_xi[ip])  # DelN = inverse(J) * N_xi
+            # DelN = inverse(J) * N_xi
+            DelN = np.dot(inverse(J), self.N_xi[ip])
             w.append(self.w[ip]*j)
             N_x.append(DelN)
 
@@ -165,6 +202,33 @@ class Shape(metaclass=ABCMeta):
             return [N_x, w]
         else:
             return [N_x[IP], w[IP]]
+
+    #-----------------------------------------------------------------------
+    #   getBmatrix
+    #-----------------------------------------------------------------------
+
+    def getBmatrix(self, coords):
+        """ Input:  coords = global coords of shape nodes
+            Output: B = list of B (or dN) matrices each IP
+                    w = w*j = list of weights at each IP """
+        if self.ndim == 1:
+            return self.getGlobalGradients(coords)
+
+        elif self.ndim == 2:
+
+            B = []
+            N_x, w = self.getGlobalGradients(coords)
+            for IP in range(self.nIP):
+                # Assemble B matrix at given IP
+                b = np.zeros((3, 2*self.nnod))
+                for nod in range(self.nnod):
+                    b[0, 2*nod] = b[2, 2*nod+1] = N_x[IP][0, nod]
+                    b[1, 2*nod+1] = b[2, 2*nod] = N_x[IP][1, nod]
+                B.append(b)
+            return [B, w]
+
+        elif self.ndim == 3:
+            raise NotImplementedError()
 
     #-----------------------------------------------------------------------
     #   getIntegrationWeights
@@ -195,7 +259,8 @@ class Shape(metaclass=ABCMeta):
     def getJacobian(self, coords, IP):
         """ Input:  coords = global coordinates of shape nodes
                     IP = integration point
-            Output: J = N_xi * coords at given IP """
+            Output: J = N_xi * coords at given IP 
+                    j = determinant(J) at given IP """
 
         J = self.N_xi[IP].dot(coords)
         j = determinant(J)
@@ -241,7 +306,7 @@ class Shape(metaclass=ABCMeta):
         """ Input:  scheme = name of integration scheme
             Output: gp = array of weights and integration point local coords """
 
-        try: # User may input scheme = "Gauss4", for example.
+        try:  # User may input scheme = "Gauss4", for example.
             r = re.compile("([a-zA-Z]+)([0-9]+)")
             m = r.match(scheme)
             scheme = m.group(1)
@@ -267,23 +332,23 @@ class Shape(metaclass=ABCMeta):
         if self.ndim == 1 and np.size(coords, axis=1) == 2:
 
             # Transformation matrix
-            dx_dy = coords[1,:] - coords[0,:]
+            dx_dy = coords[1, :] - coords[0, :]
             i_bar = dx_dy/norm(dx_dy)
-            j_bar = np.dot(np.array([[0, -1],[ 1, 0]]),i_bar)
-            Gamma = [i_bar,j_bar]
+            j_bar = np.dot(np.array([[0, -1], [1, 0]]), i_bar)
+            Gamma = [i_bar, j_bar]
 
             # Transform into local coordinates
             coords = Gamma @ coords.transpose()
             coords = coords.transpose()
 
             # Remove y-coordinates
-            return coords[:,0]
+            return coords[:, 0]
 
         elif self.ndim == 1 and np.size(coords, axis=1) == 3:
 
             # Transformation matrix
-            i_bar = coords[1, :] - coords[0, :] # [dx, dy, dz]
-            j_bar = [0, 1, 0] # Assume j-bar points upwards
+            i_bar = coords[1, :] - coords[0, :]  # [dx, dy, dz]
+            j_bar = [0, 1, 0]  # Assume j-bar points upwards
             k_bar = np.cross(i_bar, j_bar)
             Gamma = gram_schmidt(i_bar, j_bar, k_bar)
 
@@ -292,7 +357,7 @@ class Shape(metaclass=ABCMeta):
             coords = coords.transpose()
 
             # Remove y and z-coordinates
-            return coords[:,0]
+            return coords[:, 0]
 
         elif self.ndim == 2 and np.size(coords, axis=1) == 3:
 
@@ -300,18 +365,19 @@ class Shape(metaclass=ABCMeta):
 
             # Transformation matrix
             i_bar = coords[2, :] - coords[1, :]  # [dx, dy, dz along one side]
-            j_bar = coords[3, :] - coords[2, :]  # [dx, dy, dz along another side]
+            # [dx, dy, dz along another side]
+            j_bar = coords[3, :] - coords[2, :]
             k_bar = np.cross(i_bar, j_bar)
             i_bar, j_bar, k_bar = gram_schmidt(i_bar, j_bar, k_bar)
             Gamma = [i_bar, j_bar, k_bar]
-                
+
             # Transform into local coordinates
             coords = Gamma @ coords.transpose()
             coords = coords.transpose()
 
             # Remove z-coordinates
-            return coords[:,0:2]
-        
+            return coords[:, 0:2]
+
         elif self.ndim == 3 and np.size(coords, axis=1) > 3:
             raise ValueError("Element dimensions exceeded !")
 
@@ -348,7 +414,7 @@ class Line2(Shape):
     # Static:
     nIP = 1  # number of integration points
     nnod = 2  # number of nodes
-    ndim = 1  # number of dimensions (rank)
+    ndim = 1  # number of dimensions (localrank)
 
     # Public:
     def evalShapeFunctions(self, xi):
@@ -371,17 +437,17 @@ class Line2(Shape):
             return 2*(x - coords[0])/dx - 1
 
         elif np.size(coords, axis=1) == 2 or np.size(coords, axis=1) == 3:
-            
+
             # Find point on line closest to x
             x0 = coords[0]
             dx = coords[-1] - coords[0]
-            t = -(np.dot(x0,dx) - np.dot(x,dx))/np.dot(dx,dx)
+            t = -(np.dot(x0, dx) - np.dot(x, dx))/np.dot(dx, dx)
 
             # Map x onto line:
             x = x0 + t*dx
 
             # Transform to local coordinates
-            coords = self.getLocalCoords(np.vstack((coords,x)))
+            coords = self.getLocalCoords(np.vstack((coords, x)))
             return self.getLocalPoint(coords[-1], coords[:-1])
 
         else:
@@ -420,7 +486,7 @@ class Line3(Shape):
     # Static:
     nIP = 2  # number of integration points
     nnod = 3  # number of nodes
-    ndim = 1  # number of dimensions (rank)
+    ndim = 1  # number of dimensions (localrank)
 
     # Public:
     def evalShapeFunctions(self, xi):
@@ -438,12 +504,6 @@ class Line3(Shape):
         N21 = -2*xi
         N31 = xi+0.5
         return np.array([N11, N21, N31])
-
-    def getBmatrix(self, coords):
-        """ Input:  coords = global coords of shape nodes
-            Output: N_x = array of global shape gradients at given IP
-                    w = w*j = weight at given IP """
-        return self.getGlobalGradients(coords)
 
 
 #===========================================================================
@@ -483,9 +543,9 @@ class Tri3(Shape):
     """
 
     # Static:
-    nIP = 1
-    nnod = 3
-    ndim = 2
+    nIP = 1  # number of integration points
+    nnod = 3  # number of nodes
+    ndim = 2  # number of dimensions (localrank)
 
     # Public:
     def evalShapeFunctions(self, point):
@@ -502,19 +562,6 @@ class Tri3(Shape):
         """ Output: [2 x 3] array of local shape gradients at given point """
         return np.array([[-1, 1, 0],
                          [-1, 0, 1]])
-
-    def getBmatrix(self, coords):
-        """ Input:  coords = global coords of shape nodes
-            Output: B = list of [3 x 6] B matrices
-                    w = w*j = weight at given IP """
-        [N_x, w] = self.getGlobalGradients(coords)
-        B = []
-        for IP in range(self.nIP):
-            N = N_x[IP]
-            B.append(np.array([[N[0, 0], 0, N[0, 1], 0, N[0, 2], 0],
-                               [0, N[1, 0], 0, N[1, 1], 0, N[1, 2]],
-                               [N[1, 0], N[0, 0], N[1, 1], N[0, 1], N[1, 2], N[0, 2]]]))
-        return [B, w]
 
 
 #===========================================================================
@@ -547,11 +594,11 @@ class Quad4(Shape):
         N_xi(point) = evalLocalGradients(point)
         B = getBmatrix(coords)
     """
-    
+
     # Static:
     nIP = 4  # number of integration points
     nnod = 4  # number of nodes
-    ndim = 2  # number of dimensions
+    ndim = 2  # number of dimensions (localrank)
 
     # Public:
     def evalShapeFunctions(self, point):
@@ -580,19 +627,6 @@ class Quad4(Shape):
         N42 = 0.25*(1-xi)
         return np.array([[N11, N21, N31, N41],
                          [N12, N22, N32, N42]])
-
-    def getBmatrix(self, coords):
-        """ Input:  coords = global coords of shape nodes
-            Output: B = list of [3 x 8] B matrices
-                    w = w*j = weight at given IP """
-        [N_x, w] = self.getGlobalGradients(coords)
-        B = []
-        for IP in range(self.nIP):
-            N = N_x[IP]
-            B.append(np.array([[N[0, 0], 0, N[0, 1], 0, N[0, 2], 0, N[0, 3], 0],
-                               [0, N[1, 0], 0, N[1, 1], 0, N[1, 2], 0, N[1, 3]],
-                               [N[1, 0], N[0, 0], N[1, 1], N[0, 1], N[1, 2], N[0, 2], N[1, 3], N[0, 3]]]))
-        return [B, w]
 
 
 #===========================================================================

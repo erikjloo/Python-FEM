@@ -3,7 +3,7 @@ from itemset import NodeSet,ElementSet
 from dofspace import DofSpace
 from shapes import Shape, Line2, Line3, Tri3, Quad4
 
-example = 4
+example = 1
 if example == 1 or example == "all":
     #==Example 1=================================================#
     """ Quad 4 Shape Stiffness Matrix """
@@ -18,7 +18,7 @@ if example == 1 or example == "all":
     D[0,1] = D[1,0] = la
     D[2,2] = mu
     quad4 = Quad4()
-    N = quad4.getShapeFunctions()
+    N = quad4.getNmatrix()
     IP = quad4.getGlobalIntegrationPoints(coords)
     [dN,w] = quad4.getGlobalGradients(coords)
     [B,w] = quad4.getBmatrix(coords)
@@ -67,7 +67,6 @@ if example == 3 or example == "all":
     N = line3.getShapeFunctions()
     IP = line3.getGlobalIntegrationPoints(coords)
     [dN,w] = line3.getGlobalGradients(coords)
-    w = line3.getIntegrationWeights(coords)
     K = np.zeros((3,3))
     for ip in range(line3.nIP):
         K += w[ip]*np.outer( dN[ip], dN[ip] )

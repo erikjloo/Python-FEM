@@ -2,7 +2,7 @@
 import scipy as np
 import re
 
-#Import Local Libraries
+# Import Local Libraries
 from models import Model
 from shapes import ShapeFactory
 
@@ -142,6 +142,12 @@ class SolidModel(Model):
     def get_Constraints(self, mesh, constraints):
         pass
 
+    #-----------------------------------------------------------------------
+    #   takeAction
+    #-----------------------------------------------------------------------
+
+    def takeAction(self, action, *args):
+        pass
 
 #===========================================================================
 #   Example
@@ -154,8 +160,10 @@ if __name__ == '__main__':
     from algebra import MatrixBuilder
     from modules import InputModule
     from models import ModelFactory
+    from nonlin import multistep
     from mesh import Mesh
 
+    # Initialization
     file = "Examples/rve.pro"
     props = Properties()
     props.parseFile(file)
@@ -165,10 +173,10 @@ if __name__ == '__main__':
     module.init(props, mesh)
 
     model = ModelFactory("model", props, mesh)
+    model.takeAction("plot_boundary", mesh)
 
     ndof = mesh.dofCount()
-    f_int = np.zeros(ndof)
     mbuild = MatrixBuilder(ndof)
+    f_int = np.zeros(ndof)
 
-    model.get_Matrix_0(mbuild, f_int, mesh)
-    mbuild.print()
+    model.get_Matrix_0(mbuild, f_int, mesh) 
