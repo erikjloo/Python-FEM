@@ -78,7 +78,8 @@
         
         "pbc" :
         {
-            "type"     : "Periodic"
+            "type"     : "Periodic",
+            "coarsenFactor" : 0.3
         }
     }
  }
