@@ -1,9 +1,25 @@
 import scipy as np
+from pprint import pprint, PrettyPrinter
 from itemset import NodeSet,ElementSet
 from dofspace import DofSpace
 from shapes import Shape, Line2, Line3, Tri3, Quad4
 
-example = 1
+np.set_printoptions(precision=4)
+
+def Printer(IP, N, dN, w, K):
+    pp = PrettyPrinter(indent=1, width=120, compact=True)
+    print(" \n Integration points = ")
+    pp.pprint(IP)
+    print(" \n Shape functions = ")
+    pp.pprint(N)
+    print(" \n Shape gradients = ")
+    pp.pprint(dN)
+    print(" \n weights = ")
+    pp.pprint(w)
+    print(" \n K  = ")
+    pp.pprint(K)
+
+example = "all"
 if example == 1 or example == "all":
     #==Example 1=================================================#
     """ Quad 4 Shape Stiffness Matrix """
@@ -18,8 +34,8 @@ if example == 1 or example == "all":
     D[0,1] = D[1,0] = la
     D[2,2] = mu
     quad4 = Quad4()
-    N = quad4.getNmatrix()
-    IP = quad4.getGlobalIntegrationPoints(coords)
+    N = quad4.getShapeFunctions()
+    IP = quad4.getGlobalPoints(coords)
     [dN,w] = quad4.getGlobalGradients(coords)
     [B,w] = quad4.getBmatrix(coords)
 
@@ -28,12 +44,10 @@ if example == 1 or example == "all":
         K += (B[ip].transpose() @ D @ B[ip])*w[ip]
 
     print("\n\n Quad4 \n")
-    print(" D = \n",D)
-    print(" Integration points = \n", IP)
-    print(" Shape functions = \n",N)
-    print(" Shape gradients = \n",dN)
-    print(" weights = \n",w)
-    print(" K  = \n",K)
+    print(" D = \n")
+    pprint(D)
+    print(" \n Integration points = ")
+    Printer(IP, N, dN, w, K)
 
 if example == 2 or example == "all":
     #==Example 2=================================================#
@@ -43,7 +57,7 @@ if example == 2 or example == "all":
 
     tri3 = Tri3(scheme="Gauss")
     N = tri3.getShapeFunctions()
-    IP = tri3.getGlobalIntegrationPoints(coords)
+    IP = tri3.getGlobalPoints(coords)
     [dN,w] = tri3.getGlobalGradients(coords)
     [B,w] = tri3.getBmatrix(coords)
     K = np.zeros((6,6))
@@ -51,11 +65,7 @@ if example == 2 or example == "all":
         K += B[ip].transpose() @ B[ip]*w[ip]
 
     print("\n\n Tri3 \n")
-    print(" Integration points = \n", IP)
-    print(" Shape functions = \n",N)
-    print(" Shape gradients = \n",dN)
-    print(" weights = \n",w)
-    print(" K  = \n",K)
+    Printer(IP, N, dN, w, K)
 
 if example == 3 or example == "all":
     #==Example 3=================================================#
@@ -64,18 +74,15 @@ if example == 3 or example == "all":
     coords = np.array([2,5,8])
 
     line3 = Line3()
-    N = line3.getShapeFunctions()
-    IP = line3.getGlobalIntegrationPoints(coords)
+    N = line3.getNmatrix()
+    IP = line3.getGlobalPoints(coords)
     [dN,w] = line3.getGlobalGradients(coords)
     K = np.zeros((3,3))
     for ip in range(line3.nIP):
         K += w[ip]*np.outer( dN[ip], dN[ip] )
 
-    print("\n\n Line3 \n Int. Point = \n",IP)
-    print(" Shape functions = \n",N)
-    print(" Shape gradients = \n",dN)
-    print(" weights = \n",w)
-    print(" K  = \n",K)
+    print("\n\n Line3 \n")
+    Printer(IP, N, dN, w, K)
 
 if example == 4 or example == "all":
     #==Example 5=================================================#
@@ -87,16 +94,16 @@ if example == 4 or example == "all":
     x = np.array([0.5, 0.7, 0.5])
 
     line2 = Line2(scheme="Gauss2")
-    N = line2.getShapeFunctions()
-    IP = line2.getGlobalIntegrationPoints(coords)
+    N = line2.getNmatrix()
+    dN = K = "N/A"
+    IP = line2.getGlobalPoints(coords)
     w = line2.getIntegrationWeights(coords)
     xi = line2.getLocalPoint(x, coords)
 
-    print("\n\n Line3 \n Int. Point = \n", IP)
-    print(" Shape functions = \n", N)
-    print(" weights = \n", w)
-    print(" xi = \n", xi)
-
+    print("\n\n Line2 \n")
+    Printer(IP, N, dN, w, K)
+    print("\n Local point = ")
+    pprint(xi)
 if example == 5 or example == "all":
     #==Example 4=================================================#
     """ Area of a Mesh """
@@ -123,7 +130,7 @@ if example == 5 or example == "all":
         connect = elems2.getNodes(e)
         coords = nodes2.getCoords(connect)
         [B,w] = quad4.getGlobalGradients(coords)
-        IP = quad4.getGlobalIntegrationPoints(coords)
+        IP = quad4.getGlobalPoints(coords)
         for ip in range(4):
             A += w[ip]*(IP[ip][0]**2+IP[ip][1]**2)
 

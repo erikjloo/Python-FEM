@@ -2,7 +2,6 @@
 import scipy as np
 import warnings
 from itertools import chain
-from scipy import ix_
 
 
 #===========================================================================
@@ -98,7 +97,7 @@ class NodeSet(object):
         if inodes is None:
             return coords
         elif isinstance(inodes, (list, tuple, range, np.ndarray)):
-            return coords[ix_(inodes), :][0]
+            return coords[np.ix_(inodes), :][0]
         else:
             return coords[inodes]
 

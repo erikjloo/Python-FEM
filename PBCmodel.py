@@ -33,9 +33,9 @@ class PBCmodel(Model):
 
     Public Methods:
         PBCmodel(name, props, mesh)
-        get_Matrix_0(mesh, mbuild, f_int)
+        get_Matrix_0(mesh, mbuild, fint)
         get_Ext_Vector(fext)
-        get_Constraints(mesh, constraints)
+        get_Constraints(cons, mesh)
 
     Private Methods:
         __boundingBox(mesh)
@@ -61,6 +61,7 @@ class PBCmodel(Model):
         self.name = name
         self.rank_ = mesh.rank
         self.factor = props.get("coarsenFactor")
+        self.strain = props.get("imposedStrain")
 
         # Add displacement doftypes
         self.U_doftypes_ = ["u", "v"]
@@ -225,13 +226,14 @@ class PBCmodel(Model):
     def __findCornerNodes(self):
         """ Finds the intersection of each bndFace """
 
+        self.corner = []
+        self.corner0 = self.bndNodes[0][0]
         if self.rank_ == 2:
-            self.corner0 = self.bndNodes[0][0]
-            self.cornerx = self.bndNodes[1][0]
-            self.cornery = self.bndNodes[3][0]
+            self.corner.append(self.bndNodes[1][0])
+            self.corner.append(self.bndNodes[3][0])
             print(" corner0 = ", self.corner0)
-            print(" cornerx = ", self.cornerx)
-            print(" cornery = ", self.cornery)
+            print(" cornerx = ", self.corner[0])
+            print(" cornery = ", self.corner[1])
         elif self.rank_ == 3:
             raise NotImplementedError(" Not yet implemented. ")
 
@@ -322,6 +324,7 @@ class PBCmodel(Model):
 
     def __coarsenMesh(self, mesh, trFace):
         """ Coarsens the traction mesh """
+
         dx = (self.dx0[0]+self.dx0[1])/(2*self.factor)
         cn = mesh.getCoords(trFace[-1])
 
@@ -382,7 +385,7 @@ class PBCmodel(Model):
     #   get_Matrix_0
     #-----------------------------------------------------------------------
 
-    def get_Matrix_0(self, mbuild, fext, mesh):
+    def get_Matrix_0(self, mbuild, fint, disp, mesh):
 
         print("\n Augmenting Matrix: \n")
 
@@ -404,17 +407,18 @@ class PBCmodel(Model):
                 coords = mesh.getCoords(connect)
                 w = self.bshape_.getIntegrationWeights(coords)
                 n = self.bshape_.getShapeFunctions()
-                X = self.bshape_.getGlobalIntegrationPoints(coords)
+                X = self.bshape_.getGlobalPoints(coords)
 
                 # Get jdofs from traction mesh
                 connect = self.__getTractionMeshNodes(mesh, X[0], face)
                 jdofs = mesh.getDofIndices(connect, self.T_doftypes_)
                 coords = mesh.getCoords(connect)
 
-                # Matrix to be assembled: K[idofs, jdofs] += w[ip]*N[ip]*H[ip]
+                # Matrix to be assembled: K[idofs, jdofs]
                 Ke = np.zeros((self.nnod_*self.rank_, self.nnod_*self.rank_))
 
                 for ip in range(self.nIP_):
+          
                     # Assemble N matrix
                     N[0, 0] = N[1, 1] = n[ip][0]
                     N[0, 2] = N[1, 3] = n[ip][1]
@@ -430,46 +434,96 @@ class PBCmodel(Model):
                         Ke -= w[ip] * N.transpose() @ H
                     else:
                         Ke += w[ip] * N.transpose() @ H
-                    print(Ke)
-                # Add Ke and KeT to the global stiffness matrix
+
+                    # Assemble fe
+                    fe = Ke.dot(disp[jdofs])
+
+                # Add fe to fint and Ke to mbuild
+                fint[idofs] += fe
                 mbuild.addBlock(idofs, jdofs, Ke)
                 mbuild.addBlock(jdofs, idofs, Ke.transpose())
+
+        for ix, trFace in enumerate(self.trNodes):
+    
+            jdofs = mesh.getDofIndices(self.corner[ix],self.T_doftypes_)
+            u_corner = disp[jdofs]
+            
+            for inod in range(len(trFace)-1):
+
+                # Get jdofs, w and H from traction mesh
+                connect = trFace[inod:inod+2]
+                jdofs = mesh.getDofIndices(connect)
+                coords = mesh.getCoords(connect)
+                w = self.bshape_.getIntegrationWeights(coords)
+                h = self.bshape_.getShapeFunctions()
+
+                # Vector to be assembled: fext[jdofs]
+                fe = np.zeros(self.nnod_*self.rank_)
+
+                for ip in range(self.nIP_):
+
+                    # Assemble H matrix
+                    H[0, 0] = H[1, 1] = h[ip][0]
+                    H[0, 2] = H[1, 3] = h[ip][1]
+
+                    # Assemble fe
+                    fe += w[ip] * (H.transpose() @ u_corner)
+
+                fint[jdofs] += fe
 
     #-----------------------------------------------------------------------
     #   get_Ext_Vector
     #-----------------------------------------------------------------------
 
-    def get_Ext_Vector(self, fext):
-        pass
+    def get_Ext_Vector(self, fext, mesh):
+
+        print("\n Augmenting fext: \n")
+
+        # Variables related to element on T mesh
+        H = np.zeros((self.rank_, self.nnod_*self.rank_))
+        eps = np.zeros((self.rank_, self.rank_))
+        eps[0, 0] = self.strain[0]
+        eps[1, 1] = self.strain[1]
+        eps[0, 1] = eps[1, 0] = self.strain[2]/2
+
         # Loop over faces of trNodes
         for ix, trFace in enumerate(self.trNodes):
+            
+            u_corner = eps[ix, :]*self.dx[ix]
 
             # Loop over indices of trFace
             for inod in range(len(trFace)-1):
 
                 # Assemble H matrix
                 connect = trFace[inod:inod+2]
-                jdofs = mesh.getDofIndices(connect,self.T_doftypes_)
+                jdofs = mesh.getDofIndices(connect, self.T_doftypes_)
                 coords = mesh.getCoords(connect)
                 w = self.bshape_.getIntegrationWeights(coords)
-                H = self.bshape_.getNmatrix()
+                h = self.bshape_.getShapeFunctions()
 
-                # Vector to be assembled: fext[jdofs] += w[ip]*H[ip]*u(cornerx)
+                # Vector to be assembled: fext[jdofs]
                 fe = np.zeros(self.nnod_*self.rank_)
 
                 for ip in range(self.nIP_):
+
                     # Assemble H matrix
                     H[0, 0] = H[1, 1] = h[ip][0]
                     H[0, 2] = H[1, 3] = h[ip][1]
-                    fe += w[ip]*H[ip].transpose()
 
+                    # Assemble fe
+                    fe += w[ip] * (H.transpose() @ u_corner)
+
+                fext[jdofs] += fe
 
     #-----------------------------------------------------------------------
     #   get_Constraints
     #-----------------------------------------------------------------------
 
-    def get_Constraints(self, mesh, constraints):
-        pass
+    def get_Constraints(self, cons, mesh):
+        
+        # Fix corner
+        idofs = mesh.getDofIndices(self.corner,self.U_doftypes_)
+        cons.addConstraints(idofs)
 
     #-----------------------------------------------------------------------
     #   takeAction
@@ -488,6 +542,7 @@ class PBCmodel(Model):
 if __name__ == '__main__':
 
     from properties import Properties
+    from constraints import Constraints
     from algebra import MatrixBuilder
     from modules import InputModule
     from models import ModelFactory
@@ -495,6 +550,7 @@ if __name__ == '__main__':
     from mesh import Mesh
 
     # Initialization
+    np.set_printoptions(precision=4)
     file = "Examples/rve.pro"
     props = Properties()
     props.parseFile(file)
@@ -507,7 +563,12 @@ if __name__ == '__main__':
     # model.takeAction("plot_boundary", mesh)
 
     ndof = mesh.dofCount()
+    cons = Constraints(ndof)
+    fext = np.zeros(ndof)
+    fint = np.zeros(ndof)
+    disp = np.zeros(ndof)
     mbuild = MatrixBuilder(ndof)
-    f_int = np.zeros(ndof)
 
-    model.get_Matrix_0(mbuild, f_int, mesh)
+    model.get_Ext_Vector(fext, mesh)
+    model.get_Constraints(cons, mesh)
+    model.get_Matrix_0(mbuild, fint, disp, mesh)

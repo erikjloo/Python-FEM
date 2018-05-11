@@ -5,6 +5,7 @@ import re
 # Import Local Libraries
 from models import Model
 from shapes import ShapeFactory
+from materials import MaterialFactory
 
 
 #===========================================================================
@@ -27,8 +28,8 @@ class SolidModel(Model):
 
     Public Methods:
         SolidModel()
-        get_Matrix_0(mesh, mbuild, f_int)
-        get_Ext_Vector(f_ext)
+        get_Matrix_0(mesh, mbuild, fint)
+        get_Ext_Vector(fext)
         get_Constraints(mesh, constraints)
 
     Private Methods:
@@ -69,70 +70,59 @@ class SolidModel(Model):
         self.nnod = self.shape.nnod
         self.localrank = self.shape.ndim
 
+        # Create material
+        self.mat = MaterialFactory(props)
+        self.nIP = self.shape.nIP
+        self.nnod = self.shape.nnod
+        self.localrank = self.shape.ndim
+
     #-----------------------------------------------------------------------
     #   get_Matrix_0
     #-----------------------------------------------------------------------
 
-    def get_Matrix_0(self, mbuild, f_int, mesh):
+    def get_Matrix_0(self, mbuild, fint, disp, mesh):
         """ Input & Output: mbuild = MatrixBuilder = Ksys
-                            F_int = internal force vector """
+                            fint = internal force vector """
 
         # Iterate over elements assigned to model
         for iele in self.ielements:
 
-            # Get element nodes
+            # Get element nodes, coordinates, dofs and displacements
             inodes = mesh.getNodes(iele)
-
-            # Get nodal coordintates
             coords = mesh.getCoords(inodes)
-
-            # Get the element degrees of freedom
             idofs = mesh.getDofIndices(inodes, self.types)
+            ele_disp = disp[idofs]
 
-            # pylint: disable = unbalanced-tuple-unpacking
-
-            # get nodal displacements
-
-            # multiply w[ip] times thickness
-
-            # element stiffness matrix
+            # Initialize element stiffness matrix and internal force vector
             ndof = len(idofs)
             kele = np.zeros((ndof, ndof))
-
-            E, v = 29000, 0.3
-            la = v*E/((1+v)*(1-2*v))
-            mu = E/(2*(1+v))
-            D = np.array([[la+2*mu, la, 0], [la, la+2*mu, 0], [0, 0, mu]])
-
-            B, w = self.shape.getBmatrix(coords)
+            fe = np.zeros(ndof)
 
             for ip in range(self.shape.nIP):
 
-                # strain, eledisp = shape.getstrain( ip, ie)
+                # Get strain, B matrix and weight
+                [strain, B, w] = self.shape.getStrain(coords, ele_disp, ip)
 
-                # Get tangent stiffness matrix:
-                # material.update(stress, D, strain, ip)
+                # Get tangent stiffness matrix D
+                [stress, D] = self.mat.getStress(strain[ip])
 
-                # Compute element stiffness matrix (kele):
-                kele += (B[ip].transpose() @ D @ B[ip])*w[ip]
+                # Compute element stiffness matrix (kele)
+                kele += w * (B.transpose() @ D @ B)
             
-                # Compute the element force vector (fint):
-                # fint += w[ip] * B[ip].transpose @ stress
+                # Compute the element internal force vector
+                fe += w * (B.transpose @ stress)
 
-            # Add k to the global stiffness matrix (Ksys):
+            # Add kele to the global stiffness matrix (Ksys):
             mbuild.addBlock(idofs, idofs, kele)
 
             # Add fint to the global force vector (Fint):
-            # Fint[idofs] += fint
-
-        # output:
-        # u, strain, sigma, f_int, K
+            fint[idofs] += fe
 
     #-----------------------------------------------------------------------
     #   get_Ext_Vector
     #-----------------------------------------------------------------------
 
-    def get_Ext_Vector(self, f_ext):
+    def get_Ext_Vector(self, fext, mesh):
         pass
 
     #-----------------------------------------------------------------------
@@ -158,25 +148,25 @@ if __name__ == '__main__':
 
     from properties import Properties
     from algebra import MatrixBuilder
-    from modules import InputModule
     from models import ModelFactory
     from nonlin import multistep
     from mesh import Mesh
 
     # Initialization
-    file = "Examples/rve.pro"
+    file = "Examples/semicircle.pro"
     props = Properties()
     props.parseFile(file)
+
+    # Mesh
     mesh = Mesh()
+    mesh.initialize(props.getProps("input.mesh"))
 
-    module = InputModule("input")
-    module.init(props, mesh)
-
+    # Model
     model = ModelFactory("model", props, mesh)
-    model.takeAction("plot_boundary", mesh)
 
     ndof = mesh.dofCount()
     mbuild = MatrixBuilder(ndof)
-    f_int = np.zeros(ndof)
+    fint = np.zeros(ndof)
+    disp = np.zeros(ndof)
 
-    model.get_Matrix_0(mbuild, f_int, mesh) 
+    model.get_Matrix_0(mbuild, fint, disp, mesh) 

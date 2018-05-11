@@ -1,8 +1,6 @@
 # Import Standard Libraries
 import scipy as np
 import warnings
-from scipy import ix_
-
 
 #===========================================================================
 #   Constraints
@@ -10,27 +8,21 @@ from scipy import ix_
 
 
 class Constraints(object):
-    """ Constraints
-    
-    Static Members:
-        __len_error__ = "jdofs and coeff are not the same length!"
-    
-    """
-    __len_error__ = "jdofs and coeff are not the same length!"
+    """ Constraints """
 
     def __init__(self, ndof):
         self.ndof = ndof
-        self.conspace = np.nan((ndof,ndof))
+        self.conspace = np.empty(ndof)
+        self.conspace[:] = np.nan
 
-    def addConstraint(self, idof, rval=0.0, jdofs=None, coeff=None):
-        if jdofs is None:
-            self.conspace[idof,0] = rval
-        elif len(jdofs) == len(coeff):
-            self.conspace[idof,ix_(jdofs)] = coeff
-        else:
-            warnings.warn(self.__len_error__)
+    def addConstraint(self, idof, rval=0.0):
+        self.conspace[idof] = rval
     
-    def get_Dirichlet(self):
+    def addConstraints(self, idofs, rval=0.0):
+        for idof in idofs:
+            self.addConstraint(idof, rval)
+
+    def getConspace(self):
         return self.conspace
 
     def dofCount(self):

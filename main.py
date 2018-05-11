@@ -3,6 +3,7 @@ import scipy as np
 
 # Import Local Libraries
 from properties import Properties
+from constraints import Constraints
 from algebra import MatrixBuilder
 from modules import InputModule
 from models import ModelFactory
@@ -10,22 +11,29 @@ from nonlin import multistep
 from mesh import Mesh
 
 # Initialization
-file = "Examples/rve.pro"
+file = "Examples/semicircle.pro"
 props = Properties()
 props.parseFile(file)
 mesh = Mesh()
-
 module = InputModule("input")
 module.init(props, mesh)
 
 model = ModelFactory("model", props, mesh)
-model.takeAction("plot_boundary", mesh)
 
 ndof = mesh.dofCount()
+cons = Constraints(ndof)
 mbuild = MatrixBuilder(ndof)
-f_int = np.zeros(ndof)
+fint = np.zeros(ndof)
+fext = np.zeros(ndof)
+disp = np.zeros(ndof)
 
-model.get_Matrix_0(mbuild, f_int, mesh)
+idofs = mesh.getDofIndices([1, 4],["u","v","w"])
+cons.addConstraints(idofs)
+idofs = mesh.getDofIndices([2, 5], ["v", "w"])
+cons.addConstraints(idofs)
+idofs = mesh.getDofIndices([3, 6], ["u", "w"])
+
+model.get_Matrix_0(mbuild, fint, disp, mesh)
 
 # Modules works as a series of commands
 

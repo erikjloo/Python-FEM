@@ -1,5 +1,6 @@
 # Import Standard Libraries
 import scipy as np
+from pprint import PrettyPrinter
 from scipy.sparse import dok_matrix
 from scipy.linalg import inv, det, norm
 
@@ -96,7 +97,8 @@ class MatrixBuilder(object):
         return self.K
     
     def print(self):
-        print("\n",self.K.todense(),"\n")
+        pp = PrettyPrinter(indent=1, width=120, compact=True)
+        pp.pprint(self.K.todense())
     
     # Private:
     def __inputIndices(self, idof, jdof):

@@ -14,12 +14,12 @@ class Properties(object):
 
     __type_str__ = "Input is not str!"
 
-    def __init__(self, dict=None):
+    def __init__(self, my_dict=None):
         """ Input: dictionary """
-        if dict is None:
+        if my_dict is None:
             self.properties = {}
         else:
-            self.properties = dict
+            self.properties = my_dict
 
     #-----------------------------------------------------------------------
     #   parseFile
@@ -94,11 +94,11 @@ class Properties(object):
 
 if __name__ == "__main__":
 
-    file = "Examples/square.pro"
+    file = "Examples/semicircle.pro"
 
     props = Properties()
     props.parseFile(file)
     props.print()
 
-    matrix_props = props.getProps("model.matrix")
+    matrix_props = props.getProps("model")
     matrix_props.print()

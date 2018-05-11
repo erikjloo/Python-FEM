@@ -1,7 +1,6 @@
 # Import Standard Libraries
 import scipy as np
 import warnings
-from scipy import ix_
 
 
 #===========================================================================

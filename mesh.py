@@ -3,6 +3,7 @@ import scipy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from tkinter import Tk, filedialog
+from indexed import IndexedOrderedDict
 
 #Import Local Libraries
 from itemset import NodeSet, ElementSet
@@ -53,7 +54,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         NodeSet.__init__(self)
         ElementSet.__init__(self)
         self.groups = []
-        self.groupNames = {}
+        self.groupNames = IndexedOrderedDict()
         self.ngroups = 0
 
     #-----------------------------------------------------------------------
@@ -67,7 +68,8 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         type = props.get("type")
         path = props.get("file")
         rank = props.get("rank")
-        self.readMesh(type, path, rank)
+        doElemGroups = props.get("doElemGroups")
+        self.readMesh(type, path, rank, doElemGroups)
 
         # Initialize DofSpace
         self.rank = rank
@@ -77,9 +79,9 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #   readMesh
     #-----------------------------------------------------------------------
 
-    def readMesh(self, type, path, rank):
+    def readMesh(self, type, path, rank, doElemGroups):
         if type == "Gmsh":
-            self.readGmsh(path, rank)
+            self.readGmsh(path, rank, doElemGroups)
         elif type == "XML":
             self.readXML(path, rank)
         else:
@@ -89,7 +91,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #   readGmsh
     #-----------------------------------------------------------------------
 
-    def readGmsh(self, path=None, rank=3):
+    def readGmsh(self, path=None, rank=3, doElemGroups=False):
         """ Input: path = path_to_file """
 
         if path is None:
@@ -144,17 +146,22 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
                 for iele in range(nele):
                     data = fid.readline().split()
-                    etype = int(data[1])           # element type
                     ntags = int(data[2])           # number of tags
 
                     if ntags > 0:
                         Id = int(data[3])       # set group Id
                         if Id not in self.groupNames:
-                            self.groupNames[Id] = ('Group {}').format(Id)
+                            groupName = ('Group {}').format(Id)
+                            self.groupNames[Id] = groupName
+                            print(groupName,"created")
                             self.ngroups += 1
                             self.groups.append([])
 
-                    self.groups[Id].append(iele)
+                    if doElemGroups is True:
+                        Id = self.groupNames.keys().index(Id)
+                        self.groups[Id].append(iele)
+                    else:
+                        self.groups[0].append(iele)
 
                     connect = list(map(int, data[3+ntags:]))
                     connect = [x-1 for x in connect]
@@ -254,12 +261,10 @@ if __name__ == '__main__':
     mesh.readXML("Examples/square.xml")
     mesh.plotMesh(rank=2)
 
-    file = "Examples/square.pro"
+    file = "Examples/semicircle.pro"
     props = Properties()
     props.parseFile(file)
 
     mesh = Mesh()
     mesh.initialize(props.getProps("input.mesh"))
-
-    mesh.printDofSpace()
-    mesh.plotMesh()
+    mesh.plotMesh(rank=2)

@@ -45,9 +45,9 @@ class Model(metaclass=ABCMeta):
     
     Pure Virtual Methods:
         Model(name, props, mesh)
-        get_Matrix_0(mbuild, f_int, mesh)
-        get_Ext_Vector(f_ext)
-        get_Constraints(mesh, constraints)
+        get_Matrix_0(mbuild, fint, disp, mesh)
+        get_Ext_Vector(fext, mesh)
+        get_Constraints(cons, mesh)
     """
 
     @abstractmethod
@@ -55,15 +55,15 @@ class Model(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_Matrix_0(self, mbuild, f_int, mesh):
+    def get_Matrix_0(self, mbuild, fint, disp, mesh):
         pass
 
     @abstractmethod
-    def get_Ext_Vector(self, f_ext):
+    def get_Ext_Vector(self, fext, mesh):
         pass
 
     @abstractmethod
-    def get_Constraints(self, mesh, constraints):
+    def get_Constraints(self, cons, mesh):
         pass
     
     @abstractmethod
@@ -85,9 +85,9 @@ class MultiModel(Model):
 
     Public Methods:
         Model(name, props, mesh)
-        get_Matrix_0(mbuild, f_int, mesh)
-        get_Ext_Vector(f_ext)
-        get_Constraints(mesh, constraints)
+        get_Matrix_0(mbuild, fint, disp, mesh)
+        get_Ext_Vector(fext, mesh)
+        get_Constraints(cons, mesh)
     """
     def __init__(self, name, props, mesh):
         """ Creates a node and its children"""
@@ -99,17 +99,17 @@ class MultiModel(Model):
             model = ModelFactory(name, props, mesh)
             self.models.append(model)
 
-    def get_Matrix_0(self, mbuild, f_int, mesh):
+    def get_Matrix_0(self, mbuild, fint, disp, mesh):
         for model in self.models:
-            model.get_Matrix_0(mbuild, f_int, mesh)
+            model.get_Matrix_0(mbuild, fint, disp, mesh)
 
-    def get_Ext_Vector(self, f_ext):
+    def get_Ext_Vector(self, fext, mesh):
         for model in self.models:
-            model.get_Ext_Vector(f_ext)
+            model.get_Ext_Vector(fext, mesh)
 
-    def get_Constraints(self, mesh, constraints):
+    def get_Constraints(self, cons, mesh):
         for model in self.models:
-            model.get_Constraints(mesh, constraints)
+            model.get_Constraints(cons, mesh)
 
     def takeAction(self, action, mesh):
         for model in self.models:
@@ -129,9 +129,9 @@ class MatrixModel(Model):
 
     Public Methods:
         Model(name, props, mesh)
-        get_Matrix_0(mbuild, f_int, mesh)
-        get_Ext_Vector(f_ext)
-        get_Constraints(mesh, constraints)
+        get_Matrix_0(mbuild, fint, disp, mesh)
+        get_Ext_Vector(fext, mesh)
+        get_Constraints(cons, mesh)
     """
 
     def __init__(self, name, props, mesh):
@@ -142,14 +142,14 @@ class MatrixModel(Model):
         name = props.get("model")
         self.model = ModelFactory(name, props, mesh)
 
-    def get_Matrix_0(self, mbuild, f_int, mesh):
-        self.model.get_Matrix_0(mbuild, f_int, mesh)
+    def get_Matrix_0(self, mbuild, fint, disp, mesh):
+        self.model.get_Matrix_0(mbuild, fint, disp, mesh)
 
-    def get_Ext_Vector(self, f_ext):
-        self.model.get_Ext_Vector(f_ext)
+    def get_Ext_Vector(self, fext, mesh):
+        self.model.get_Ext_Vector(fext, mesh)
 
-    def get_Constraints(self, mesh, constraints):
-        self.model.get_Constraints(mesh, constraints)
+    def get_Constraints(self, cons, mesh):
+        self.model.get_Constraints(cons, mesh)
 
     def takeAction(self, action, mesh):
         self.model.takeAction(action, mesh)

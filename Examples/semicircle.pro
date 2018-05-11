@@ -5,8 +5,8 @@
         "mesh" :
         {
             "type" : "Gmsh",
-            "file" : "Examples/square.msh",
-            "rank" : 2,
+            "file" : "Examples/semicircle.msh",
+            "rank" : 3,
             "doElemGroups" : false
         },
 
@@ -14,6 +14,12 @@
         {
             "type" : "Input",
             "file" : "load.data"
+        },
+
+        "constraints" :
+        {
+            "type" : "Input",
+            "file" : "constraints.data"
         }
     },
 
@@ -24,20 +30,14 @@
 
         "material" :
         {
-            "type"   : "Melro",
-            "rank"    : 2,
-            "state"  : "PLANE_STRAIN",
-            "young"      : 3760,
-            "poisson"    : 0.3,
-            "poissonP"   : 0.39,
-            "rmTolerance" : 0.0000000001,
-            "sigmaT" : "st(x)",
-            "sigmaC" : "st(x)"
+            "type"   : "Hooke",
+            "young"  : 100000,
+            "poisson": 0.2
         },
             
         "shape" :
         {
-            "type" : "Tri3",
+            "type" : "Tetra4",
             "scheme" : "Gauss"
         }
     }
