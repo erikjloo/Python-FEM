@@ -79,7 +79,8 @@
         "pbc" :
         {
             "type"     : "Periodic",
-            "coarsenFactor" : 0.3
+            "coarsenFactor" : 0.3,
+            "imposedStrain" : [0.1, 0.2, 0.3]
         }
     }
  }
