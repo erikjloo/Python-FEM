@@ -392,24 +392,20 @@ class PBCmodel(Model):
         # Variables related to element on U mesh
         N = np.zeros((self.rank_, self.nnod_*self.rank_))
 
-        # Variables related to element on T mesh
-        H = np.zeros((self.rank_, self.nnod_*self.rank_))
-
         # Loop over faces of bndNodes
         for face, bndFace in enumerate(self.bndNodes):
 
             # Loop over indices of bndFace
             for inod in range(len(bndFace)-1):
 
-                # Get idofs, w and N from displacement mesh
+                # Get idofs and w from U-mesh
                 connect = bndFace[inod:inod+2]
-                idofs = mesh.getDofIndices(connect, self.U_doftypes_)
                 coords = mesh.getCoords(connect)
+                idofs = mesh.getDofIndices(connect, self.U_doftypes_)
                 w = self.bshape_.getIntegrationWeights(coords)
-                n = self.bshape_.getShapeFunctions()
                 X = self.bshape_.getGlobalPoints(coords)
 
-                # Get jdofs from traction mesh
+                # Get jdofs from T-mesh
                 connect = self.__getTractionMeshNodes(mesh, X[0], face)
                 jdofs = mesh.getDofIndices(connect, self.T_doftypes_)
                 coords = mesh.getCoords(connect)
@@ -419,15 +415,12 @@ class PBCmodel(Model):
 
                 for ip in range(self.nIP_):
           
-                    # Assemble N matrix
-                    N[0, 0] = N[1, 1] = n[ip][0]
-                    N[0, 2] = N[1, 3] = n[ip][1]
+                    # Get N-matrix from U-mesh
+                    N = self.bshape_.getNmatrix(ip, ndim=self.rank_)
 
-                    # Assemble H matrix
+                    # Get H-matrix from T-mesh
                     xi = self.bshape_.getLocalPoint(X[ip], coords)
-                    h = self.bshape_.evalShapeFunctions(xi)
-                    H[0, 0] = H[1, 1] = h[0]
-                    H[0, 2] = H[1, 3] = h[1]
+                    H = self.bshape_.evalNmatrix(xi, ndim=self.rank_)
 
                     # Assemble Ke
                     if face == 0 or face == 2:
@@ -435,40 +428,21 @@ class PBCmodel(Model):
                     else:
                         Ke += w[ip] * N.transpose() @ H
 
-                    # Assemble fe
-                    fe = Ke.dot(disp[jdofs])
-
-                # Add fe to fint and Ke to mbuild
-                fint[idofs] += fe
+                # Add Ke and KeT to mbuild
+                KeT = Ke.transpose()
                 mbuild.addBlock(idofs, jdofs, Ke)
-                mbuild.addBlock(jdofs, idofs, Ke.transpose())
+                mbuild.addBlock(jdofs, idofs, KeT)
 
-        for ix, trFace in enumerate(self.trNodes):
-    
-            jdofs = mesh.getDofIndices(self.corner[ix],self.T_doftypes_)
-            u_corner = disp[jdofs]
-            
-            for inod in range(len(trFace)-1):
+                # Assemble U-mesh fe
+                fe = Ke.dot(disp[jdofs])
 
-                # Get jdofs, w and H from traction mesh
-                connect = trFace[inod:inod+2]
-                jdofs = mesh.getDofIndices(connect)
-                coords = mesh.getCoords(connect)
-                w = self.bshape_.getIntegrationWeights(coords)
-                h = self.bshape_.getShapeFunctions()
+                # Add fe to fint[idofs]
+                fint[idofs] += fe
+                
+                # Assemble T-mesh fe
+                fe = KeT.dot(disp[idofs])
 
-                # Vector to be assembled: fext[jdofs]
-                fe = np.zeros(self.nnod_*self.rank_)
-
-                for ip in range(self.nIP_):
-
-                    # Assemble H matrix
-                    H[0, 0] = H[1, 1] = h[ip][0]
-                    H[0, 2] = H[1, 3] = h[ip][1]
-
-                    # Assemble fe
-                    fe += w[ip] * (H.transpose() @ u_corner)
-
+                # Add fe to fint[jdofs]
                 fint[jdofs] += fe
 
     #-----------------------------------------------------------------------
@@ -554,13 +528,13 @@ if __name__ == '__main__':
     file = "Examples/rve.pro"
     props = Properties()
     props.parseFile(file)
-    mesh = Mesh()
-
+    
+    # Mesh
     module = InputModule("input")
-    module.init(props, mesh)
+    mesh = module.init(props)
 
     model = ModelFactory("model", props, mesh)
-    # model.takeAction("plot_boundary", mesh)
+    model.takeAction("plot_boundary", mesh)
 
     ndof = mesh.dofCount()
     cons = Constraints(ndof)

@@ -1,9 +1,7 @@
 # Import Standard Libraries
-import numpy as np
+import scipy as np
+from numpy import linalg
 import itertools
-from numpy import ix_
-from numpy.linalg import cond
-
 
 #===========================================================================
 #   Solver
@@ -17,17 +15,19 @@ class Solver(object):
         self.method = method
         self.ndof = cons.dofCount()
         self.fdof = cons.get_fdof()
+        self.sdof = cons.get_sdof()
 
-    def solve(self, K, lhs, rhs, hbw=None):
+    def solve(self, A, x, b, hbw=None):
         """ Solves Ax = b """
-        hbw is self.ndof if hbw is None else hbw
-
+        hbw = self.ndof if hbw is None else hbw
         if self.method is "rtfreechol":
-            lhs[self.fdof] = rtfreechol(K[ix_(self.fdof, self.fdof)], rhs[self.fdof], hbw)[0]
+            x[self.fdof] = rtfreechol(A[np.ix_(self.fdof, self.fdof)], b[self.fdof], hbw)[0]
         elif self.method is "gauss_seidel":
-            lhs[self.fdof] = gauss_seidel(K[ix_(self.fdof, self.fdof)], rhs[self.fdof])[0]
+            x[self.fdof] = gauss_seidel(A[np.ix_(self.fdof, self.fdof)], b[self.fdof])[0]
+        elif self.method is "python" :
+            x[self.fdof] = linalg.solve(A[np.ix_(self.fdof, self.fdof)], b[self.fdof])
+        return x
 
-        return lhs, rhs
 
 #===========================================================================
 #   Root Free Cholesky
@@ -96,8 +96,8 @@ def rtfreechol(A,b,hbw):
             x[j] -= L[i,j]*x[i]
         x[j] /= L[j,j]
 
-    if cond(A) > 10^18 or cond(A) < 10^-18:
-        raise ValueError("Matrix A is ill-conditioned")
+    if linalg.cond(A) > 10^18 or linalg.cond(A) < 10^-18:
+        raise ValueError("Matrix A is ill-linalg.conditioned")
 
     return x,L,D
 
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     
     [x,L,D] = rtfreechol(A,b,2)
     print(x)
-    x = np.linalg.solve(A,b)
+    x = linalg.solve(A,b)
     print(x)
     x = gauss_seidel(A,b)
     print(x)

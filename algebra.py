@@ -96,6 +96,10 @@ class MatrixBuilder(object):
         """ Output: K """
         return self.K
     
+    def getDenseMatrix(self):
+        """ Output: K """
+        return self.K.todense()
+    
     def print(self):
         pp = PrettyPrinter(indent=1, width=120, compact=True)
         pp.pprint(self.K.todense())

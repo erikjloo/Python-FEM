@@ -150,7 +150,7 @@ class Shape(metaclass=ABCMeta):
     #   getNmatrix
     #-----------------------------------------------------------------------
 
-    def getNmatrix(self, IP=None):
+    def getNmatrix(self, IP=None, ndim=None):
         """ Input:  IP = integration point
             Output: N = N matrix at given IP """
 
@@ -158,16 +158,28 @@ class Shape(metaclass=ABCMeta):
 
         if IP is None:  # ==================================================
             N = []
-            for IP in range(self.nIP):
-                H = np.eye(self.ndim)*n[IP][0]
-                for nod in range(1, self.nnod):
-                    H = np.hstack((H, np.eye(self.ndim)*n[IP][nod]))
-                N.append(H)
+            if ndim is None:
+                for IP in range(self.nIP):
+                    H = np.eye(self.ndim)*n[IP][0]
+                    for nod in range(1, self.nnod):
+                        H = np.hstack((H, np.eye(self.ndim)*n[IP][nod]))
+                    N.append(H)
+            else:
+                for IP in range(self.nIP):
+                    H = np.eye(ndim)*n[IP][0]
+                    for nod in range(1, self.nnod):
+                        H = np.hstack((H, np.eye(ndim)*n[IP][nod]))
+                    N.append(H)
 
         else:  # ===========================================================
-            N = np.eye(self.ndim)*n[0]
-            for nod in range(1, self.nnod):
-                N = np.hstack((N, np.eye(self.ndim)*n[nod]))
+            if ndim is None:
+                N = np.eye(self.ndim)*n[0]
+                for nod in range(1, self.nnod):
+                    N = np.hstack((N, np.eye(self.ndim)*n[nod]))
+            else:
+                N = np.eye(ndim)*n[0]
+                for nod in range(1, self.nnod):
+                    N = np.hstack((N, np.eye(ndim)*n[nod]))
 
         return N
 
@@ -175,14 +187,21 @@ class Shape(metaclass=ABCMeta):
     #   evalNmatrix
     #-----------------------------------------------------------------------
 
-    def evalNmatrix(self, xi):
+    def evalNmatrix(self, xi, ndim=None):
         """ Input: xi = point in local coordinates
             Output: N = N matrix at given point """
 
         n = self.evalShapeFunctions(xi)
-        N = np.eye(self.ndim)*n[0]
-        for nod in range(1, self.nnod):
-            N = np.hstack((N, np.eye(self.ndim)*n[nod]))
+        
+        if ndim is None:  # ================================================
+            N = np.eye(self.ndim)*n[0]
+            for nod in range(1, self.nnod):
+                N = np.hstack((N, np.eye(self.ndim)*n[nod]))
+        else:  # ===========================================================
+            N = np.eye(ndim)*n[0]
+            for nod in range(1, self.nnod):
+                N = np.hstack((N, np.eye(ndim)*n[nod]))
+            
         return N
 
     #-----------------------------------------------------------------------
@@ -223,7 +242,7 @@ class Shape(metaclass=ABCMeta):
                     IP = integration point
             Output: B = B (or dN) matrix at given IP
                     w = w*j = weight at given IP """
-        N_x, w = self.getGlobalGradients(coords, IP)
+        [N_x, w] = self.getGlobalGradients(coords, IP)
         
         if self.ndim == 1:
             return [N_x, w]
@@ -256,17 +275,17 @@ class Shape(metaclass=ABCMeta):
                     # Assemble B matrix at given IP
                     b = np.zeros((6, 3*self.nnod))
                     for nod in range(self.nnod):
-                        b[0, 2*nod] = b[3, 2*nod+1] = b[5, 2*nod+2] = N_x[ip][0, nod]
-                        b[1, 2*nod+1] = b[3, 2*nod] = b[4, 2*nod+2] = N_x[ip][1, nod]
-                        b[2, 2*nod+2] = b[4, 2*nod+1] = b[5, 2*nod] = N_x[ip][2, nod]
+                        b[0, 3*nod] = b[3, 3*nod+1] = b[5, 3*nod+2] = N_x[ip][0, nod]
+                        b[1, 3*nod+1] = b[3, 3*nod] = b[4, 3*nod+2] = N_x[ip][1, nod]
+                        b[2, 3*nod+2] = b[4, 3*nod+1] = b[5, 3*nod] = N_x[ip][2, nod]
                     B.append(b)
 
             else:  # =======================================================
                 B = np.zeros((6, 3*self.nnod))
                 for nod in range(self.nnod):
-                    B[0, 2*nod] = B[3, 2*nod+1] = B[5, 2*nod+2] = N_x[0, nod]
-                    B[1, 2*nod+1] = B[3, 2*nod] = B[4, 2*nod+2] = N_x[1, nod]
-                    B[2, 2*nod+2] = B[4, 2*nod+1] = B[5, 2*nod] = N_x[2, nod]
+                    B[0, 3*nod] = B[3, 3*nod+1] = B[5, 3*nod+2] = N_x[0, nod]
+                    B[1, 3*nod+1] = B[3, 3*nod] = B[4, 3*nod+2] = N_x[1, nod]
+                    B[2, 3*nod+2] = B[4, 3*nod+1] = B[5, 3*nod] = N_x[2, nod]
 
             return [B, w]
 
@@ -306,13 +325,13 @@ class Shape(metaclass=ABCMeta):
             if np.size(coords, axis=1) > self.ndim:
                 coords = self.getLocalCoords(coords)
 
-        if IP is None:
+        if IP is None:  # ==================================================
             w = []
             for ip in range(self.nIP):
                 [_, j] = self.getJacobian(coords, ip)
                 w.append(self.w[ip]*j)
 
-        else:
+        else:  # ===========================================================
             [_, j] = self.getJacobian(coords, IP)
             w = self.w[IP]*j
 
@@ -343,12 +362,12 @@ class Shape(metaclass=ABCMeta):
                     IP = integration point
             Output: x = global coordinates of given IP """
 
-        if IP is None:
+        if IP is None:  # ==================================================
             x = []
             for ip in range(self.nIP):
                 x.append(self.N[ip].dot(coords))
 
-        else:
+        else:  # ===========================================================
             x = self.N[IP].dot(coords)
 
         return x

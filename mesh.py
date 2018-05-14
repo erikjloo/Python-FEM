@@ -2,6 +2,7 @@
 import scipy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from copy import deepcopy
 from tkinter import Tk, filedialog
 from indexed import IndexedOrderedDict
 
@@ -233,6 +234,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     def plotMesh(self, rank=2):
         """ Input: rank = number of dimensions """
         # Determine whether 2D or 3D plot
+
         if rank == 1 or rank == 2:
             fig = plt.figure(figsize=(6, 6))
             ax = fig.add_subplot(111)
@@ -246,6 +248,49 @@ class Mesh(NodeSet, ElementSet, DofSpace):
             ax.plot(coords[:, 0], coords[:, 1], linewidth=0.5, color='k')
 
         plt.show()
+
+    #-----------------------------------------------------------------------
+    #   plotDeformed
+    #-----------------------------------------------------------------------
+
+    def plotDeformed(self, disp, scale, rank=2):
+        """ Input:  disp = displacement vector
+                    scale = 
+                    rank = number of dimensions """
+        
+        # Craft deformed coordinates
+        deformed = self.getCoords()
+        for inod in range(len(self.coords)):
+            idofs = self.getDofIndices(inod)
+            x = self.getCoords(inod)
+            u = np.array(disp[idofs])*scale
+            deformed[inod,:] = u+x
+        
+        # Create figure
+        if rank == 1 or rank == 2:
+            fig = plt.figure(figsize=(6, 6))
+            ax = fig.add_subplot(111)
+        elif rank == 3:
+            fig = plt.figure(figsize=(6, 6))
+            ax = fig.add_subplot(111, projection='3d')
+
+        # Plot deformed mesh
+        for connect in self.connectivity:
+            coords = deformed[np.ix_(connect), :][0]
+            ax.plot(coords[:, 0], coords[:, 1], linewidth=0.5, color='k')
+
+        plt.show()
+
+    #-----------------------------------------------------------------------
+    #   updateGeometry
+    #-----------------------------------------------------------------------
+
+    def updateGeometry(self, disp):
+        """ Input:  disp = displacement vector """
+        for inod in range(len(self.coords)):
+            idofs = self.getDofIndices(inod)
+            x = [a+b for a,b in zip(self.coords[inod],disp[idofs])]
+            self.coords[inod] = x
 
 
 #===========================================================================

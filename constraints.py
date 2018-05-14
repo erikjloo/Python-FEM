@@ -15,6 +15,9 @@ class Constraints(object):
         self.conspace = np.empty(ndof)
         self.conspace[:] = np.nan
 
+    def initialize(self, props, mesh):
+        pass
+
     def addConstraint(self, idof, rval=0.0):
         self.conspace[idof] = rval
     
@@ -29,7 +32,7 @@ class Constraints(object):
         return self.ndof
 
     def get_fdof(self):
-        return np.argwhere(np.isnan(self.conspace))
+        return np.argwhere(np.isnan(self.conspace)).transpose()[0]
     
     def get_sdof(self):
-        return np.argwhere(np.isfinite(self.conspace))
+        return np.argwhere(np.isfinite(self.conspace)).transpose()[0]

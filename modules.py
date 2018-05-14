@@ -1,5 +1,11 @@
-# Import Standard Libraries
+#  Import Standard libraties
+import scipy as np
+
+#  Import Local Libraries
 from abc import ABCMeta, abstractmethod
+from constraints import Constraints
+from models import ModelFactory
+from mesh import Mesh
 
 
 #===========================================================================
@@ -52,9 +58,14 @@ class InputModule(Module):
     def __init__(self, name):
         self.name = name
 
-    def init(self, props, mesh):
+    def init(self, props):
         props = props.getProps(self.name)
-        self.__makeMesh(props, mesh)
+        mesh = self.__makeMesh(props)
+        # model = self.__makeModel(props, mesh)
+        # cons = self.__makeConstraints(props, mesh)
+        # fint, fext, disp = self.__makeVectors(mesh)
+        # return mesh, model, cons, fint, fext, disp
+        return mesh
 
     def run(self, mesh):
         pass
@@ -62,41 +73,29 @@ class InputModule(Module):
     def shutdown(self, mesh):
         pass
 
-    def __makeMesh(self, props, mesh):
+    def __makeMesh(self, props):
+        mesh = Mesh()
         props = props.getProps("mesh")
         mesh.initialize(props)
+        return mesh
 
+    # def __makeModel(self, props, mesh):
+    #     model = ModelFactory("model", props, mesh)
+    #     return model
 
-#===========================================================================
-#   InitModule
-#===========================================================================
+    # def __makeConstraints(self, props, mesh):
+    #     props = props.getProps("input.constraints")
+    #     ndof = mesh.dofCount()
+    #     cons = Constraints(ndof)
+    #     cons.initialize(props, mesh)
+    #     return cons
 
-
-class InitModule(Module):
-
-    def __init__(self, name):
-        self.name = name
-
-    def init(self, props, mesh):
-        props = props.getProps(self.name)
-        self.__makeModel(props, mesh)
-        self.__makeConstraints(props, mesh)
-        self.__makeVectors(props, mesh)
-
-    def run(self, mesh):
-        pass
-
-    def shutdown(self, mesh):
-        pass
-
-    def __makeModel(self, props, mesh):
-        pass
-
-    def __makeConstraints(self, props, mesh):
-        pass
-    
-    def __makeVectors(self, props, mesh):
-        pass
+    # def __makeVectors(self, mesh):
+    #     ndof = mesh.dofCount()
+    #     fint = np.zeros(ndof)
+    #     fext = np.zeros(ndof)
+    #     disp = np.zeros(ndof)
+    #     return fint, fext, disp
 
 
 #===========================================================================

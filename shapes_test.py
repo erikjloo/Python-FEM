@@ -2,9 +2,9 @@ import scipy as np
 from pprint import pprint, PrettyPrinter
 from itemset import NodeSet,ElementSet
 from dofspace import DofSpace
-from shapes import Shape, Line2, Line3, Tri3, Quad4
+from shapes import Shape, Line2, Line3, Tri3, Quad4, Tetra4
 
-np.set_printoptions(precision=4)
+np.set_printoptions(precision=3)
 
 def Printer(IP, N, dN, w, K):
     pp = PrettyPrinter(indent=1, width=120, compact=True)
@@ -19,20 +19,45 @@ def Printer(IP, N, dN, w, K):
     print(" \n K  = ")
     pp.pprint(K)
 
-example = "all"
-if example == 1 or example == "all":
+example = 0
+if example == 0  or example == "all":
+    #==Example 0=================================================#
+    coords = np.array([[0,0,0],[2,-0.2,-0.2],[0,1.2,0],[1.2,0,0]])
+
+    E, v = 1, 0.25
+    la = v*E/((1+v)*(1-2*v))
+    mu = E/(2*(1+v))
+    D = np.zeros((6, 6))
+    D[np.ix_([0, 1, 2], [0, 1, 2])] = la
+    D[0, 0] = D[1, 1] = D[2, 2] = la + 2*mu
+    D[3, 3] = D[4, 4] = D[5, 5] = mu
+
+    tetra4 = Tetra4("Gauss1")
+    N = tetra4.getShapeFunctions()
+    IP = tetra4.getGlobalPoints(coords)
+    [dN, w] = tetra4.getGlobalGradients(coords)
+    [B, w] = tetra4.getBmatrix(coords)
+
+    K = np.zeros((12, 12))
+    for ip in range(tetra4.nIP):
+        K += (B[ip].transpose() @ D @ B[ip])*w[ip]
+
+    print("\n\n Tetra4 \n")
+    Printer(IP, N, dN, w, K)
+
+elif example == 1 or example == "all":
     #==Example 1=================================================#
     """ Quad 4 Shape Stiffness Matrix """
 
     coords = np.array([[-1.2,-1],[1.4,-1],[1,1],[-1,1]])
 
-    E,v = 1,0.25
+    E, v = 1, 0.25
     la = v*E/((1+v)*(1-2*v))
     mu = E/(2*(1+v))
-    D = np.zeros((3,3))
-    D[0,0] = D[1,1] = la+2*mu
-    D[0,1] = D[1,0] = la
-    D[2,2] = mu
+    D = np.zeros((3, 3))
+    D[0, 0] = D[1, 1] = la+2*mu
+    D[0, 1] = D[1, 0] = la
+    D[2, 2] = mu
     quad4 = Quad4()
     N = quad4.getShapeFunctions()
     IP = quad4.getGlobalPoints(coords)
@@ -46,7 +71,6 @@ if example == 1 or example == "all":
     print("\n\n Quad4 \n")
     print(" D = \n")
     pprint(D)
-    print(" \n Integration points = ")
     Printer(IP, N, dN, w, K)
 
 if example == 2 or example == "all":
@@ -55,6 +79,13 @@ if example == 2 or example == "all":
 
     coords = np.array([[0,0],[1.2,0],[-0.1,1.3]])
 
+    E, v = 1, 0.25
+    la = v*E/((1+v)*(1-2*v))
+    mu = E/(2*(1+v))
+    D = np.zeros((3, 3))
+    D[0, 0] = D[1, 1] = la+2*mu
+    D[0, 1] = D[1, 0] = la
+    D[2, 2] = mu
     tri3 = Tri3(scheme="Gauss")
     N = tri3.getShapeFunctions()
     IP = tri3.getGlobalPoints(coords)
@@ -62,7 +93,7 @@ if example == 2 or example == "all":
     [B,w] = tri3.getBmatrix(coords)
     K = np.zeros((6,6))
     for ip in range(tri3.nIP):
-        K += B[ip].transpose() @ B[ip]*w[ip]
+        K += (B[ip].transpose() @ D @ B[ip])*w[ip]
 
     print("\n\n Tri3 \n")
     Printer(IP, N, dN, w, K)

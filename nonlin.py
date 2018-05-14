@@ -1,32 +1,30 @@
 # Import Standard Libraries
 import numpy as np
-from numpy import ix_
+from copy import deepcopy
 from numpy.linalg import norm
 
 # Import Local Libraries
 from solvers import Solver
+from constraints import Constraints
 from algebra import MatrixBuilder
 
 
-def newton_raphson(model, cons, nrkey, niter, f_ext, f_int, u, K):
+def newton_raphson(disp, fext, cons, mbuild, fint, model, mesh, nrkey, niter, tol=1e-3):
     """ Newton Raphson
 
-    Directory of variables:
-      Input:
-        model
-        fdof = vector of free degrees of freedom
-        sdof = vector of supported (prescribed) degrees of freedom
-        f_ext = external force vector of current load step
-        f_int = internal force vector from previous load step
-        u = displacement vector
-        K = initial stiffness matrix
+    Input:
+        disp = displacement vector
+        fext = external force vector of current load step
+        mbuild = 
+        fint = internal force vector from previous load step
+        model =
         niter = max. number of iterations per step
         nrkey = key for type of Newton-Raphson: 'full','mod','LE'
-      Output:
+    Output:
         u = displacement vector at the end of the load step
-        f_int = internal force vector at the end of the load step
+        fint = internal force vector at the end of the load step
         K = stiffness matrix for next load step
-      Internal Variables:
+    Internal Variables:
         Da = change in displacement vector
         da = Iterative increment in displacement vector
         r = out-of-balance force vector
@@ -35,61 +33,48 @@ def newton_raphson(model, cons, nrkey, niter, f_ext, f_int, u, K):
     ndof = cons.dofCount()
     fdof = cons.get_fdof()
 
-    # Initialize Data: Da = 0, r = f_ext - f_int
+    # Initialize Data: Da = 0, r = fext - fint
     Da = np.zeros(ndof)
     da = np.zeros(ndof)
 
-    r = f_ext - f_int
+    r = fext - fint
 
 
     for i in range(niter):
 
-        # Solve K_sys*da = r
-
         solver = Solver("rtfreechol", cons)
-
+        K = mbuild.getDenseMatrix()
         da = solver.solve(K, da, r)
 
         # Update displacement vector
         Da[fdof] = Da[fdof] + da[fdof]
-
-        # Update geometry
-        # model.updateGeometry(d+Da)
-
-        # Find internal strains
-
-        # Find internal stresses
+        # mesh.updateGeometry(d+Da)
 
         # Find interal force vector
+        if nrkey == "full":
+            model.get_Matrix_0(mbuild, fint, disp, mesh)
+        elif nrkey == "mod" or nrkey == "LE":
+            model.get_Int_Vector(fint, disp, mesh)
 
         # Find out-of-balance force vector
-        r = f_ext - f_int
+        r = fext - fint
         nrm = norm(r[fdof])
 
         # Check convergence
-        if i == 0:
-            nrm1 = norm(r[fdof])
+        if i == 0: nrm1 = deepcopy(nrm)
+        if nrm < tol*nrm1: break
 
-        if nrm < tol*nrm1:
-            break
-
-        # Update stiffness matrix
-        if nrkey == 'full':
-            mbuild = MatrixBuilder(model.dofCount())
-            K = model.get_Matrix_0(mbuild, f_int)[0]
-
-    u[fdof] = u[fdof] + Da[fdof]
-    return(u,f_int,K)
+    disp[fdof] = disp[fdof] + Da[fdof]
+    return [disp, fint]
 
 
-def multistep(model, nsteps=1, nrkey="full", niter=20):
+def multistep(model, mesh, nsteps=1, nrkey="none", niter=20):
     """ Performs multi-step analysis of a given model
 
     Directory of variables:
       Input:
-
         nsteps = number of steps
-        nrkey = key for type of Newton-Raphson: 'full','mod','LE'
+        nrkey = key for type of Newton-Raphson: "none", "full", "mod", "LE"
         niter = max. number of iterations per step
       Output:
         U = array of displacement results for every load step
@@ -100,25 +85,31 @@ def multistep(model, nsteps=1, nrkey="full", niter=20):
         fdof = vector of free degrees of freedom
         sdof = vector of supported (prescribed) degrees of freedom
     """
-    ndof = model.dofCount()
 
-    # Apply Dirichlet boundary conditions
-    d = model.get_Dirichlet()
-
-    # Apply Neumann boundary conditions
-    f = model.get_Neumann()
-
-    # Matrix builder
+    # Global Data
+    ndof = mesh.dofCount()
+    cons = Constraints(ndof)
     mbuild = MatrixBuilder(ndof)
+    fint = np.zeros(ndof)
+    fext = np.zeros(ndof)
+    disp = np.zeros(ndof)
 
-    # Internal force vector
-    f_int = np.zeros(ndof)
+    # Constraints
+    idofs = mesh.getDofIndices([1, 4], ["u", "v", "w"])
+    cons.addConstraints(idofs)
+    idofs = mesh.getDofIndices([2, 5], ["v", "w"])
+    cons.addConstraints(idofs)
+    idofs = mesh.getDofIndices([3, 6], ["u", "w"])
+    cons.addConstraints(idofs)
 
-    # Displacement vector
-    u = np.zeros(ndof)
+    # Loads
+    idofs = mesh.getDofIndices([3, 6], ["v"])
+    fext[idofs] = 5
 
     # Initial stiffness matrix
-    K,f_int = model.get_Matrix_0(mbuild, f_int)
+    model.get_Matrix_0(mbuild, fint, disp, mesh)
+    K = mbuild.getBlock(range(10),range(10))
+    print(K)
 
     # Allocate matrices for results
     F = []
@@ -126,11 +117,9 @@ def multistep(model, nsteps=1, nrkey="full", niter=20):
 
     # Loop over n steps
     for step in range(nsteps):
-        f_ext = f*step/(nsteps+1)
-        u[sdof] = d[sdof]*step/(nsteps+1)
-        u, f_int, K = newton_raphson(model, nrkey, niter, fdof, sdof, f_ext, f_int, u, K)
-        print(u)
-        print(f_int)
-        U = U.append(u.transpose())
-        F = F.append(f_int.transpose())
-    return(U,F)
+        # fext = Load Model
+        # disp = Disp Model
+        newton_raphson(disp, fext, cons, mbuild, fint, model, mesh, nrkey, niter)
+        U = U.append(disp)
+        F = F.append(fint)
+    return [U, F]

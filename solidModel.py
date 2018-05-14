@@ -104,16 +104,49 @@ class SolidModel(Model):
                 [strain, B, w] = self.shape.getStrain(coords, ele_disp, ip)
 
                 # Get tangent stiffness matrix D
-                [stress, D] = self.mat.getStress(strain[ip])
+                [stress, D] = self.mat.getStress(strain)
 
                 # Compute element stiffness matrix (kele)
                 kele += w * (B.transpose() @ D @ B)
-            
+
                 # Compute the element internal force vector
-                fe += w * (B.transpose @ stress)
+                fe += w * (B.transpose() @ stress)
 
             # Add kele to the global stiffness matrix (Ksys):
             mbuild.addBlock(idofs, idofs, kele)
+
+            # Add fint to the global force vector (Fint):
+            fint[idofs] += fe
+
+    #-----------------------------------------------------------------------
+    #   get_Int_Vector
+    #-----------------------------------------------------------------------
+
+    def get_Int_Vector(self, fint, disp, mesh):
+        """ Input & Output: fint = internal force vector """
+
+        # Iterate over elements assigned to model
+        for iele in self.ielements:
+
+            # Get element nodes, coordinates, dofs and displacements
+            inodes = mesh.getNodes(iele)
+            coords = mesh.getCoords(inodes)
+            idofs = mesh.getDofIndices(inodes, self.types)
+            ele_disp = disp[idofs]
+
+            # Initialize element internal force vector
+            fe = np.zeros(len(idofs))
+
+            for ip in range(self.shape.nIP):
+
+                # Get strain, B matrix and weight
+                [strain, B, w] = self.shape.getStrain(coords, ele_disp, ip)
+
+                # Get tangent stiffness matrix D
+                [stress, _] = self.mat.getStress(strain)
+
+                # Compute the element internal force vector
+                fe += w * (B.transpose() @ stress)
 
             # Add fint to the global force vector (Fint):
             fint[idofs] += fe
@@ -138,35 +171,3 @@ class SolidModel(Model):
 
     def takeAction(self, action, *args):
         pass
-
-#===========================================================================
-#   Example
-#===========================================================================
-
-
-if __name__ == '__main__':
-
-    from properties import Properties
-    from algebra import MatrixBuilder
-    from models import ModelFactory
-    from nonlin import multistep
-    from mesh import Mesh
-
-    # Initialization
-    file = "Examples/semicircle.pro"
-    props = Properties()
-    props.parseFile(file)
-
-    # Mesh
-    mesh = Mesh()
-    mesh.initialize(props.getProps("input.mesh"))
-
-    # Model
-    model = ModelFactory("model", props, mesh)
-
-    ndof = mesh.dofCount()
-    mbuild = MatrixBuilder(ndof)
-    fint = np.zeros(ndof)
-    disp = np.zeros(ndof)
-
-    model.get_Matrix_0(mbuild, fint, disp, mesh) 

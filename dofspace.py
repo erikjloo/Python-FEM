@@ -220,24 +220,34 @@ class DofSpace(object):
         """ Output: ndof = number of degrees of freedom """
         return self.ndof
 
-    def getDofIndex(self, inod, dof):
+    def getDofIndex(self, inod, dofs=None):
         """ Input: inod = node index, dof = string of dof name
             Output: idof = dof index """
-        jtype = self.types.index(dof)
-        return int(self.dofspace[inod,jtype])
+        idofs = []
+        if dofs is None:
+            for dof in self.dofspace[inod]:
+                if not np.isnan(dof):
+                    idofs.append(int(dof))
+        elif isinstance(dofs, list):
+            for dof in dofs:
+                jtype = self.types.index(dof)
+                idofs.append(int(self.dofspace[inod, jtype]))
+        else:
+            jtype = self.types.index(dofs)
+            idofs = int(self.dofspace[inod,jtype])
+        return idofs
 
-    def getDofIndices(self, inodes, dofs):
+    def getDofIndices(self, inodes, dofs=None):
         """ Input: inodes = node indices, dofs = list of strings of dof names
             Output: idofs = list of dof indices """
         idofs = []
-        if isinstance(inodes, (list,tuple,range,np.ndarray)):
+        if isinstance(inodes, (list, tuple, range, np.ndarray)):
             for inod in inodes:
-                for dof in dofs:
-                    idofs.append(self.getDofIndex(inod, dof))
+                idofs += self.getDofIndex(inod, dofs)
         else:
-            for dof in dofs:
-                idofs.append(self.getDofIndex(inodes, dof))
+            idofs += self.getDofIndex(inodes, dofs)
         return idofs
+
 
     def printDofSpace(self):
         """ Prints the dof space with node numbers and dof type names """
