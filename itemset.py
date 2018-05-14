@@ -187,7 +187,7 @@ class ElementSet(object):
 
     def elemCount(self):
         """ Output: number of elements """
-        return len(self.connectivity)
+        return self.nele
 
     def getNodes(self, ielements=None):
         """ Input: ielements = element index or element indices

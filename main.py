@@ -48,6 +48,7 @@ fext[idofs] = 5
 # Initial stiffness matrix
 model.get_Matrix_0(mbuild, fint, disp, mesh)
 K = mbuild.getBlock(range(20,25), range(20,25))
+print(K)
 
 ndof = cons.dofCount()
 fdof = cons.get_fdof()

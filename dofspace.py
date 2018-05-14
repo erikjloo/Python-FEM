@@ -81,7 +81,7 @@ class DofSpace(object):
     def addRow(self):
         """ Adds a new row to dofspace """
         r_reqd = np.size(self.dofspace, 1)
-        r_new = np.empty((1,r_reqd))
+        r_new = np.empty((1, r_reqd))
         r_new[:] = np.nan
         self.dofspace = np.vstack((self.dofspace, r_new))
         self.nrow += 1
@@ -90,7 +90,7 @@ class DofSpace(object):
     def addRows(self, nrow):
         """ Input: nrow = number of rows (nodes) to be added """
         r_reqd = np.size(self.dofspace, 1)
-        r_new = np.empty((nrow,r_reqd))
+        r_new = np.empty((nrow, r_reqd))
         r_new[:] = np.nan
         self.dofspace = np.vstack((self.dofspace, r_new))
         self.nrow += nrow
@@ -134,7 +134,7 @@ class DofSpace(object):
 
     def addTypes(self, dofs):
         """ Input: dofs =  list of string of dof type names """
-        if isinstance(dofs, (list,np.ndarray)):
+        if isinstance(dofs, (list, np.ndarray)):
             for dof in dofs:
                 self.addType(dof)
         else:
@@ -198,7 +198,7 @@ class DofSpace(object):
 
     def addDofs(self, inodes, dofs):
         """ Input: inodes = node indices, dofs = (list of) strings of dof names """
-        if isinstance(inodes, (list,tuple,range,np.ndarray)):
+        if isinstance(inodes, (list, tuple, range, np.ndarray)):
             for inod in inodes:
                 self.addDof(inod, dofs)
         else:  # addDof checks if inodes is an int
@@ -222,32 +222,36 @@ class DofSpace(object):
 
     def getDofIndex(self, inod, dofs=None):
         """ Input: inod = node index, dof = string of dof name
-            Output: idof = dof index """
-        idofs = []
+            Output: idof = dof index or list of dof indices """
         if dofs is None:
+            idofs = []
             for dof in self.dofspace[inod]:
                 if not np.isnan(dof):
                     idofs.append(int(dof))
         elif isinstance(dofs, list):
+            idofs = []
             for dof in dofs:
                 jtype = self.types.index(dof)
                 idofs.append(int(self.dofspace[inod, jtype]))
-        else:
+        elif isinstance(dofs, str):
             jtype = self.types.index(dofs)
-            idofs = int(self.dofspace[inod,jtype])
+            idofs = int(self.dofspace[inod, jtype])
         return idofs
 
     def getDofIndices(self, inodes, dofs=None):
         """ Input: inodes = node indices, dofs = list of strings of dof names
             Output: idofs = list of dof indices """
-        idofs = []
         if isinstance(inodes, (list, tuple, range, np.ndarray)):
+            idofs = []
             for inod in inodes:
-                idofs += self.getDofIndex(inod, dofs)
+                jdofs = self.getDofIndex(inod, dofs)
+                if isinstance(jdofs, int):
+                    idofs.append(jdofs)
+                else:
+                    idofs += jdofs
         else:
-            idofs += self.getDofIndex(inodes, dofs)
+            idofs = self.getDofIndex(inodes, dofs)
         return idofs
-
 
     def printDofSpace(self):
         """ Prints the dof space with node numbers and dof type names """
@@ -279,13 +283,13 @@ if __name__ == '__main__':
     print("\nDofSpace :")
     dofs = DofSpace(1, 1)
     dofs.addRows(10)
-    dofs.eraseRows([5,6,7,8,9,10])
+    dofs.eraseRows([5, 6, 7, 8, 9, 10])
     dofs.addRow()
 
     dofs.addType('u')
     dofs.addTypes(['v', 'j', 'rotx', 'roty', 'rotz'])
     dofs.setType(2, 'w')
-    dofs.addDofs((0,2,4,5), ['u', 'v', 'w', 'rotx'])
+    dofs.addDofs((0, 2, 4, 5), ['u', 'v', 'w', 'rotx'])
     dofs.printDofSpace()
 
     dofs.eraseType('w')
@@ -294,15 +298,24 @@ if __name__ == '__main__':
     dofs.printDofSpace()
 
     dofs.addType('w')
-    dofs.addDof(0,'u')
-    dofs.addDof(0,['u','v','w'])
-    dofs.addDofs(range(6),['u','v','w'])
+    dofs.addDof(0, 'u')
+    dofs.addDof(0, ['u', 'v', 'w'])
+    dofs.addDofs(range(6), ['u', 'v', 'w'])
     dofs.printDofSpace()
 
-    dofs.eraseDof(0, ['u', 'v','w'])
-    dofs.eraseDofs([1,2],'u')
-    dofs.eraseDofs(1,'v')
+    dofs.eraseDof(0, ['u', 'v', 'w'])
+    dofs.eraseDofs([1, 2], 'u')
+    dofs.eraseDofs(1, 'v')
 
     dofs.eraseRow(4)
     dofs.printDofSpace()
     print("Dof count :", dofs.dofCount())
+
+    idofs = dofs.getDofIndices(3)
+    idofs = dofs.getDofIndices(3, "u")
+    idofs = dofs.getDofIndices(3, ["u", "v"])
+
+    idofs = dofs.getDofIndices([3, 4])
+    idofs = dofs.getDofIndices([3, 4], "u")
+    idofs = dofs.getDofIndices([3, 4], ["u","v"])
+    print("idofs =", idofs)
