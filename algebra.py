@@ -1,5 +1,6 @@
 # Import Standard Libraries
 import scipy as np
+import matplotlib.pyplot as plt
 from pprint import PrettyPrinter
 from scipy.sparse import dok_matrix
 from scipy.linalg import inv, det, norm
@@ -100,6 +101,10 @@ class MatrixBuilder(object):
         """ Output: K """
         return self.K.todense()
     
+    def plot(self):
+        plt.spy(self.K)
+        plt.show()
+
     def print(self):
         pp = PrettyPrinter(indent=1, width=120, compact=True)
         pp.pprint(self.K.todense())
@@ -186,6 +191,8 @@ if __name__ == "__main__":
     print("\nSystem Matrix = ")
     mbuild.resize(5)
     mbuild.print()
+
+    mbuild.plot()
 
 
 

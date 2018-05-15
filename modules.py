@@ -19,19 +19,22 @@ class Module(metaclass=ABCMeta):
     """ Abstract Module Class 
     
     Pure Virtual Methods:
-        init(name, props, mesh)
-        run(mesh)
-        shutdown(mesh)
+        init(name, props, globdat)
+        run(globdat)
+        shutdown(globdat)
     """
+
+    def __init__(self, name=None):
+        if name: self.name = name
 
     @abstractmethod
     def init(self, props, globdat): pass
 
     @abstractmethod
-    def run(self, mesh): pass
+    def run(self, globdat): pass
 
     @abstractmethod
-    def shutdown(self, mesh): pass
+    def shutdown(self, globdat): pass
 
 
 #===========================================================================
@@ -40,24 +43,26 @@ class Module(metaclass=ABCMeta):
 
 
 class InputModule(Module):
-    """ Reads props and initializes the mesh """
-
-    def __init__(self, name):
-        self.name = name
+    """ Reads props and initializes the mesh
+        
+    Public Methods:
+        init(name, props, globdat)
+        run(globdat)
+        shutdown(globdat)
+    """
 
     def init(self, props, globdat):
         props = props.getProps(self.name)
-        self.__makeMesh(props, globdat)
+        globdat.makeMesh(props, globdat)
 
-    def run(self, mesh):
+    def run(self, globdat):
         pass
 
-    def shutdown(self, mesh):
+    def shutdown(self, globdat):
         pass
 
     def __makeMesh(self, props, globdat):
         props = props.getProps("mesh")
-        globdat.mesh = Mesh()
         globdat.mesh.initialize(props)
 
 #===========================================================================
@@ -66,37 +71,25 @@ class InputModule(Module):
 
 
 class InitModule(Module):
-    """ Initializes the model, constraints, matrix builder and vectors """
-    
+    """ Initializes the model, constraints, matrix builder and vectors
+            
+    Public Methods:
+        init(name, props, globdat)
+        run(globdat)
+        shutdown(globdat)
+    """
+
     def init(self, props, globdat):
-        self.__makeModel(props, globdat)
-        self.__makeConstraints(props, globdat)
-        self.__makeMatrixBuilder(globdat)
-        self.__makeVectors(globdat)
+        globdat.makeModel(props, globdat.mesh)
+        globdat.makeConstraints(props)
+        globdat.makeMatrixBuilder()
+        globdat.makeVectors()
 
-    def run(self, mesh):
+    def run(self, globdat):
         pass
 
-    def shutdown(self, mesh):
+    def shutdown(self, globdat):
         pass
-
-    def __makeModel(self, props, globdat):
-        globdat.model = ModelFactory("model", props, globdat.mesh)
-
-    def __makeConstraints(self, props, globdat):
-        ndof = globdat.mesh.dofCount()
-        globdat.cons = Constraints(ndof)
-        globdat.cons.initialize(props, globdat.mesh)
-
-    def __makeMatrixBuilder(self, globdat):
-        ndof = globdat.mesh.dofCount()
-        globdat.mbuild = MatrixBuilder(ndof)
-
-    def __makeVectors(self, globdat):
-        ndof = globdat.mesh.dofCount()
-        globdat.fint = np.zeros(ndof)
-        globdat.fext = np.zeros(ndof)
-        globdat.disp = np.zeros(ndof)
 
 
 #===========================================================================
@@ -105,8 +98,15 @@ class InitModule(Module):
 
 
 class LinSolveModule(Module):
+    """ Runs a linear analysis
+            
+    Public Methods:
+        init(name, props, globdat)
+        run(globdat)
+        shutdown(globdat)
+    """
 
-    def init(self, props, mesh):
+    def init(self, props, globdat):
         pass
 
     def run(self, globdat):
@@ -120,9 +120,8 @@ class LinSolveModule(Module):
         solver = Solver("numpy", globdat.cons)
         K = globdat.mbuild.getDenseMatrix()
         solver.solve(K, globdat.disp, globdat.fext, hbw)
-        pass
-
-    def shutdown(self, mesh):
+        
+    def shutdown(self, globdat):
         pass
 
 

@@ -6,7 +6,7 @@ import time
 # Import Local Libraries
 from properties import Properties
 from globalData import GlobalData
-from modules import InputModule, InitModule
+from modules import InputModule, InitModule, LinSolveModule
 from solvers import Solver
 
 np.set_printoptions(precision=4)
@@ -26,13 +26,13 @@ props.parseFile(file)
 props.print()
 
 # Global Data
-globdat = GlobalData()
+globdat = GlobalData(props)
 
-# Mesh into Global Data
+# Create mesh
 module = InputModule("input")
 module.init(props, globdat)
 
-# Global Data
+# Create model, cons, mbuilder and vectors
 module = InitModule()
 module.init(props, globdat)
 
@@ -61,52 +61,11 @@ elif dim == 3:
     idofs = globdat.mesh.getDofIndices([2, 5], "v")
     globdat.fext[idofs] = 5
 
-# Initial stiffness matrix
-hbw = globdat.model.get_Matrix_0(globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
-print("The half-band-width is",hbw)
-
-# Solve
-solver = Solver("numpy", globdat.cons)
-K = globdat.mbuild.getDenseMatrix()
-solver.solve(K, globdat.disp, globdat.fext, hbw)
-
-# K = mbuild.getMatrix()
-# plt.spy(K)
-# plt.show()
+module = LinSolveModule()
+module.run(globdat)
 
 stop = time.time()
 print("Elapsed time is ",stop-start)
 
 # globdat.mesh.updateGeometry(disp)
 globdat.mesh.plotDeformed(globdat.disp, 21.5)
-
-def solve():
-
-    # Initial stiffness matrix
-    hbw = model.get_Matrix_0(mbuild, fint, disp, globdat.mesh)
-    print("The half-band-width is", hbw)
-
-    # K = mbuild.getBlock(range(20,25), range(20,25))
-    # print(K)
-
-    ndof = cons.dofCount()
-    fdof = cons.get_fdof()
-
-    # Initialize Data: Da = 0, r = fext - fint
-    Da = np.zeros(ndof)
-    da = np.zeros(ndof)
-
-    r = fext - fint
-
-    solver = Solver("numpy", cons)
-    K = mbuild.getDenseMatrix()
-    solver.solve(K, da, r, hbw)
-
-    # K = mbuild.getMatrix()
-    # plt.spy(K)
-    # plt.show()
-
-    # Update displacement vector
-    Da[fdof] = Da[fdof] + da[fdof]
-    print(Da)
-    return Da
