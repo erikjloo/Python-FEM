@@ -27,15 +27,16 @@ class PBCmodel(Model):
 
         bndNodes = boundary nodes = [xmin, xmax, ymin, ymax]
         trNodes = traction nodes = [xmin, ymin]
-        corner0 = corner at intersection of xmin & ymin
-        cornerx = corner at intersection of xmax & ymin
-        cornery = corner at intersection of xmin & ymax
+        corner0 = corner at xmin & ymin
+        corner = [cornerx, cornery]
 
     Public Methods:
-        PBCmodel(name, props, mesh)
-        get_Matrix_0(mesh, mbuild, fint)
-        get_Ext_Vector(fext)
+        PBCModel(name, props, mesh)
+        get_Matrix_0(mbuild, fint, disp, mesh)
+        get_Ext_Vector(fext, mesh)
+        get_Int_Vector(fint, disp, mesh)
         get_Constraints(cons, mesh)
+        takeAction(action, mesh)
 
     Private Methods:
         __boundingBox(mesh)
@@ -46,7 +47,7 @@ class PBCmodel(Model):
         __findCornerNodes()
         __createTractionMesh(mesh)
         __coarsenMesh(mesh, trFace)
-        __getTractionMeshNodes
+        __getTractionMeshNodes(mesh, x, face)
     """
 
     # Public:
@@ -389,6 +390,8 @@ class PBCmodel(Model):
 
         print("\n Augmenting Matrix: \n")
 
+        max_hbw = 0
+
         # Variables related to element on U mesh
         N = np.zeros((self.rank_, self.nnod_*self.rank_))
 
@@ -408,6 +411,8 @@ class PBCmodel(Model):
                 # Get jdofs from T-mesh
                 connect = self.__getTractionMeshNodes(mesh, X[0], face)
                 jdofs = mesh.getDofIndices(connect, self.T_doftypes_)
+                hbw = max(jdofs) - min(idofs)
+                max_hbw = hbw if hbw > max_hbw else max_hbw
                 coords = mesh.getCoords(connect)
 
                 # Matrix to be assembled: K[idofs, jdofs]
@@ -430,8 +435,9 @@ class PBCmodel(Model):
 
                 # Add Ke and KeT to mbuild
                 KeT = Ke.transpose()
-                mbuild.addBlock(idofs, jdofs, Ke)
-                mbuild.addBlock(jdofs, idofs, KeT)
+                if mbuild is not None:
+                    mbuild.addBlock(idofs, jdofs, Ke)
+                    mbuild.addBlock(jdofs, idofs, KeT)
 
                 # Assemble U-mesh fe
                 fe = Ke.dot(disp[jdofs])
@@ -444,6 +450,15 @@ class PBCmodel(Model):
 
                 # Add fe to fint[jdofs]
                 fint[jdofs] += fe
+            
+            return max_hbw
+
+    #-----------------------------------------------------------------------
+    #   get_Int_Vector
+    #-----------------------------------------------------------------------
+
+    def get_Int_Vector(self, fint, disp, mesh):
+        self.get_Matrix_0(None, fint, disp, mesh)
 
     #-----------------------------------------------------------------------
     #   get_Ext_Vector
@@ -451,7 +466,7 @@ class PBCmodel(Model):
 
     def get_Ext_Vector(self, fext, mesh):
 
-        print("\n Augmenting fext: \n")
+        print("\n Updating fext: \n")
 
         # Variables related to element on T mesh
         H = np.zeros((self.rank_, self.nnod_*self.rank_))
@@ -516,32 +531,24 @@ class PBCmodel(Model):
 if __name__ == '__main__':
 
     from properties import Properties
-    from constraints import Constraints
-    from algebra import MatrixBuilder
-    from modules import InputModule
-    from models import ModelFactory
-    from nonlin import multistep
-    from mesh import Mesh
-
-    # Initialization
+    from modules import InputModule, InitModule
     np.set_printoptions(precision=4)
+
+    # Props
     file = "Examples/rve.pro"
     props = Properties()
     props.parseFile(file)
-    
+    props.print()
+
     # Mesh
     module = InputModule("input")
     mesh = module.init(props)
 
-    model = ModelFactory("model", props, mesh)
-    model.takeAction("plot_boundary", mesh)
+    # Model & Global Data
+    module = InitModule()
+    [model, cons, mbuild, fint, fext, disp] = module.init(props, mesh)
 
-    ndof = mesh.dofCount()
-    cons = Constraints(ndof)
-    fext = np.zeros(ndof)
-    fint = np.zeros(ndof)
-    disp = np.zeros(ndof)
-    mbuild = MatrixBuilder(ndof)
+    model.takeAction("plot_boundary", mesh)
 
     model.get_Ext_Vector(fext, mesh)
     model.get_Constraints(cons, mesh)

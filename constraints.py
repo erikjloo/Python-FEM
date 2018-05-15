@@ -22,8 +22,11 @@ class Constraints(object):
         self.conspace[idof] = rval
     
     def addConstraints(self, idofs, rval=0.0):
-        for idof in idofs:
-            self.addConstraint(idof, rval)
+        if isinstance(idofs,(list,tuple,range,np.ndarray)):
+            for idof in idofs:
+                self.addConstraint(idof, rval)
+        else:
+            self.addConstraint(idofs, rval)
 
     def getConspace(self):
         return self.conspace

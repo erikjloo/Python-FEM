@@ -27,10 +27,11 @@
     {
         "type"     : "Solid",
         "elements" : "gmsh0",
+        "thickness" : 0.1,
 
         "material" :
         {
-            "type"   : "PlaneStress",
+            "type"   : "PlaneStrain",
             "young"  : 100000,
             "poisson": 0.2
         },

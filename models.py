@@ -47,28 +47,25 @@ class Model(metaclass=ABCMeta):
         Model(name, props, mesh)
         get_Matrix_0(mbuild, fint, disp, mesh)
         get_Ext_Vector(fext, mesh)
+        get_Int_Vector(fint, disp, mesh)
         get_Constraints(cons, mesh)
+        takeAction(action, mesh)
     """
 
     @abstractmethod
-    def __init__(self, name, props, mesh):
-        pass
+    def __init__(self, name, props, mesh): pass
 
     @abstractmethod
-    def get_Matrix_0(self, mbuild, fint, disp, mesh):
-        pass
+    def get_Matrix_0(self, mbuild, fint, disp, mesh): pass
 
     @abstractmethod
-    def get_Ext_Vector(self, fext, mesh):
-        pass
+    def get_Ext_Vector(self, fext, mesh): pass
 
     @abstractmethod
-    def get_Constraints(self, cons, mesh):
-        pass
-    
+    def get_Constraints(self, cons, mesh): pass
+
     @abstractmethod
-    def takeAction(self, action, mesh):
-        pass
+    def takeAction(self, action, mesh): pass
 
 
 #===========================================================================
@@ -84,11 +81,14 @@ class MultiModel(Model):
         models = children
 
     Public Methods:
-        Model(name, props, mesh)
+        MultiModel(name, props, mesh)
         get_Matrix_0(mbuild, fint, disp, mesh)
         get_Ext_Vector(fext, mesh)
+        get_Int_Vector(fint, disp, mesh)
         get_Constraints(cons, mesh)
+        takeAction(action, mesh)
     """
+
     def __init__(self, name, props, mesh):
         """ Creates a node and its children"""
         self.name = name
@@ -100,8 +100,14 @@ class MultiModel(Model):
             self.models.append(model)
 
     def get_Matrix_0(self, mbuild, fint, disp, mesh):
+        hbw = []
         for model in self.models:
-            model.get_Matrix_0(mbuild, fint, disp, mesh)
+            hbw.append(model.get_Matrix_0(mbuild, fint, disp, mesh))
+        return max(hbw)
+
+    def get_Int_Vector(self, fint, disp, mesh):
+        for model in self.models:
+            model.get_Int_Vector(fint, disp, mesh)
 
     def get_Ext_Vector(self, fext, mesh):
         for model in self.models:
@@ -128,10 +134,12 @@ class MatrixModel(Model):
         model = child model
 
     Public Methods:
-        Model(name, props, mesh)
+        MatrixModel(name, props, mesh)
         get_Matrix_0(mbuild, fint, disp, mesh)
         get_Ext_Vector(fext, mesh)
+        get_Int_Vector(fint, disp, mesh)
         get_Constraints(cons, mesh)
+        takeAction(action, mesh)
     """
 
     def __init__(self, name, props, mesh):
@@ -143,7 +151,10 @@ class MatrixModel(Model):
         self.model = ModelFactory(name, props, mesh)
 
     def get_Matrix_0(self, mbuild, fint, disp, mesh):
-        self.model.get_Matrix_0(mbuild, fint, disp, mesh)
+        return self.model.get_Matrix_0(mbuild, fint, disp, mesh)
+
+    def get_Int_Vector(self, fint, disp, mesh):
+        self.model.get_Int_Vector(fint, disp, mesh)
 
     def get_Ext_Vector(self, fext, mesh):
         self.model.get_Ext_Vector(fext, mesh)
@@ -169,14 +180,12 @@ if __name__ == "__main__":
 
     from properties import Properties
     from modules import InputModule
-    from mesh import Mesh
 
     file = "Examples/rve.pro"
     props = Properties()
     props.parseFile(file)
-    mesh = Mesh()
 
     module = InputModule("input")
-    module.init(props, mesh)
+    mesh = module.init(props)
 
     model = ModelFactory("model", props, mesh)

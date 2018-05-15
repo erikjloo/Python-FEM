@@ -33,6 +33,7 @@
         {
             "type"     : "Solid",
             "elements" : "gmsh1",
+            "thickness" : 1,
 
             "material" :
             {
@@ -58,13 +59,11 @@
         {
             "type" : "Solid",
             "elements" : "gmsh0",
+            "thickness" : 1,
 
             "material" : 
             {
-                "type" : "Hooke",
-                "rank" : 2,
-                "state" : "PLANE_STRAIN",
-
+                "type" : "PlaneStrain",
                 "young" : 74000,
                 "poisson" : 0.2
             },

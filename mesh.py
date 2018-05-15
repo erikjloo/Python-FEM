@@ -2,7 +2,6 @@
 import scipy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from copy import deepcopy
 from tkinter import Tk, filedialog
 from indexed import IndexedOrderedDict
 
@@ -39,9 +38,12 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         ndof = last dof index
 
     Public Methods:
-        readMesh(path) - reads gmsh 2.0 file
-        readXML(path) - reads .xml file
-        plotMesh(rank=2) - plots 2D or 3D
+        readMesh(self, type, path, rank, doElemGroups)
+        readGmsh(self, path, rank, doElemGroups)
+        readXML(self, path, rank=3)
+        plotMesh(rank)
+        plotDeformed(self, disp, scale, rank)
+        updateGeometry(self, disp)
     """
 
     # Public:
@@ -300,16 +302,14 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
 if __name__ == '__main__':
 
-    from properties import Properties
-    
     mesh = Mesh()
     mesh.readXML("Examples/square.xml")
     mesh.plotMesh(rank=2)
 
-    file = "Examples/semicircle.pro"
-    props = Properties()
-    props.parseFile(file)
+    mesh = Mesh()
+    mesh.readGmsh("Examples/2D_semicircle.msh")
+    mesh.plotMesh(rank=2)
 
     mesh = Mesh()
-    mesh.initialize(props.getProps("input.mesh"))
+    mesh.readGmsh("Examples/3D_semicircle.msh")
     mesh.plotMesh(rank=2)

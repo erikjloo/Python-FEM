@@ -27,10 +27,12 @@ class SolidModel(Model):
         localrank = local rank of shape
 
     Public Methods:
-        SolidModel()
-        get_Matrix_0(mesh, mbuild, fint)
-        get_Ext_Vector(fext)
-        get_Constraints(mesh, constraints)
+        SolidModel(name, props, mesh)
+        get_Matrix_0(mbuild, fint, disp, mesh)
+        get_Ext_Vector(fext, mesh)
+        get_Int_Vector(fint, disp, mesh)
+        get_Constraints(cons, mesh)
+        takeAction(action, mesh)
 
     Private Methods:
         __getBmatrix()
@@ -64,6 +66,10 @@ class SolidModel(Model):
         inodes = mesh.getNodeIndices(self.ielements)
         mesh.addDofs(inodes, self.types)
 
+        # Add thickness (2D)
+        if self.rank == 2:
+            self.t = props.get("thickness")
+
         # Create element
         self.shape = ShapeFactory(props)
         self.nIP = self.shape.nIP
@@ -75,7 +81,7 @@ class SolidModel(Model):
         self.nIP = self.shape.nIP
         self.nnod = self.shape.nnod
         self.localrank = self.shape.ndim
-
+        
     #-----------------------------------------------------------------------
     #   get_Matrix_0
     #-----------------------------------------------------------------------
@@ -84,6 +90,7 @@ class SolidModel(Model):
         """ Input & Output: mbuild = MatrixBuilder = Ksys
                             fint = internal force vector """
 
+        max_hbw = 0
         # Iterate over elements assigned to model
         for iele in self.ielements:
 
@@ -91,6 +98,8 @@ class SolidModel(Model):
             inodes = mesh.getNodes(iele)
             coords = mesh.getCoords(inodes)
             idofs = mesh.getDofIndices(inodes, self.types)
+            hbw = max(idofs) - min(idofs)
+            max_hbw = hbw if hbw > max_hbw else max_hbw
             ele_disp = disp[idofs]
 
             # Initialize element stiffness matrix and internal force vector
@@ -102,6 +111,9 @@ class SolidModel(Model):
 
                 # Get strain, B matrix and weight
                 [strain, B, w] = self.shape.getStrain(coords, ele_disp, ip)
+
+                if self.rank == 2:
+                    w *= self.t
 
                 # Get tangent stiffness matrix D
                 [stress, D] = self.mat.getStress(strain)
@@ -117,6 +129,8 @@ class SolidModel(Model):
 
             # Add fint to the global force vector (Fint):
             fint[idofs] += fe
+            
+        return max_hbw
 
     #-----------------------------------------------------------------------
     #   get_Int_Vector

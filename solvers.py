@@ -24,7 +24,7 @@ class Solver(object):
             x[self.fdof] = rtfreechol(A[np.ix_(self.fdof, self.fdof)], b[self.fdof], hbw)[0]
         elif self.method is "gauss_seidel":
             x[self.fdof] = gauss_seidel(A[np.ix_(self.fdof, self.fdof)], b[self.fdof])[0]
-        elif self.method is "python" :
+        elif self.method is "numpy" :
             x[self.fdof] = linalg.solve(A[np.ix_(self.fdof, self.fdof)], b[self.fdof])
         return x
 
@@ -95,9 +95,6 @@ def rtfreechol(A,b,hbw):
         for i in range(j+1,i_max):
             x[j] -= L[i,j]*x[i]
         x[j] /= L[j,j]
-
-    if linalg.cond(A) > 10^18 or linalg.cond(A) < 10^-18:
-        raise ValueError("Matrix A is ill-linalg.conditioned")
 
     return x,L,D
 
