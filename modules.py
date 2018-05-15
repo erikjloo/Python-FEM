@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 from constraints import Constraints
 from algebra import MatrixBuilder
 from models import ModelFactory
+from solvers import Solver
 from mesh import Mesh
 
 
@@ -108,7 +109,17 @@ class LinSolveModule(Module):
     def init(self, props, mesh):
         pass
 
-    def run(self, mesh):
+    def run(self, globdat):
+
+        # Initial stiffness matrix
+        hbw = globdat.model.get_Matrix_0(
+            globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
+        print("The half-band-width is", hbw)
+
+        # Solve
+        solver = Solver("numpy", globdat.cons)
+        K = globdat.mbuild.getDenseMatrix()
+        solver.solve(K, globdat.disp, globdat.fext, hbw)
         pass
 
     def shutdown(self, mesh):
