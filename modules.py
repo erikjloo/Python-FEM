@@ -24,7 +24,7 @@ class Module(metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def init(self, props, mesh): pass
+    def init(self, props, globdat): pass
 
     @abstractmethod
     def run(self, mesh): pass
@@ -39,14 +39,14 @@ class Module(metaclass=ABCMeta):
 
 
 class InputModule(Module):
+    """ Reads props and initializes the mesh """
 
     def __init__(self, name):
         self.name = name
 
-    def init(self, props):
+    def init(self, props, globdat):
         props = props.getProps(self.name)
-        mesh = self.__makeMesh(props)
-        return mesh
+        self.__makeMesh(props, globdat)
 
     def run(self, mesh):
         pass
@@ -54,11 +54,10 @@ class InputModule(Module):
     def shutdown(self, mesh):
         pass
 
-    def __makeMesh(self, props):
-        mesh = Mesh()
+    def __makeMesh(self, props, globdat):
         props = props.getProps("mesh")
-        mesh.initialize(props)
-        return mesh
+        globdat.mesh = Mesh()
+        globdat.mesh.initialize(props)
 
 #===========================================================================
 #   InitModule
@@ -66,13 +65,13 @@ class InputModule(Module):
 
 
 class InitModule(Module):
-
-    def init(self, props, mesh):
-        model = self.__makeModel(props, mesh)
-        cons = self.__makeConstraints(props, mesh)
-        mbuild = self.__makeMatrixBuilder(mesh)
-        [fint, fext, disp] = self.__makeVectors(mesh)
-        return [model, cons, mbuild, fint, fext, disp]
+    """ Initializes the model, constraints, matrix builder and vectors """
+    
+    def init(self, props, globdat):
+        self.__makeModel(props, globdat)
+        self.__makeConstraints(props, globdat)
+        self.__makeMatrixBuilder(globdat)
+        self.__makeVectors(globdat)
 
     def run(self, mesh):
         pass
@@ -80,27 +79,23 @@ class InitModule(Module):
     def shutdown(self, mesh):
         pass
 
-    def __makeModel(self, props, mesh):
-        model = ModelFactory("model", props, mesh)
-        return model
+    def __makeModel(self, props, globdat):
+        globdat.model = ModelFactory("model", props, globdat.mesh)
 
-    def __makeConstraints(self, props, mesh):
-        ndof = mesh.dofCount()
-        cons = Constraints(ndof)
-        cons.initialize(props, mesh)
-        return cons
+    def __makeConstraints(self, props, globdat):
+        ndof = globdat.mesh.dofCount()
+        globdat.cons = Constraints(ndof)
+        globdat.cons.initialize(props, globdat.mesh)
 
-    def __makeMatrixBuilder(self, mesh):
-        ndof = mesh.dofCount()
-        mbuild = MatrixBuilder(ndof)
-        return mbuild
+    def __makeMatrixBuilder(self, globdat):
+        ndof = globdat.mesh.dofCount()
+        globdat.mbuild = MatrixBuilder(ndof)
 
-    def __makeVectors(self, mesh):
-        ndof = mesh.dofCount()
-        fint = np.zeros(ndof)
-        fext = np.zeros(ndof)
-        disp = np.zeros(ndof)
-        return [fint, fext, disp]
+    def __makeVectors(self, globdat):
+        ndof = globdat.mesh.dofCount()
+        globdat.fint = np.zeros(ndof)
+        globdat.fext = np.zeros(ndof)
+        globdat.disp = np.zeros(ndof)
 
 
 #===========================================================================

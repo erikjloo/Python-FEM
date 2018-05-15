@@ -5,6 +5,7 @@ import time
 
 # Import Local Libraries
 from properties import Properties
+from globalData import GlobalData
 from modules import InputModule, InitModule
 from solvers import Solver
 
@@ -24,47 +25,50 @@ props = Properties()
 props.parseFile(file)
 props.print()
 
-# Mesh
-module = InputModule("input")
-mesh = module.init(props)
+# Global Data
+globdat = GlobalData()
 
-# Model & Global Data
+# Mesh into Global Data
+module = InputModule("input")
+module.init(props, globdat)
+
+# Global Data
 module = InitModule()
-[model, cons, mbuild, fint, fext, disp] = module.init(props, mesh)
+module.init(props, globdat)
 
 # Constraints
 if dim == 2:
-    idofs = mesh.getDofIndices(0, ["u", "v"])
-    cons.addConstraints(idofs)
-    idof = mesh.getDofIndex(2, "v")
-    cons.addConstraint(idof)
-    idof = mesh.getDofIndex(1, "u")
-    cons.addConstraint(idof)
+    idofs = globdat.mesh.getDofIndices(0, ["u", "v"])
+    globdat.cons.addConstraints(idofs)
+    idof = globdat.mesh.getDofIndex(2, "v")
+    globdat.cons.addConstraint(idof)
+    idof = globdat.mesh.getDofIndex(1, "u")
+    globdat.cons.addConstraint(idof)
 
     # Loads
-    idof = mesh.getDofIndex(1, "v")
-    fext[idof] = 10
+    idof = globdat.mesh.getDofIndex(1, "v")
+    globdat.fext[idof] = 10
 
 elif dim == 3:
-    idofs = mesh.getDofIndices([0, 3], ["u", "v", "w"])
-    cons.addConstraints(idofs)
-    idofs = mesh.getDofIndices([1, 4], ["v", "w"])
-    cons.addConstraints(idofs)
-    idofs = mesh.getDofIndices([2, 5], ["u", "w"])
-    cons.addConstraints(idofs)
+    idofs = globdat.mesh.getDofIndices([0, 3], ["u", "v", "w"])
+    globdat.cons.addConstraints(idofs)
+    idofs = globdat.mesh.getDofIndices([1, 4], ["v", "w"])
+    globdat.cons.addConstraints(idofs)
+    idofs = globdat.mesh.getDofIndices([2, 5], ["u", "w"])
+    globdat.cons.addConstraints(idofs)
 
     # Loads
-    idofs = mesh.getDofIndices([2, 5], "v")
-    fext[idofs] = 5
+    idofs = globdat.mesh.getDofIndices([2, 5], "v")
+    globdat.fext[idofs] = 5
 
 # Initial stiffness matrix
-hbw = model.get_Matrix_0(mbuild, fint, disp, mesh)
+hbw = globdat.model.get_Matrix_0(globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
 print("The half-band-width is",hbw)
 
 # Solve
-solver = Solver("numpy", cons)
-K = mbuild.getDenseMatrix()
-solver.solve(K, disp, fext, hbw)
+solver = Solver("numpy", globdat.cons)
+K = globdat.mbuild.getDenseMatrix()
+solver.solve(K, globdat.disp, globdat.fext, hbw)
 
 # K = mbuild.getMatrix()
 # plt.spy(K)
@@ -73,13 +77,13 @@ solver.solve(K, disp, fext, hbw)
 stop = time.time()
 print("Elapsed time is ",stop-start)
 
-# mesh.updateGeometry(disp)
-mesh.plotDeformed(disp, 21.5)
+# globdat.mesh.updateGeometry(disp)
+globdat.mesh.plotDeformed(globdat.disp, 21.5)
 
 def solve():
 
     # Initial stiffness matrix
-    hbw = model.get_Matrix_0(mbuild, fint, disp, mesh)
+    hbw = model.get_Matrix_0(mbuild, fint, disp, globdat.mesh)
     print("The half-band-width is", hbw)
 
     # K = mbuild.getBlock(range(20,25), range(20,25))

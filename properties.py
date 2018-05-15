@@ -94,7 +94,7 @@ class Properties(object):
 
 if __name__ == "__main__":
 
-    file = "Examples/semicircle.pro"
+    file = "Examples/2D_semicircle.pro"
 
     props = Properties()
     props.parseFile(file)
