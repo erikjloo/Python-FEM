@@ -53,7 +53,7 @@ class InputModule(Module):
 
     def init(self, props, globdat):
         props = props.getProps(self.name)
-        globdat.makeMesh(props, globdat)
+        globdat.makeMesh(props)
 
     def run(self, globdat):
         pass

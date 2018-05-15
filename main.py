@@ -13,7 +13,7 @@ np.set_printoptions(precision=4)
 
 start = time.time()
 
-dim = 3
+dim = 2
 # Initialization
 if dim == 2:
     file = "Examples/2D_semicircle.pro"
