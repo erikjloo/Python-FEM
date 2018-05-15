@@ -5,8 +5,8 @@
         "mesh" :
         {
             "type" : "Gmsh",
-            "file" : "Examples/semicircle.msh",
-            "rank" : 3,
+            "file" : "Examples/2D_semicircle.msh",
+            "rank" : 2,
             "doElemGroups" : false
         },
 
@@ -30,15 +30,15 @@
 
         "material" :
         {
-            "type"   : "Hooke",
+            "type"   : "PlaneStress",
             "young"  : 100000,
             "poisson": 0.2
         },
             
         "shape" :
         {
-            "type" : "Tetra4",
-            "scheme" : "Gauss"
+            "type" : "Tri3",
+            "scheme" : "Gauss1"
         }
     }
  }
