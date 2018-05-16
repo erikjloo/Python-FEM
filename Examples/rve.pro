@@ -79,7 +79,7 @@
         {
             "type"     : "Periodic",
             "coarsenFactor" : 0.3,
-            "imposedStrain" : [0.1, 0.2, 0.3]
+            "strainRate" : [0.0001, -0.0002, 0.003]
         }
     }
  }
