@@ -62,7 +62,7 @@ class PBCmodel(Model):
         self.name = name
         self.rank_ = mesh.rank
         self.factor = props.get("coarsenFactor")
-        self.strain = props.get("imposedStrain")
+        self.strain = props.get("strainRate")
 
         # Add displacement doftypes
         self.U_doftypes_ = ["u", "v"]
@@ -513,6 +513,7 @@ class PBCmodel(Model):
         # Fix corner
         idofs = mesh.getDofIndices(self.corner,self.U_doftypes_)
         cons.addConstraints(idofs)
+        # Apply strain
 
     #-----------------------------------------------------------------------
     #   takeAction
@@ -531,24 +532,36 @@ class PBCmodel(Model):
 if __name__ == '__main__':
 
     from properties import Properties
-    from modules import InputModule, InitModule
+    from mesh import Mesh
+    from models import ModelFactory
+    from algebra import MatrixBuilder
+    from constraints import Constraints
     np.set_printoptions(precision=4)
 
     # Props
     file = "Examples/rve.pro"
     props = Properties()
     props.parseFile(file)
-    props.print()
 
-    # Mesh
-    module = InputModule("input")
-    mesh = module.init(props)
+    # Create mesh
+    mesh = Mesh()
+    mesh.initialize(props.getProps("input"))
 
-    # Model & Global Data
-    module = InitModule()
-    [model, cons, mbuild, fint, fext, disp] = module.init(props, mesh)
+    # Create model
+    model = ModelFactory("model",props,mesh)
 
-    model.takeAction("plot_boundary", mesh)
+    # Create constraints
+    cons = Constraints()
+    cons.initialize(props, mesh)
+
+    # Create matrix builder
+    ndof = mesh.dofCount()
+    mbuild = MatrixBuilder(ndof)
+
+    # Create vectors
+    fint = np.zeros(ndof)
+    fext = np.zeros(ndof)
+    disp = np.zeros(ndof)
 
     model.get_Ext_Vector(fext, mesh)
     model.get_Constraints(cons, mesh)

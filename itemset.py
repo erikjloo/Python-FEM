@@ -1,6 +1,6 @@
 # Import Standard Libraries
-import scipy as np
 import warnings
+import scipy as np
 from itertools import chain
 
 

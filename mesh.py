@@ -1,4 +1,5 @@
 # Import Standard Libraries
+import re
 import scipy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -65,9 +66,9 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #-----------------------------------------------------------------------
 
     def initialize(self, props):
-        """ Input:  props = Properties
-                    rank = number of dimensions """
+        """ Input:  props = Properties """
         # Read Mesh
+        props = props.getProps("mesh")
         type = props.get("type")
         path = props.get("file")
         rank = props.get("rank")
@@ -136,7 +137,8 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
                 for _ in range(nnod):
                     coord = fid.readline().split()      # coords as str
-                    coord = list(map(float, coord[1:rank+1]))  # coords as float
+                    # coords as float
+                    coord = list(map(float, coord[1:rank+1]))
                     self.addNode(coord)
 
             #---------------------------------------------------------------
@@ -152,11 +154,11 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                     ntags = int(data[2])           # number of tags
 
                     if ntags > 0:
-                        Id = int(data[3])       # set group Id
+                        Id = int(data[3])
+                        # Create a new group if self.groupNames[Id] DNE
                         if Id not in self.groupNames:
                             groupName = ('Group {}').format(Id)
                             self.groupNames[Id] = groupName
-                            print(groupName,"created")
                             self.ngroups += 1
                             self.groups.append([])
 
@@ -169,10 +171,23 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                     connect = list(map(int, data[3+ntags:]))
                     connect = [x-1 for x in connect]
                     self.addElement(connect)
-
-        print(("Mesh read with {} nodes and {} elements").format(
-            self.nnod, self.nele))
         fid.close()
+
+        # Print nnodes, nele and ngroups
+        if self.ngroups == 1:
+            print(("Mesh read with {} nodes, {} elements and 1 group: ").format(
+                        self.nnod, self.nele))
+        else:
+            print(("Mesh read with {} nodes, {} elements and {} groups: ").format(
+                self.nnod, self.nele, self.ngroups))
+
+        # Print group names and number of elements
+        for idx in self.groupNames:
+            group_name = self.groupNames[idx]
+            Id = self.groupNames.keys().index(idx)
+            group_nele = len(self.groups[Id])
+            print(("    {} with {} elements").format(group_name, group_nele))
+        
 
     #-----------------------------------------------------------------------
     #   readXML
@@ -202,8 +217,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                 elif line.startswith("</Elements>"):
                     flag_e = False
 
-                data = line.split(';')
-                data = data[0].split()
+                data = re.findall(r"[-+]?\d*\.\d+|\d+", line)
 
                 if len(data) > 0 and data[0].isdigit():
 
@@ -226,7 +240,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                         connect = [x-1 for x in connect]
                         self.addElement(connect)
 
-        print(("Mesh read with {} nodes and {} elements").format(
+        print(("Mesh read with {} nodes, {} elements.").format(
             self.nnod, self.nele))
 
     #-----------------------------------------------------------------------
@@ -259,15 +273,15 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         """ Input:  disp = displacement vector
                     scale = 
                     rank = number of dimensions """
-        
+
         # Craft deformed coordinates
         deformed = self.getCoords()
         for inod in range(len(self.coords)):
             idofs = self.getDofIndices(inod)
             x = self.getCoords(inod)
             u = np.array(disp[idofs])*scale
-            deformed[inod,:] = u+x
-        
+            deformed[inod, :] = u+x
+
         # Create figure
         if rank == 1 or rank == 2:
             fig = plt.figure(figsize=(6, 6))
@@ -291,7 +305,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         """ Input:  disp = displacement vector """
         for inod in range(len(self.coords)):
             idofs = self.getDofIndices(inod)
-            x = [a+b for a,b in zip(self.coords[inod],disp[idofs])]
+            x = [a+b for a, b in zip(self.coords[inod], disp[idofs])]
             self.coords[inod] = x
 
 

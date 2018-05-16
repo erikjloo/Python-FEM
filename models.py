@@ -14,7 +14,7 @@ def ModelFactory(name, props, mesh):
 
     if type == "Matrix":
         # Creates the root
-        print("Creating a matrix model names", name)
+        print("Creating a matrix model named", name)
         return MatrixModel(name, props, mesh)
 
     elif type == "Multi":

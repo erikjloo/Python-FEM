@@ -13,13 +13,13 @@
         "loads" :
         {
             "type" : "Input",
-            "file" : "load.data"
+            "file" : "Examples/3D_semicircle.xml"
         },
 
         "constraints" :
         {
             "type" : "Input",
-            "file" : "constraints.data"
+            "file" : "Examples/3D_semicircle.xml"
         }
     },
 

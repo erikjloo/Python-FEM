@@ -14,16 +14,16 @@ def MaterialFactory(props):
     type = props.get("type")
 
     if type == "Hooke":
-        print("Creating Hooke material")
+        print("    Creating Hooke material")
         return Hooke(props)
     if type == "Melro":
-        print("Creating Melro material")
+        print("    Creating Melro material")
         return PlaneStrain(props)
     elif type == "PlaneStrain":
-        print("Creating PlaneStress material")
+        print("    Creating PlaneStress material")
         return PlaneStrain(props)
     elif type == "PlaneStress":
-        print("Creating PlaneStress material")
+        print("    Creating PlaneStress material")
         return PlaneStress(props)
 
 
@@ -34,7 +34,7 @@ def MaterialFactory(props):
 
 class Material(metaclass=ABCMeta):
     """ Material """
-    
+
     @abstractmethod
     def __init__(self, props):
         pass
@@ -42,7 +42,7 @@ class Material(metaclass=ABCMeta):
     @abstractmethod
     def getStress(self, strain):
         pass
-    
+
     @abstractmethod
     def getTangent(self):
         pass

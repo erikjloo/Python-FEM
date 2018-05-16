@@ -1,0 +1,10 @@
+<Loads>
+    v[1] = 10;
+</Loads>
+
+<Constraints>
+    u[0] = 0.0;
+    v[0] = 0.0;
+    v[2] = 0;
+    u[1] = 0;
+</Constraints>

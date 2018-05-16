@@ -21,19 +21,19 @@ def ShapeFactory(props):
     scheme = props.get("scheme")
 
     if type == "Line2":
-        print("Creating Line2 with", scheme, "quadrature")
+        print("    Creating Line2 with", scheme, "quadrature")
         return Line2(scheme)
 
     elif type == "Tri3":
-        print("Creating Tri3 with", scheme, "quadrature")
+        print("    Creating Tri3 with", scheme, "quadrature")
         return Tri3(scheme)
 
     elif type == "Quad4":
-        print("Creating Quad4 with", scheme, "quadrature")
+        print("    Creating Quad4 with", scheme, "quadrature")
         return Quad4(scheme)
 
     elif type == "Tetra4":
-        print("Creating Tetra4 with", scheme, "quadrature")
+        print("    Creating Tetra4 with", scheme, "quadrature")
         return Tetra4(scheme)
 
 

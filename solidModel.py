@@ -1,6 +1,6 @@
 # Import Standard Libraries
-import scipy as np
 import re
+import scipy as np
 
 # Import Local Libraries
 from models import Model
@@ -111,9 +111,7 @@ class SolidModel(Model):
 
                 # Get strain, B matrix and weight
                 [strain, B, w] = self.shape.getStrain(coords, ele_disp, ip)
-
-                if self.rank == 2:
-                    w *= self.t
+                w = w*self.t if self.rank == 2 else w
 
                 # Get tangent stiffness matrix D
                 [stress, D] = self.mat.getStress(strain)
@@ -155,7 +153,8 @@ class SolidModel(Model):
 
                 # Get strain, B matrix and weight
                 [strain, B, w] = self.shape.getStrain(coords, ele_disp, ip)
-
+                w = w*self.t if self.rank == 2 else w
+                
                 # Get tangent stiffness matrix D
                 [stress, _] = self.mat.getStress(strain)
 

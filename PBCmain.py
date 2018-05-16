@@ -1,17 +1,19 @@
 # Import Standard Libraries
+import matplotlib.pyplot as plt
 import scipy as np
 import time
 
 # Import Local Libraries
 from properties import Properties
 from globalData import GlobalData
-from modules import ChainModule, InputModule, InitModule, LinSolveModule
+from modules import InputModule, InitModule, LinSolveModule
+from solvers import Solver
 
 np.set_printoptions(precision=4)
 
 start = time.time()
 
-dim = 2
+dim = 3
 # Initialization
 if dim == 2:
     file = "Examples/2D_semicircle.pro"
@@ -21,29 +23,28 @@ elif dim == 3:
 # Props
 props = Properties()
 props.parseFile(file)
+props.print()
 
 # Global Data
 globdat = GlobalData(props)
 
-# Chain module
-module = ChainModule()
-
 # Create mesh
-module.pushBack(InputModule("input"))
+module = InputModule("input")
+module.init(props, globdat)
 
 # Create model, cons, mbuilder and vectors
-module.pushBack(InitModule())
+module = InitModule()
+module.init(props, globdat)
 
-# Linear analysis
-module.pushBack(LinSolveModule())
+# Constraints
 
-# Execute
+
+module = LinSolveModule()
 module.init(props, globdat)
 module.run(globdat)
-module.shutdown(globdat)
 
 stop = time.time()
-print("Elapsed time is ",stop-start)
+print("Elapsed time is ", stop-start)
 
 # globdat.mesh.updateGeometry(disp)
 globdat.mesh.plotDeformed(globdat.disp, 21.5)
