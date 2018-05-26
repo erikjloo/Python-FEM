@@ -35,17 +35,11 @@
             "elements" : "1",
             "thickness" : 1,
 
-            "material" :
+            "material" : 
             {
-                "type"   : "Melro",
-                "rank"    : 2,
-                "state"  : "PLANE_STRAIN",
-                "young"      : 3760,
-                "poisson"    : 0.3,
-                "poissonP"   : 0.39,
-                "rmTolerance" : 0.0000000001,
-                "sigmaT" : "st(x)",
-                "sigmaC" : "st(x)"
+                "type" : "PlaneStrain",
+                "young" : 5000,
+                "poisson" : 0.3
             },
             
             "shape" :
@@ -59,11 +53,22 @@
         {
             "type"     : "Periodic",
             "coarsenFactor" : 0.8,
-            "strainRate" : [0.0001, -0.0002, 0.003]
+            "strainRate" : [0.0001, -0.0002, 0.003],
+            "shape" :
+            {
+                "type" : "Line2",
+                "scheme" : "Gauss"
+            }
         }
     },
-    "solver":
+    "nonlin":
     {
-        "type" : "numpy"
+        "type" : "full",
+        "niter" : 1,
+        "tol" : 1e-5,
+        "solver" :
+        {
+            "type" : "lstsq"
+        }
     }
  }

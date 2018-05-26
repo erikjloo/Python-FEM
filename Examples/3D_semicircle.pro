@@ -40,8 +40,11 @@
             "scheme" : "Gauss"
         }
     },
-    "solver":
+    "linsolve":
     {
-        "type" : "numpy"
+        "solver":
+        {
+            "type" : "lstsq"
+        }
     }
  }

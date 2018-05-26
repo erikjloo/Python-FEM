@@ -1,6 +1,6 @@
 <Loads>
-    v[2] = 5;
-    v[5] = 5;
+    v[2] = 25;
+    v[5] = 25;
 </Loads>
 
 <Constraints>

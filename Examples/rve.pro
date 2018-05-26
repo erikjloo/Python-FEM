@@ -82,8 +82,14 @@
             "strainRate" : [0.0001, -0.0002, 0.003]
         }
     },
-    "solver":
+    "nonlin":
     {
-        "type" : "scipy"
+        "type" : "full",
+        "niter" : 20,
+        "tol" : 1e-3,
+        "solver" :
+        {
+            "type" : "lstsq"
+        }
     }
  }
