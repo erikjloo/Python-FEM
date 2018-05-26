@@ -1,5 +1,5 @@
 # Import Standard Libraries
-import numpy as np
+import scipy as np
 
 
 #===========================================================================

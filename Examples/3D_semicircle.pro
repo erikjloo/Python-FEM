@@ -26,7 +26,6 @@
     "model" :
     {
         "type"     : "Solid",
-        "elements" : "gmsh0",
 
         "material" :
         {
@@ -40,5 +39,9 @@
             "type" : "Tetra4",
             "scheme" : "Gauss"
         }
+    },
+    "solver":
+    {
+        "type" : "numpy"
     }
  }

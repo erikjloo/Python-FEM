@@ -51,11 +51,23 @@ class SolidModel(Model):
         # Model name
         self.name = name
         self.rank = mesh.rank
+        if self.rank < 1 or self.rank > 3:
+            msg = "Rank = {}. Should be 1, 2 or 3".format(self.rank)
+            raise ValueError(msg)
 
         # Get element group
-        gmsh_group = props.get("elements")
-        group = int(re.search(r'\d+', gmsh_group).group())
-        self.ielements = mesh.groups[group]
+        if mesh.doElemGroups is True:
+            gmsh_group = props.get("elements")
+            key = int(re.search(r'\d+', gmsh_group).group())
+            group_name = mesh.groupNames[key]
+            print("    Obtaining elements from {}".format(group_name))
+            idx = mesh.groupNames.keys().index(key)
+            self.ielements = mesh.groups[idx]
+            print("    Elements in mesh.groups[{}]".format(idx))
+        else:
+            group_name = next(iter(mesh.groupNames.values()))
+            self.ielements = mesh.groups[0]
+            print("    Obtaining elements from {}".format(group_name))
 
         # Add types
         types = ['u', 'v', 'w']
@@ -63,8 +75,8 @@ class SolidModel(Model):
         mesh.addTypes(self.types)
 
         # Add dofs
-        inodes = mesh.getNodeIndices(self.ielements)
-        mesh.addDofs(inodes, self.types)
+        self.inodes = mesh.getNodeIndices(self.ielements)
+        mesh.addDofs(self.inodes, self.types)
 
         # Add thickness (2D)
         if self.rank == 2:
@@ -72,15 +84,14 @@ class SolidModel(Model):
 
         # Create element
         self.shape = ShapeFactory(props)
-        self.nIP = self.shape.nIP
-        self.nnod = self.shape.nnod
-        self.localrank = self.shape.ndim
+        localrank = self.shape.ndim
+        if localrank != self.rank:
+            msg = "Shape ndim = {}. Should be {}".format(localrank,self.rank)
+            raise ValueError(msg)
 
         # Create material
         self.mat = MaterialFactory(props)
-        self.nIP = self.shape.nIP
-        self.nnod = self.shape.nnod
-        self.localrank = self.shape.ndim
+        
         
     #-----------------------------------------------------------------------
     #   get_Matrix_0
@@ -91,6 +102,7 @@ class SolidModel(Model):
                             fint = internal force vector """
 
         max_hbw = 0
+        print(disp)
         # Iterate over elements assigned to model
         for iele in self.ielements:
 
@@ -112,7 +124,9 @@ class SolidModel(Model):
                 # Get strain, B matrix and weight
                 [strain, B, w] = self.shape.getStrain(coords, ele_disp, ip)
                 w = w*self.t if self.rank == 2 else w
-
+                print(iele)
+                print(ele_disp)
+                # print(strain)
                 # Get tangent stiffness matrix D
                 [stress, D] = self.mat.getStress(strain)
 
@@ -145,7 +159,7 @@ class SolidModel(Model):
             coords = mesh.getCoords(inodes)
             idofs = mesh.getDofIndices(inodes, self.types)
             ele_disp = disp[idofs]
-
+            
             # Initialize element internal force vector
             fe = np.zeros(len(idofs))
 
@@ -154,10 +168,10 @@ class SolidModel(Model):
                 # Get strain, B matrix and weight
                 [strain, B, w] = self.shape.getStrain(coords, ele_disp, ip)
                 w = w*self.t if self.rank == 2 else w
-                
+
                 # Get tangent stiffness matrix D
                 [stress, _] = self.mat.getStress(strain)
-
+                
                 # Compute the element internal force vector
                 fe += w * (B.transpose() @ stress)
 
@@ -175,7 +189,7 @@ class SolidModel(Model):
     #   get_Constraints
     #-----------------------------------------------------------------------
 
-    def get_Constraints(self, mesh, constraints):
+    def get_Constraints(self, cons, mesh):
         pass
 
     #-----------------------------------------------------------------------

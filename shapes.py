@@ -86,7 +86,7 @@ class Shape(metaclass=ABCMeta):
 
     @abstractmethod
     def evalShapeFunctions(self, xi):
-        pass
+        raise NotImplementedError()
 
     #-----------------------------------------------------------------------
     #   evalLocalGradients
@@ -94,7 +94,7 @@ class Shape(metaclass=ABCMeta):
 
     @abstractmethod
     def evalLocalGradients(self, xi):
-        pass
+        raise NotImplementedError()
 
     #-----------------------------------------------------------------------
     #   __init__
@@ -192,7 +192,7 @@ class Shape(metaclass=ABCMeta):
             Output: N = N matrix at given point """
 
         n = self.evalShapeFunctions(xi)
-        
+
         if ndim is None:  # ================================================
             N = np.eye(self.ndim)*n[0]
             for nod in range(1, self.nnod):
@@ -201,7 +201,7 @@ class Shape(metaclass=ABCMeta):
             N = np.eye(ndim)*n[0]
             for nod in range(1, self.nnod):
                 N = np.hstack((N, np.eye(ndim)*n[nod]))
-            
+
         return N
 
     #-----------------------------------------------------------------------
@@ -223,12 +223,12 @@ class Shape(metaclass=ABCMeta):
             w = []
             for ip in range(self.nIP):
                 [J, j] = self.getJacobian(coords, ip)  # J = N_xi * coords
-                N_x.append(np.dot(inverse(J), self.N_xi[ip]))
+                N_x.append( inverse(J).dot(self.N_xi[ip]))
                 w.append(self.w[ip]*j)
 
         else:  # ===========================================================
             [J, j] = self.getJacobian(coords, IP)
-            N_x = np.dot(inverse(J), self.N_xi[IP])
+            N_x = inverse(J).dot(self.N_xi[IP])
             w = self.w[IP]*j
 
         return [N_x, w]
@@ -243,7 +243,7 @@ class Shape(metaclass=ABCMeta):
             Output: B = B (or dN) matrix at given IP
                     w = w*j = weight at given IP """
         [N_x, w] = self.getGlobalGradients(coords, IP)
-        
+
         if self.ndim == 1:
             return [N_x, w]
 
@@ -275,9 +275,12 @@ class Shape(metaclass=ABCMeta):
                     # Assemble B matrix at given IP
                     b = np.zeros((6, 3*self.nnod))
                     for nod in range(self.nnod):
-                        b[0, 3*nod] = b[3, 3*nod+1] = b[5, 3*nod+2] = N_x[ip][0, nod]
-                        b[1, 3*nod+1] = b[3, 3*nod] = b[4, 3*nod+2] = N_x[ip][1, nod]
-                        b[2, 3*nod+2] = b[4, 3*nod+1] = b[5, 3*nod] = N_x[ip][2, nod]
+                        b[0, 3*nod] = b[3, 3*nod+1] = b[5,
+                                                        3*nod+2] = N_x[ip][0, nod]
+                        b[1, 3*nod+1] = b[3, 3*nod] = b[4,
+                                                        3*nod+2] = N_x[ip][1, nod]
+                        b[2, 3*nod+2] = b[4, 3*nod+1] = b[5,
+                                                          3*nod] = N_x[ip][2, nod]
                     B.append(b)
 
             else:  # =======================================================
@@ -532,7 +535,7 @@ class Line2(Shape):
             # Find point on line closest to x
             x0 = coords[0]
             dx = coords[-1] - coords[0]
-            t = -(np.dot(x0, dx) - np.dot(x, dx))/np.dot(dx, dx)
+            t = -(x0.dot(dx) - x.dot(dx))/dx.dot(dx)
 
             # Map x onto line:
             x = x0 + t*dx

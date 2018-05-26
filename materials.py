@@ -37,15 +37,15 @@ class Material(metaclass=ABCMeta):
 
     @abstractmethod
     def __init__(self, props):
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def getStress(self, strain):
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def getTangent(self):
-        pass
+        raise NotImplementedError()
 
 
 #===========================================================================

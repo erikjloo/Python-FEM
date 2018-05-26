@@ -1,7 +1,10 @@
 # Import Standard Libraries
 import scipy as np
-from numpy import linalg
 import itertools
+from scipy.linalg import solve, lstsq
+
+# Import Local Libraries
+from algebra import isPD, nearestPD
 
 #===========================================================================
 #   Solver
@@ -15,17 +18,25 @@ class Solver(object):
         self.method = method
         self.ndof = cons.dofCount()
         self.fdof = cons.get_fdof()
-        self.sdof = cons.get_sdof()
 
     def solve(self, A, x, b, hbw=None):
         """ Solves Ax = b """
+
         hbw = self.ndof if hbw is None else hbw
-        if self.method is "rtfreechol":
-            x[self.fdof] = rtfreechol(A[np.ix_(self.fdof, self.fdof)], b[self.fdof], hbw)[0]
-        elif self.method is "gauss_seidel":
-            x[self.fdof] = gauss_seidel(A[np.ix_(self.fdof, self.fdof)], b[self.fdof])[0]
-        elif self.method is "numpy" :
-            x[self.fdof] = linalg.solve(A[np.ix_(self.fdof, self.fdof)], b[self.fdof])
+        A = A[np.ix_(self.fdof, self.fdof)]
+        # A = nearestPD(A)
+        b = b[self.fdof]
+
+        if self.method == "rtfreechol":
+            x[self.fdof] = rtfreechol(A, b, hbw)[0]
+        elif self.method == "gauss_seidel":
+            x[self.fdof] = gauss_seidel(A, b)
+        elif self.method == "cholesky" :
+            raise NotImplementedError()
+        elif self.method == "solve" :
+            x[self.fdof] = solve(A, b)
+        elif self.method == "lstsq" :
+            x[self.fdof] = lstsq(A, b)[0]
         return x
 
 
@@ -170,9 +181,9 @@ if __name__ == "__main__":
     
     [x,L,D] = rtfreechol(A,b,2)
     print(x)
-    x = linalg.solve(A,b)
-    print(x)
     x = gauss_seidel(A,b)
     print(x)
-
-
+    x = lstsq(A, b)[0]
+    print(x)
+    x = solve(A,b)
+    print(x)

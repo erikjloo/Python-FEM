@@ -8,7 +8,9 @@ from abc import ABCMeta, abstractmethod
 
 
 def ModelFactory(name, props, mesh):
-
+    """ Input:  props = properties
+                mesh = mesh
+        Output: model """
     props = props.getProps(name)
     type = props.get("type")
 
@@ -53,19 +55,24 @@ class Model(metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def __init__(self, name, props, mesh): pass
+    def __init__(self, name, props, mesh):
+        raise NotImplementedError()
 
     @abstractmethod
-    def get_Matrix_0(self, mbuild, fint, disp, mesh): pass
+    def get_Matrix_0(self, mbuild, fint, disp, mesh):
+        raise NotImplementedError()
 
     @abstractmethod
-    def get_Ext_Vector(self, fext, mesh): pass
+    def get_Ext_Vector(self, fext, mesh):
+        raise NotImplementedError()
 
     @abstractmethod
-    def get_Constraints(self, cons, mesh): pass
+    def get_Constraints(self, cons, mesh):
+        raise NotImplementedError()
 
     @abstractmethod
-    def takeAction(self, action, mesh): pass
+    def takeAction(self, action, mesh):
+        raise NotImplementedError()
 
 
 #===========================================================================
@@ -90,7 +97,7 @@ class MultiModel(Model):
     """
 
     def __init__(self, name, props, mesh):
-        """ Creates a node and its children"""
+        """ Creates a node and its children """
         self.name = name
 
         # Create children
@@ -146,9 +153,8 @@ class MatrixModel(Model):
         """ Creates a node and its child """
         self.name = name
 
-        # Create child model
-        name = props.get("model")
-        self.model = ModelFactory(name, props, mesh)
+        # Create child
+        self.model = ModelFactory("model", props, mesh)
 
     def get_Matrix_0(self, mbuild, fint, disp, mesh):
         return self.model.get_Matrix_0(mbuild, fint, disp, mesh)
@@ -165,27 +171,51 @@ class MatrixModel(Model):
     def takeAction(self, action, mesh):
         self.model.takeAction(action, mesh)
 
-# LoadScaleModel
-
 # PointLoadModel
 
 # ConstraintsModel
 
 #===========================================================================
-#   Example
+#   LoadScaleModel
 #===========================================================================
 
 
-if __name__ == "__main__":
+class LoadScaleModel(Model):
+    """ The root of the model tree 
 
-    from properties import Properties
-    from modules import InputModule
+    Instance Members:
+        name = model name
+        model = child model
 
-    file = "Examples/rve.pro"
-    props = Properties()
-    props.parseFile(file)
+    Public Methods:
+        MatrixModel(name, props, mesh)
+        get_Matrix_0(mbuild, fint, disp, mesh)
+        get_Ext_Vector(fext, mesh)
+        get_Int_Vector(fint, disp, mesh)
+        get_Constraints(cons, mesh)
+        takeAction(action, mesh)
+    """
 
-    module = InputModule("input")
-    mesh = module.init(props)
+    def __init__(self, name, props, mesh):
+        """ Creates a node and its child """
+        self.name = name
 
-    model = ModelFactory("model", props, mesh)
+        # Create child
+        self.model = ModelFactory("model", props, mesh)
+
+    def get_Matrix_0(self, mbuild, fint, disp, mesh):
+        return self.model.get_Matrix_0(mbuild, fint, disp, mesh)
+
+    def get_Int_Vector(self, fint, disp, mesh):
+        self.model.get_Int_Vector(fint, disp, mesh)
+
+    def get_Ext_Vector(self, fext, mesh):
+        self.model.get_Ext_Vector(fext, mesh)
+
+    def get_Constraints(self, cons, mesh):
+        self.model.get_Constraints(cons, mesh)
+
+    def takeAction(self, action, mesh):
+        self.model.takeAction(action, mesh)
+
+

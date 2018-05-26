@@ -5,7 +5,7 @@ from copy import deepcopy
 
 # Import Local Libraries
 from models import Model
-from shapes import Line2
+from shapes import ShapeFactory
 
 
 #===========================================================================
@@ -17,13 +17,13 @@ class PBCmodel(Model):
     """ Periodic Boundary Conditions Model
         
     Instance Members:
-        rank_ = number of dimensions
-        U_doftypes_ = displacement dof types
-        T_doftypes_ = traction dof types
-        bshape_ = boundary element shape
-        nIP_ = number of integration points of boundary element
-        nnod_ = number of nodes of boundary element
-        localrank_ = local rank of boundary element
+        rank = number of dimensions
+        U_doftypes = displacement dof types
+        T_doftypes = traction dof types
+        bshape = boundary element shape
+        nIP = number of integration points of boundary element
+        nnod = number of nodes of boundary element
+        localrank = local rank of boundary element
 
         bndNodes = boundary nodes = [xmin, xmax, ymin, ymax]
         trNodes = traction nodes = [xmin, ymin]
@@ -45,6 +45,7 @@ class PBCmodel(Model):
         __sortBndNodes(mesh)
         __sortBndFace(mesh, bndFace, index)
         __findCornerNodes()
+        __findSmallestElement(mesh)
         __createTractionMesh(mesh)
         __coarsenMesh(mesh, trFace)
         __getTractionMeshNodes(mesh, x, face)
@@ -60,68 +61,52 @@ class PBCmodel(Model):
 
         # Model name
         self.name = name
-        self.rank_ = mesh.rank
+        self.rank = mesh.rank
         self.factor = props.get("coarsenFactor")
         self.strain = props.get("strainRate")
+        if self.factor > 1.0:
+            msg = "Factor = {}. Should be less than 1".format(self.factor)
+            raise ValueError(msg)
 
         # Add displacement doftypes
-        self.U_doftypes_ = ["u", "v"]
-        mesh.addTypes(self.U_doftypes_)
+        types = ['u', 'v', 'w']
+        self.U_doftypes = [types[x] for x in range(self.rank)]
+        mesh.addTypes(self.U_doftypes)
 
         # Add traction doftypes
-        self.T_doftypes_ = ["tx", "ty"]
-        mesh.addTypes(self.T_doftypes_)
+        types = ['tx', 'ty', 'tz']
+        self.T_doftypes = [types[x] for x in range(self.rank)]
+        mesh.addTypes(self.T_doftypes)
 
         # Get specimen dimensions
-        print("\n Box dimensions: \n")
+        print("    Box dimensions:")
         self.__boundingBox(mesh)
         self.__setTolerances()
 
         # Get boundary nodes
-        print("\n Boundary Nodes: \n")
+        print("    Boundary Nodes:")
         self.__findBndNodes(mesh)
         self.__sortBndNodes(mesh)
 
         # Find corner nodes
-        print("\n Corner Nodes: \n")
+        print("    Corner Nodes:")
         self.__findCornerNodes()
 
         # Create traction mesh
-        print("\n Traction Nodes: \n")
+        print("    Traction Nodes:")
+        self.__findSmallestElement(mesh)
         self.__createTractionMesh(mesh)
 
         # Create boundary element
-        self.bshape_ = Line2()
-        self.nIP_ = self.bshape_.nIP
-        self.nnod_ = self.bshape_.nnod
-        self.localrank_ = self.bshape_.ndim
-
-    #-----------------------------------------------------------------------
-    #   plotBoundary
-    #-----------------------------------------------------------------------
-
-    def plotBoundary(self, mesh):
-        """ Plots the boundary nodes """
-
-        fig = plt.figure(figsize=(6, 6))
-        ax = fig.add_subplot(111)
-
-        for bndFace in self.bndNodes:
-            coords = mesh.getCoords(bndFace)
-            ax.plot(coords[:, 0], coords[:, 1],
-                    marker='o', linewidth=0.3, markersize=3, color='k')
-            ax.plot([coords[3, 0]], [coords[3, 1]],
-                    marker='o', markersize=6, color="green")
-            ax.plot([coords[7, 0]], [coords[7, 1]],
-                    marker='o', markersize=6, color="red")
-
-        for ix, trFace in enumerate(self.trNodes):
-            coords = mesh.getCoords(trFace)
-            coords[:, ix] -= self.dx[ix]/10
-            ax.plot(coords[:, 0], coords[:, 1],
-                    marker='o', linewidth=0.3, markersize=3, color='blue')
-
-        plt.show()
+        self.bshape = ShapeFactory(props)
+        self.localrank = self.bshape.ndim
+        self.nnod = self.bshape.nnod
+        self.nIP = self.bshape.nIP
+        self.ndof = self.nnod*self.rank
+        if self.localrank != self.rank-1:
+            msg = "Shape ndim = {}. Should be {}".format(
+                self.localrank, self.rank-1)
+            raise ValueError(msg)
 
     #-----------------------------------------------------------------------
     #   __boundingBox
@@ -131,28 +116,28 @@ class PBCmodel(Model):
         """ Sets box = [xmin, xmax, ymin, ymax] """
 
         # Create space for box
-        self.box = np.ones(2*self.rank_)
-        self.box[0:2] *= mesh.coords[0][0]
-        self.box[2:4] *= mesh.coords[0][1]
+        self.box_ = np.ones(2*self.rank)
+        self.box_[0:2] *= mesh.coords[0][0]
+        self.box_[2:4] *= mesh.coords[0][1]
 
         # Create space for dx
-        self.dx = np.zeros(self.rank_)
+        self.dx_ = np.zeros(self.rank)
 
         # Find specimen coordinates
         for coord in mesh.coords:
-            for ix in range(self.rank_):
-                if coord[ix] < self.box[2*ix]:
-                    self.box[2*ix] = coord[ix]
-                if coord[ix] > self.box[2*ix+1]:
-                    self.box[2*ix+1] = coord[ix]
+            for ix in range(self.rank):
+                if coord[ix] < self.box_[2*ix]:
+                    self.box_[2*ix] = coord[ix]
+                if coord[ix] > self.box_[2*ix+1]:
+                    self.box_[2*ix+1] = coord[ix]
 
         # Find specimen dimensions
-        for ix in range(self.rank_):
-            self.dx[ix] = self.box[2*ix + 1] - self.box[2*ix]
+        for ix in range(self.rank):
+            self.dx_[ix] = self.box_[2*ix + 1] - self.box_[2*ix]
 
         # Print to verify
-        print("box = ", self.box)
-        print("dx = ", self.dx)
+        print("        box = ", self.box_)
+        print("        dx = ", self.dx_)
 
     #-----------------------------------------------------------------------
     #   __setTolerances
@@ -161,8 +146,9 @@ class PBCmodel(Model):
     def __setTolerances(self):
         """ Sets tolerances for finding boundary nodes """
         self.xtol = []
-        for ix in range(self.rank_):
-            self.xtol.append(abs(self.box[2*ix + 1] - self.box[2*ix])/1000000)
+        for ix in range(self.rank):
+            self.xtol.append(
+                abs(self.box_[2*ix + 1] - self.box_[2*ix])/1000000)
 
     #-----------------------------------------------------------------------
     #   __findBndNodes
@@ -172,14 +158,14 @@ class PBCmodel(Model):
         """ Finds bndNodes according to the set tolerances """
 
         # Creates space for bndNodes
-        self.bndNodes = [[] for face in range(2*self.rank_)]
+        self.bndNodes = [[] for face in range(2*self.rank)]
 
         # Loop over every node
         for inod, coord in enumerate(mesh.coords):
-            for ix in range(self.rank_):
-                if abs(coord[ix] - self.box[2*ix]) < self.xtol[ix]:
+            for ix in range(self.rank):
+                if abs(coord[ix] - self.box_[2*ix]) < self.xtol[ix]:
                     self.bndNodes[2*ix].append(inod)
-                if abs(coord[ix] - self.box[2*ix + 1]) < self.xtol[ix]:
+                if abs(coord[ix] - self.box_[2*ix + 1]) < self.xtol[ix]:
                     self.bndNodes[2*ix + 1].append(inod)
 
     #-----------------------------------------------------------------------
@@ -190,16 +176,16 @@ class PBCmodel(Model):
         """ Sorts bndNodes in ascending x or y coordinate """
 
         # Loop over faces of bndNodes
-        for face in range(len(self.bndNodes)):
+        for face, bndFace in enumerate(self.bndNodes):
 
             # Map face onto ix
             ix = int(np.floor(face/2))
             # Get correct index
             index = 1 if (ix == 0) else 0
             # Perform bubblesort on bndFace
-            self.__sortBndFace(mesh, self.bndNodes[face], index)
+            self.__sortBndFace(mesh, bndFace, index)
             # Print to verify
-            print(" bndNodes[", face, "] =", self.bndNodes[face])
+            print("         bndNodes[{}] = {}".format(face, self.bndNodes[face]))
 
     #-----------------------------------------------------------------------
     #   __sortBndFace
@@ -229,28 +215,24 @@ class PBCmodel(Model):
 
         self.corner = []
         self.corner0 = self.bndNodes[0][0]
-        if self.rank_ == 2:
+        if self.rank == 2:
             self.corner.append(self.bndNodes[1][0])
             self.corner.append(self.bndNodes[3][0])
-            print(" corner0 = ", self.corner0)
-            print(" cornerx = ", self.corner[0])
-            print(" cornery = ", self.corner[1])
-        elif self.rank_ == 3:
+            print("        corner0 = ", self.corner0)
+            print("        cornerx = ", self.corner[0])
+            print("        cornery = ", self.corner[1])
+        elif self.rank == 3:
             raise NotImplementedError(" Not yet implemented. ")
 
     #-----------------------------------------------------------------------
-    #   __createTractionMesh
+    #   __findSmallestElement
     #-----------------------------------------------------------------------
 
-    def __createTractionMesh(self, mesh):
-        """ Maps all nodes onto xmin and ymin to create traction mesh """
-
-        #---------------------------------------------------------------------------
-        # Part 1: Find the smallest element dimensions along the x and y coordinates
-        #---------------------------------------------------------------------------
+    def __findSmallestElement(self, mesh):
+        """ Finds the smallest element dimension on each bndFace """
 
         # smallest element dimensions
-        self.dx0 = deepcopy(self.dx)
+        self.dx_0 = deepcopy(self.dx_)
 
         # Loop over faces of bndNodes
         for face, bndFace in enumerate(self.bndNodes):
@@ -270,18 +252,21 @@ class PBCmodel(Model):
 
                 # Calculate dx and compare to dx0
                 dx = c1[index] - c0[index]
-                self.dx0[index] = dx if (
-                    dx < self.dx0[index]) else self.dx0[index]
+                self.dx_0[index] = dx if dx < self.dx_0[index] else self.dx_0[index]
 
-        #---------------------------------------------------------------------------
-        # Part 2: Map all nodes onto xmin and ymin, reorder them and coarsen the mesh
-        #---------------------------------------------------------------------------
+    #-----------------------------------------------------------------------
+    #   __createTractionMesh
+    #-----------------------------------------------------------------------
+
+    def __createTractionMesh(self, mesh):
+        """ Maps all nodes onto xmin and ymin to create traction mesh """
 
         # Create space for trNodes
-        self.trNodes = [[] for ix in range(self.rank_)]
+        self.trNodes = [[] for ix in range(self.rank)]
 
         # Loop over faces of trNodes
         for ix, trFace in enumerate(self.trNodes):
+
             inodes = self.bndNodes[2*ix]        # bndFace_min
             jnodes = self.bndNodes[2*ix + 1]    # bndFace_max
             mesh.addRows(len(inodes)+len(jnodes))
@@ -294,7 +279,7 @@ class PBCmodel(Model):
             # Loop over indices of jnodes
             for inod in jnodes:
                 coord = mesh.getCoords(inod)
-                coord[ix] = self.box[2*ix]
+                coord[ix] = self.box_[2*ix]
                 trFace.append(mesh.addNode(coord))
 
             # Get correct index
@@ -306,18 +291,12 @@ class PBCmodel(Model):
             # Coarsen trFace (works only for 2D)
             self.__coarsenMesh(mesh, trFace)
 
-            # Assign trFace to trNodes[ix]
-            self.trNodes[ix] = trFace
-
             # Print to verify
-            print(" trNodes[", ix, "] =", self.trNodes[ix])
+            print("        trNodes[{}] = {}".format(ix, self.trNodes[ix]))
 
-        # Loop over faces of trNodes
+        # Add dofs to traction mesh
         for trFace in self.trNodes:
-            mesh.addDofs(trFace, self.T_doftypes_)
-
-        # Obtain ndof --> Used in mbuild.resize(ndof)
-        self.ndof = mesh.dofCount()
+            mesh.addDofs(trFace, self.T_doftypes)
 
     #-----------------------------------------------------------------------
     #   __coarsenMesh
@@ -326,7 +305,7 @@ class PBCmodel(Model):
     def __coarsenMesh(self, mesh, trFace):
         """ Coarsens the traction mesh """
 
-        dx = (self.dx0[0]+self.dx0[1])/(2*self.factor)
+        dx = (self.dx_0[0]+self.dx_0[1])/(2*self.factor)
         cn = mesh.getCoords(trFace[-1])
 
         # Loop over indices of trFace:
@@ -360,7 +339,7 @@ class PBCmodel(Model):
         ix = int(np.floor(face/2))
 
         # Implementation for two dimensions
-        if self.rank_ == 2:
+        if self.rank == 2:
 
             # Assign trNodes[ix] onto trFace
             trFace = self.trNodes[ix]
@@ -379,7 +358,7 @@ class PBCmodel(Model):
                 if coords[0, index] < x[index] < coords[1, index]:
                     return connect
 
-        elif self.rank_ == 3:
+        elif self.rank == 3:
             raise NotImplementedError(" Not yet implemented. ")
 
     #-----------------------------------------------------------------------
@@ -388,12 +367,10 @@ class PBCmodel(Model):
 
     def get_Matrix_0(self, mbuild, fint, disp, mesh):
 
-        print("\n Augmenting Matrix: \n")
-
         max_hbw = 0
 
         # Variables related to element on U mesh
-        N = np.zeros((self.rank_, self.nnod_*self.rank_))
+        N = np.zeros((self.rank, self.ndof))
 
         # Loop over faces of bndNodes
         for face, bndFace in enumerate(self.bndNodes):
@@ -404,28 +381,28 @@ class PBCmodel(Model):
                 # Get idofs and w from U-mesh
                 connect = bndFace[inod:inod+2]
                 coords = mesh.getCoords(connect)
-                idofs = mesh.getDofIndices(connect, self.U_doftypes_)
-                w = self.bshape_.getIntegrationWeights(coords)
-                X = self.bshape_.getGlobalPoints(coords)
+                idofs = mesh.getDofIndices(connect, self.U_doftypes)
+                w = self.bshape.getIntegrationWeights(coords)
+                X = self.bshape.getGlobalPoints(coords)
 
                 # Get jdofs from T-mesh
                 connect = self.__getTractionMeshNodes(mesh, X[0], face)
-                jdofs = mesh.getDofIndices(connect, self.T_doftypes_)
+                jdofs = mesh.getDofIndices(connect, self.T_doftypes)
                 hbw = max(jdofs) - min(idofs)
                 max_hbw = hbw if hbw > max_hbw else max_hbw
                 coords = mesh.getCoords(connect)
 
                 # Matrix to be assembled: K[idofs, jdofs]
-                Ke = np.zeros((self.nnod_*self.rank_, self.nnod_*self.rank_))
+                Ke = np.zeros((self.ndof, self.ndof))
 
-                for ip in range(self.nIP_):
-          
+                for ip in range(self.nIP):
+
                     # Get N-matrix from U-mesh
-                    N = self.bshape_.getNmatrix(ip, ndim=self.rank_)
+                    N = self.bshape.getNmatrix(ip, ndim=self.rank)
 
                     # Get H-matrix from T-mesh
-                    xi = self.bshape_.getLocalPoint(X[ip], coords)
-                    H = self.bshape_.evalNmatrix(xi, ndim=self.rank_)
+                    xi = self.bshape.getLocalPoint(X[ip], coords)
+                    H = self.bshape.evalNmatrix(xi, ndim=self.rank)
 
                     # Assemble Ke
                     if face == 0 or face == 2:
@@ -441,17 +418,17 @@ class PBCmodel(Model):
 
                 # Assemble U-mesh fe
                 fe = Ke.dot(disp[jdofs])
-
-                # Add fe to fint[idofs]
                 fint[idofs] += fe
-                
+
                 # Assemble T-mesh fe
                 fe = KeT.dot(disp[idofs])
-
-                # Add fe to fint[jdofs]
                 fint[jdofs] += fe
-            
-            return max_hbw
+
+        for trFace in self.trNodes:
+            self.trdofs = mesh.getDofIndices(trFace, self.T_doftypes)
+            print("        fint = ", fint[self.trdofs])
+
+        return max_hbw
 
     #-----------------------------------------------------------------------
     #   get_Int_Vector
@@ -466,54 +443,66 @@ class PBCmodel(Model):
 
     def get_Ext_Vector(self, fext, mesh):
 
-        print("\n Updating fext: \n")
-
         # Variables related to element on T mesh
-        H = np.zeros((self.rank_, self.nnod_*self.rank_))
-        eps = np.zeros((self.rank_, self.rank_))
+        H = np.zeros((self.rank, self.ndof))
+        eps = np.zeros((self.rank, self.rank))
         eps[0, 0] = self.strain[0]
         eps[1, 1] = self.strain[1]
         eps[0, 1] = eps[1, 0] = self.strain[2]/2
 
         # Loop over faces of trNodes
         for ix, trFace in enumerate(self.trNodes):
-            
-            u_corner = eps[ix, :]*self.dx[ix]
+
+            u_corner = eps[ix, :]*self.dx_[ix]
 
             # Loop over indices of trFace
             for inod in range(len(trFace)-1):
 
                 # Assemble H matrix
                 connect = trFace[inod:inod+2]
-                jdofs = mesh.getDofIndices(connect, self.T_doftypes_)
+                jdofs = mesh.getDofIndices(connect, self.T_doftypes)
                 coords = mesh.getCoords(connect)
-                w = self.bshape_.getIntegrationWeights(coords)
-                h = self.bshape_.getShapeFunctions()
+                w = self.bshape.getIntegrationWeights(coords)
+                h = self.bshape.getShapeFunctions()
 
                 # Vector to be assembled: fext[jdofs]
-                fe = np.zeros(self.nnod_*self.rank_)
+                fe = np.zeros(self.ndof)
 
-                for ip in range(self.nIP_):
+                for ip in range(self.nIP):
 
                     # Assemble H matrix
                     H[0, 0] = H[1, 1] = h[ip][0]
                     H[0, 2] = H[1, 3] = h[ip][1]
 
                     # Assemble fe
-                    fe += w[ip] * (H.transpose() @ u_corner)
+                    fe = w[ip] * (H.transpose() @ u_corner)
+                    fext[jdofs] += fe
 
-                fext[jdofs] += fe
+        for trFace in self.trNodes:
+            self.trdofs = mesh.getDofIndices(trFace, self.T_doftypes)
+            print("        fext = ", fext[self.trdofs])
 
     #-----------------------------------------------------------------------
     #   get_Constraints
     #-----------------------------------------------------------------------
 
     def get_Constraints(self, cons, mesh):
-        
+
         # Fix corner
-        idofs = mesh.getDofIndices(self.corner,self.U_doftypes_)
+        idofs = mesh.getDofIndices(self.corner0, self.U_doftypes)
         cons.addConstraints(idofs)
+        
+        # Voigt to tensor
+        eps = np.zeros((self.rank, self.rank))
+        eps[0, 0] = self.strain[0]
+        eps[1, 1] = self.strain[1]
+        eps[0, 1] = eps[1, 0] = self.strain[2]/2
+
         # Apply strain
+        for ix in range(self.rank):
+            for jx in range(self.rank):
+                idof = mesh.getDofIndex(self.corner[ix], self.U_doftypes[jx])
+                cons.addConstraint(idof, eps[ix, jx])
 
     #-----------------------------------------------------------------------
     #   takeAction
@@ -523,6 +512,28 @@ class PBCmodel(Model):
         if action == "plot_boundary":
             self.plotBoundary(mesh)
 
+    #-----------------------------------------------------------------------
+    #   plotBoundary
+    #-----------------------------------------------------------------------
+
+    def plotBoundary(self, mesh):
+        """ Plots the boundary nodes """
+
+        fig = plt.figure(figsize=(6, 6))
+        ax = fig.add_subplot(111)
+
+        for bndFace in self.bndNodes:
+            coords = mesh.getCoords(bndFace)
+            ax.plot(coords[:, 0], coords[:, 1],
+                    marker='o', linewidth=0.3, markersize=3, color='k')
+
+        for ix, trFace in enumerate(self.trNodes):
+            coords = mesh.getCoords(trFace)
+            coords[:, ix] -= self.dx_[ix]/10
+            ax.plot(coords[:, 0], coords[:, 1],
+                    marker='o', linewidth=0.3, markersize=3, color='blue')
+
+        plt.show()
 
 #===========================================================================
 #   Example
@@ -548,7 +559,7 @@ if __name__ == '__main__':
     mesh.initialize(props.getProps("input"))
 
     # Create model
-    model = ModelFactory("model",props,mesh)
+    model = ModelFactory("model", props, mesh)
 
     # Create constraints
     cons = Constraints()
@@ -563,6 +574,6 @@ if __name__ == '__main__':
     fext = np.zeros(ndof)
     disp = np.zeros(ndof)
 
-    model.get_Ext_Vector(fext, mesh)
     model.get_Constraints(cons, mesh)
+    model.get_Ext_Vector(fext, mesh)
     model.get_Matrix_0(mbuild, fint, disp, mesh)

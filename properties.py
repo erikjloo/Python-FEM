@@ -11,8 +11,33 @@ from pprint import pprint
 
 
 class Properties(object):
+    """ Properties
 
+    Static Members:
+        __type_str__ = "Input is not str!"
+
+    Instance Members:
+        properties = dictionary of properties
+        
+    Public Methods:
+        Properties(my_dict=None)
+        parseFile(file)
+        writeFile(file)
+        makeProps(props)
+        dict = get(props)
+        set(prop, value)
+        props = getProps(props)
+        print()
+    """
+
+    # Public:
     __type_str__ = "Input is not str!"
+
+    # Public:
+
+    #-----------------------------------------------------------------------
+    #   constructor
+    #-----------------------------------------------------------------------
 
     def __init__(self, my_dict=None):
         """ Input: dictionary """

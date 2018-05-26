@@ -14,10 +14,11 @@ class NodeSet(object):
 
     Static Members:
         __type__ = "Input is not list or array!"
+        __type_int_list__ = "Input is not int or list!"
 
     Instance Members:
         coords = list of nodal coordinates
-        nnod = last node index + 1
+        nnod = number of nodes
 
     Public Methods:
         NodeSet()
@@ -32,6 +33,7 @@ class NodeSet(object):
 
     # Static:
     __type__ = "Input is not list or array!"
+    __type_int_list__ = "Input is not int or list!"
 
     # Public:
     def __init__(self):
@@ -75,15 +77,18 @@ class NodeSet(object):
 
     def eraseNode(self, inod):
         """ Input: inod = index of node to be erased """
-        del self.coords[inod]
-        self.nnod -= 1
+        if isinstance(inod, int):
+            del self.coords[inod]
+            self.nnod -= 1
+        else:
+            raise TypeError(self.__type_int_list__)
 
     def eraseNodes(self, inodes):
-        """ Input: inodes = indices of nodes to be erased """
+        """ Input: inodes = list of indices of nodes to be erased """
         if isinstance(inodes, (list, tuple, range, np.ndarray)):
             for inod in sorted(inodes, reverse=True):
                 self.eraseNode(inod)
-        else:
+        else: # eraseNode checks if inodes is int
             self.eraseNode(inodes)
 
     def nodeCount(self):
@@ -91,7 +96,7 @@ class NodeSet(object):
         return self.nnod
 
     def getCoords(self, inodes=None):
-        """ Input: inodes = node index or node indices
+        """ Input: inodes = node index or list of node indices
             Output: coordinates of inodes (if given) """
         coords = np.array(self.coords)
         if inodes is None:
@@ -112,10 +117,11 @@ class ElementSet(object):
 
     Static Members:
         __type__ = "Input is not list or array!"
+        __type_int_list__ = "Input is not int or list!"
 
     Instance Members:
         connectivity = list of element connectivities
-        nele = last element index + 1
+        nele = number of elements
 
     Public Methods:
         ElementSet()
@@ -131,6 +137,7 @@ class ElementSet(object):
 
     # Static:
     __type__ = "Input is not list or array!"
+    __type_int_list__ = "Input is not int or list!"
 
     # Public:
     def __init__(self):
@@ -164,7 +171,7 @@ class ElementSet(object):
         return ielements
 
     def setElement(self, iele, connect):
-        """ Input: iele = element index, connect = element nodes indices """
+        """ Input: iele = element index, connect = element node indices """
         if isinstance(connect, list):
             self.connectivity[iele] = connect
         elif isinstance(connect, np.ndarray):
@@ -174,11 +181,14 @@ class ElementSet(object):
 
     def eraseElement(self, iele):
         """ Input: iele = index of element to be erased """
-        del self.connectivity[iele]
-        self.nele -= 1
+        if isinstance(inod, int):
+            del self.connectivity[iele]
+            self.nele -= 1
+        else:
+            raise TypeError(self.__type_int_list__)
 
     def eraseElements(self, ielements):
-        """ Input: ieles = indices of elements to be erased """
+        """ Input: ieles = list of indices of elements to be erased """
         if isinstance(ielements, (list, tuple, range, np.ndarray)):
             for iele in sorted(ielements, reverse=True):
                 self.eraseElement(iele)
@@ -190,7 +200,7 @@ class ElementSet(object):
         return self.nele
 
     def getNodes(self, ielements=None):
-        """ Input: ielements = element index or element indices
+        """ Input: ielements = element index or list of element indices
             Output: element connectivity vector(s) of ielements (if given) """
         if ielements is None:
             return self.connectivity
@@ -203,7 +213,7 @@ class ElementSet(object):
             return self.connectivity[ielements]
     
     def getNodeIndices(self, ielements=None):
-        """ Input: ielements = element index or element indices
+        """ Input: ielements = element index or list of element indices
             Output: inodes = node indices of given element indices """
         connectivity = self.getNodes(ielements)
         return list(set(chain.from_iterable(connectivity)))

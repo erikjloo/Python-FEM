@@ -3,6 +3,7 @@ import re
 import scipy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from warnings import warn
 from tkinter import Tk, filedialog
 from indexed import IndexedOrderedDict
 
@@ -21,13 +22,18 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
     Static Members:
         __type__ = "Input is not list or array!"
+        __type_int__ = "Input is not int!"
+        __type_str__ = "Input is not str!"
+        __type_int_list__ = "Input is not int or list!"
+        __type_str_list__ = "Input is not list or str!"
+        __renumber__ = "Erasing dofs: Dof numbers will be renumbered!"
 
     Instance Members:
         coords = list of nodal coordinates
-        nnod = last node index + 1
+        nnod = number of nodes
 
         connectivity = list of element connectivities
-        nele = last element index + 1
+        nele = number of elements
 
         groups = list of elements in each physical group
         groupNames = names of physical groups
@@ -36,12 +42,15 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         nrow = number of rows (nodes)
         types = list of dof type names
         dofspace = array of dof indices (idofs)
-        ndof = last dof index
+        ndof = number of degrees of freedom
 
+        rank = numbder of dimensions
+        doElemGroups = bool
+        
     Public Methods:
         readMesh(self, type, path, rank, doElemGroups)
         readGmsh(self, path, rank, doElemGroups)
-        readXML(self, path, rank=3)
+        readXML(self, path, rank)
         plotMesh(rank)
         plotDeformed(self, disp, scale, rank)
         updateGeometry(self, disp)
@@ -67,17 +76,25 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
     def initialize(self, props):
         """ Input:  props = Properties """
-        # Read Mesh
+        
+        # Get Props
         props = props.getProps("mesh")
-        type = props.get("type")
         path = props.get("file")
-        rank = props.get("rank")
-        doElemGroups = props.get("doElemGroups")
-        self.readMesh(type, path, rank, doElemGroups)
+        try:
+            type = props.get("type")
+            self.rank = props.get("rank")
+            self.doElemGroups = props.get("doElemGroups")
+        except KeyError:
+            warn("Mesh properties not specified")
+            type = "Gmsh" if path.split('.')[1] == "msh" else "XML"
+            self.rank = 2
+            self.doElemGroups = False
 
+        # Read Mesh
+        self.readMesh(type, path, self.rank, self.doElemGroups)
+        
         # Initialize DofSpace
-        self.rank = rank
-        DofSpace.__init__(self, self.nnod, rank)
+        DofSpace.__init__(self, self.nnod, self.rank)
 
     #-----------------------------------------------------------------------
     #   readMesh
@@ -122,10 +139,10 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
                 for _ in range(self.ngroups):
                     line = fid.readline()
-                    newkey = int(line.split()[0])
+                    key = int(line.split()[1])
                     qstart = line.find('"')+1
                     qend = line.find('"', -1, 0)-1
-                    self.groupNames[newkey] = line[qstart:qend]
+                    self.groupNames[key] = line[qstart:qend]
 
             #---------------------------------------------------------------
             #   Nodes
@@ -136,9 +153,8 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                 nnod = int(data[0])
 
                 for _ in range(nnod):
-                    coord = fid.readline().split()      # coords as str
-                    # coords as float
-                    coord = list(map(float, coord[1:rank+1]))
+                    data = fid.readline().split()
+                    coord = [float(x) for x in data[1:rank+1]]
                     self.addNode(coord)
 
             #---------------------------------------------------------------
@@ -154,22 +170,20 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                     ntags = int(data[2])           # number of tags
 
                     if ntags > 0:
-                        Id = int(data[3])
-                        # Create a new group if self.groupNames[Id] DNE
-                        if Id not in self.groupNames:
-                            groupName = ('Group {}').format(Id)
-                            self.groupNames[Id] = groupName
+                        key = int(data[3])
+                        if key not in self.groupNames:
+                            groupName = ('Group {}').format(key)
+                            self.groupNames[key] = groupName
                             self.ngroups += 1
                             self.groups.append([])
 
                     if doElemGroups is True:
-                        Id = self.groupNames.keys().index(Id)
-                        self.groups[Id].append(iele)
+                        idx = self.groupNames.keys().index(key)
+                        self.groups[idx].append(iele)
                     else:
                         self.groups[0].append(iele)
 
-                    connect = list(map(int, data[3+ntags:]))
-                    connect = [x-1 for x in connect]
+                    connect = [int(x)-1 for x in data[3+ntags:]]
                     self.addElement(connect)
         fid.close()
 
@@ -182,10 +196,10 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                 self.nnod, self.nele, self.ngroups))
 
         # Print group names and number of elements
-        for idx in self.groupNames:
-            group_name = self.groupNames[idx]
-            Id = self.groupNames.keys().index(idx)
-            group_nele = len(self.groups[Id])
+        for key in self.groupNames:
+            group_name = self.groupNames[key]
+            idx = self.groupNames.keys().index(key)
+            group_nele = len(self.groups[idx])
             print(("    {} with {} elements").format(group_name, group_nele))
         
 
@@ -226,8 +240,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                     #-------------------------------------------------------
 
                     if flag_n is True:
-
-                        coord = list(map(float, data[1:rank+1]))
+                        coord = [float(x) for x in data[1:rank+1]]
                         self.addNode(coord)
 
                     #-------------------------------------------------------
@@ -235,9 +248,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                     #-------------------------------------------------------
 
                     if flag_e is True:
-
-                        connect = list(map(int, data[1:]))
-                        connect = [x-1 for x in connect]
+                        connect = [int(x)-1 for x in data[1:]]
                         self.addElement(connect)
 
         print(("Mesh read with {} nodes, {} elements.").format(
@@ -260,7 +271,8 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
         # Plot Mesh
         for connect in self.connectivity:
-            coords = self.getCoords(connect)
+            iele = connect + [connect[0]]
+            coords = self.getCoords(iele)
             ax.plot(coords[:, 0], coords[:, 1], linewidth=0.5, color='k')
 
         plt.show()
@@ -278,9 +290,10 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         deformed = self.getCoords()
         for inod in range(len(self.coords)):
             idofs = self.getDofIndices(inod)
-            x = self.getCoords(inod)
-            u = np.array(disp[idofs])*scale
-            deformed[inod, :] = u+x
+            if idofs: # idofs is not empty
+                x = self.getCoords(inod)
+                u = np.array(disp[idofs])*scale
+                deformed[inod, :] = u+x
 
         # Create figure
         if rank == 1 or rank == 2:
@@ -292,7 +305,8 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
         # Plot deformed mesh
         for connect in self.connectivity:
-            coords = deformed[np.ix_(connect), :][0]
+            iele = connect + [connect[0]]
+            coords = deformed[np.ix_(iele), :][0]
             ax.plot(coords[:, 0], coords[:, 1], linewidth=0.5, color='k')
 
         plt.show()
@@ -303,10 +317,12 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
     def updateGeometry(self, disp):
         """ Input:  disp = displacement vector """
+
         for inod in range(len(self.coords)):
             idofs = self.getDofIndices(inod)
-            x = [a+b for a, b in zip(self.coords[inod], disp[idofs])]
-            self.coords[inod] = x
+            if idofs:
+                x = [a+b for a, b in zip(self.coords[inod], disp[idofs])]
+                self.coords[inod] = x
 
 
 #===========================================================================

@@ -19,8 +19,8 @@ def Printer(IP, N, dN, w, K):
     print(" \n K  = ")
     pp.pprint(K)
 
-example = 0
-if example == 0  or example == "all":
+example = input("Choose from 0 to 5 or all : ")
+if example == "0"  or example == "all":
     #==Example 0=================================================#
     coords = np.array([[0,0,0],[2,-0.2,-0.2],[0,1.2,0],[1.2,0,0]])
 
@@ -45,7 +45,7 @@ if example == 0  or example == "all":
     print("\n\n Tetra4 \n")
     Printer(IP, N, dN, w, K)
 
-elif example == 1 or example == "all":
+if example == "1" or example == "all":
     #==Example 1=================================================#
     """ Quad 4 Shape Stiffness Matrix """
 
@@ -73,7 +73,7 @@ elif example == 1 or example == "all":
     pprint(D)
     Printer(IP, N, dN, w, K)
 
-if example == 2 or example == "all":
+if example == "2" or example == "all":
     #==Example 2=================================================#
     """ Tri 3 Shape Stiffness Matrix """
 
@@ -98,7 +98,7 @@ if example == 2 or example == "all":
     print("\n\n Tri3 \n")
     Printer(IP, N, dN, w, K)
 
-if example == 3 or example == "all":
+if example == "3" or example == "all":
     #==Example 3=================================================#
     """ Line 3 Shape Stiffness Matrix """
 
@@ -115,7 +115,7 @@ if example == 3 or example == "all":
     print("\n\n Line3 \n")
     Printer(IP, N, dN, w, K)
 
-if example == 4 or example == "all":
+if example == "4" or example == "all":
     #==Example 5=================================================#
     """ Line 2 Boundary Element """
 
@@ -135,7 +135,7 @@ if example == 4 or example == "all":
     Printer(IP, N, dN, w, K)
     print("\n Local point = ")
     pprint(xi)
-if example == 5 or example == "all":
+if example == "5" or example == "all":
     #==Example 4=================================================#
     """ Area of a Mesh """
 

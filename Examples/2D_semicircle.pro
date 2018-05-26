@@ -26,7 +26,6 @@
     "model" :
     {
         "type"     : "Solid",
-        "elements" : "gmsh0",
         "thickness" : 0.1,
 
         "material" :
@@ -41,5 +40,9 @@
             "type" : "Tri3",
             "scheme" : "Gauss1"
         }
+    },
+    "solver":
+    {
+        "type" : "numpy"
     }
  }

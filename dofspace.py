@@ -1,6 +1,6 @@
 # Import Standard Libraries
-import warnings
 import scipy as np
+from warnings import warn
 
 
 #===========================================================================
@@ -12,19 +12,21 @@ class DofSpace(object):
     """ Dof Space 
     
     Static Members:
-        __type__ = "Input is not list or array!"
-        __type_int__ = "Input is not int!"
-        __type_str__ = "Input is not str!"
+        __type_int__ = "Input inod is not int!"
+        __type_str__ = "Input dof is not str!"
+        __type_int_list__ = "Input is not int or list!"
+        __type_str_list__ = "Input is not list or str!"
+        __type_dof__ = "Input inod is not int or dof is not str!"
         __renumber__ = "Erasing dofs: Dof numbers will be renumbered!"
-
+        
     Instance Members:
         nrow = number of rows (nodes)
-        types = list of dof type names
+        types = list of dof names
         dofspace = array of dof indices (idofs)
             i row corresponds to inod
             j column corresponds to jtype
             idof = dofspace[inod,jtype]
-        ndof = last dof index
+        ndof = number of degrees of freedom
 
     Public Methods:
         DofSpace(nrow, ntyp)
@@ -51,7 +53,7 @@ class DofSpace(object):
             eraseDof(inod, dofs)
             eraseDofs(inodes, dofs)
             ndof = dofCount()
-            idof = getDofIndex(inod, dof)
+            idof[s] = getDofIndex(inod, dof)
             idofs = getDofIndices(inodes, dofs)
             printDofSpace()
 
@@ -60,12 +62,19 @@ class DofSpace(object):
     """
     
     # Static:
-    __type__ = "Input is not list or array!"
-    __type_int__ = "Input is not int!"
-    __type_str__ = "Input is not str!"
+    __type_int__ = "Input inod is not int!"
+    __type_str__ = "Input dof is not str!"
+    __type_int_list__ = "Input is not int or list!"
+    __type_str_list__ = "Input is not list or str!"
+    __type_dof__ = "Input inod is not int or dof is not str!"
     __renumber__ = "Erasing dofs: Dof numbers will be renumbered!"
 
     # Public:
+
+    #-------------------------------------------------------------------
+    #   constructor
+    #-------------------------------------------------------------------
+
     def __init__(self, nrow, ntyp=1):
         """ Input: nrow = number of rows (nodes), ntyp = number of dof types """
         self.nrow = nrow
@@ -80,8 +89,8 @@ class DofSpace(object):
 
     def addRow(self):
         """ Adds a new row to dofspace """
-        r_reqd = np.size(self.dofspace, 1)
-        r_new = np.empty((1, r_reqd))
+        ntyp = np.size(self.dofspace, 1)
+        r_new = np.empty((1, ntyp))
         r_new[:] = np.nan
         self.dofspace = np.vstack((self.dofspace, r_new))
         self.nrow += 1
@@ -89,8 +98,8 @@ class DofSpace(object):
 
     def addRows(self, nrow):
         """ Input: nrow = number of rows (nodes) to be added """
-        r_reqd = np.size(self.dofspace, 1)
-        r_new = np.empty((nrow, r_reqd))
+        ntyp = np.size(self.dofspace, 1)
+        r_new = np.empty((nrow, ntyp))
         r_new[:] = np.nan
         self.dofspace = np.vstack((self.dofspace, r_new))
         self.nrow += nrow
@@ -98,17 +107,20 @@ class DofSpace(object):
     
     def eraseRow(self, irow):
         """ Input: irow = index of row (node) to be erased """
-        self.dofspace = np.delete(self.dofspace, irow, 0)
-        warnings.warn(self.__renumber__)
-        self.__renumberDofs()
-        self.nrow -= 1
+        if isinstance(irow, int):
+            self.dofspace = np.delete(self.dofspace, irow, 0)
+            warn(self.__renumber__)
+            self.__renumberDofs()
+            self.nrow -= 1
+        else:
+            raise TypeError(self.__type_int_list__)
     
     def eraseRows(self, irows):
-        """ Input: irows = indices of rows (nodes) to be erased """
+        """ Input: irows = list of indices of rows (nodes) to be erased """
         if isinstance(irows, (list, tuple, range, np.ndarray)):
             for irow in sorted(irows, reverse=True):
                 self.eraseRow(irow)
-        else:
+        else: # eraseRow checks if irows is int
             self.eraseRow(irows)
 
     def rowCount(self):
@@ -120,11 +132,12 @@ class DofSpace(object):
     #-------------------------------------------------------------------
 
     def addType(self, dof):
-        """ Input: dof = string of dof type name """
+        """ Input: dof = string of dof name """
         if isinstance(dof, str):
-            self.types.append(dof)
+            if dof not in self.types:
+                self.types.append(dof)
         else:
-            raise TypeError(self.__type_str__)
+            raise TypeError(self.__type_str_list__)
         # Check if dofspace has enough columns for all dof types
         c_reqd = len(self.types) - np.size(self.dofspace, 1)
         if c_reqd > 0:
@@ -133,42 +146,48 @@ class DofSpace(object):
             self.dofspace = np.hstack((self.dofspace, c_new))
 
     def addTypes(self, dofs):
-        """ Input: dofs =  list of string of dof type names """
-        if isinstance(dofs, (list, np.ndarray)):
+        """ Input: dofs =  list of strings of dof names """
+        if isinstance(dofs, (list, tuple, np.ndarray)):
             for dof in dofs:
                 self.addType(dof)
-        else:
-            raise TypeError(self.__type__)
+        else: # addType checks if dofs is str
+            self.addType(dofs)
 
     def setType(self, jtype, dof):
-        """ Input: jtype = dof type index, dof = string of dof type name """
+        """ Input: jtype = dof type index, dof = string of dof name """
         if isinstance(dof, str):
             self.types[jtype] = dof
         else:
             raise TypeError(self.__type_str__)
 
     def eraseType(self, dof):
-        """ Input: dof = string of dof type name to be erased """
-        # Delete column from dofspace
-        jtype = self.types.index(dof)
-        self.dofspace = np.delete(self.dofspace, jtype, 1)
-        # Delete type
-        del self.types[jtype]
-        # Renumber remaining dofs
-        warnings.warn(self.__renumber__)
-        self.__renumberDofs()
-
-    def eraseTypes(self, dofs):
-        """ Input: dofs = list of strings of dof type names to be erased """
-        for dof in dofs:
+        """ Input: dof = string of dof name to be erased """
+        if isinstance(dof, str):
             # Delete column from dofspace
             jtype = self.types.index(dof)
             self.dofspace = np.delete(self.dofspace, jtype, 1)
             # Delete type
             del self.types[jtype]
-        # Renumber remaining dofs
-        warnings.warn(self.__renumber__)
-        self.__renumberDofs()
+            # Renumber remaining dofs
+            warn(self.__renumber__)
+            self.__renumberDofs()
+        else:
+            raise TypeError(self.__type_str_list__)
+
+    def eraseTypes(self, dofs):
+        """ Input: dofs = list of strings of dof names to be erased """
+        if isinstance(dofs, (list, tuple, np.ndarray)):
+            for dof in dofs:
+                # Delete column from dofspace
+                jtype = self.types.index(dof)
+                self.dofspace = np.delete(self.dofspace, jtype, 1)
+                # Delete type
+                del self.types[jtype]
+            # Renumber remaining dofs
+            warn(self.__renumber__)
+            self.__renumberDofs()
+        else: # eraseType checks if dofs is str
+            self.eraseType(dofs)
 
     def typeCount(self):
         """ Output: number of dof types """
@@ -176,7 +195,7 @@ class DofSpace(object):
 
     def getTypeName(self, jtype):
         """ Input: jtype = dof type index
-            Output: string of dof type name """
+            Output: string of dof name """
         return self.types[jtype]
 
     #-------------------------------------------------------------------
@@ -184,20 +203,22 @@ class DofSpace(object):
     #-------------------------------------------------------------------
 
     def addDof(self, inod, dofs):
-        """ Input: inod = node index, dof = (list of) strings of dof names """
+        """ Input: inod = node index, dofs = (list of) strings of dof names """
         # Need to check if inod is int or
         # 2 or > dofs will have same idof
-        if isinstance(inod, int):
+        if isinstance(dofs, (list, tuple, np.ndarray)):
             for dof in dofs:
-                jtype = self.types.index(dof)
-                if np.isnan(self.dofspace[inod, jtype]):
-                    self.dofspace[inod, jtype] = self.ndof
-                    self.ndof += 1
+                self.addDof(inod,dof)
+        elif isinstance(dofs, str) and isinstance(inod, int):
+            jtype = self.types.index(dofs)
+            if np.isnan(self.dofspace[inod, jtype]):
+                self.dofspace[inod, jtype] = self.ndof
+                self.ndof += 1
         else:
-            raise TypeError(self.__type_int__)
+            raise TypeError(self.__type_dof__)
 
     def addDofs(self, inodes, dofs):
-        """ Input: inodes = node indices, dofs = (list of) strings of dof names """
+        """ Input: inodes = list of node indices, dofs = (list of) strings of dof names """
         if isinstance(inodes, (list, tuple, range, np.ndarray)):
             for inod in inodes:
                 self.addDof(inod, dofs)
@@ -206,14 +227,20 @@ class DofSpace(object):
 
     def eraseDof(self, inod, dofs):
         """ Input: inod = node index, dofs = (list of) strings of dof names """
-        for dof in dofs:
-            jtype = self.types.index(dof)
+        if isinstance(dofs, (list, tuple, np.ndarray)):
+            for dof in dofs:
+                jtype = self.types.index(dof)
+                self.dofspace[inod, jtype] = np.nan
+        elif isinstance(dofs, str):
+            jtype = self.types.index(dofs)
             self.dofspace[inod, jtype] = np.nan
-        warnings.warn(self.__renumber__)
+        else:
+            raise TypeError(self.__type_str_list__)
+        warn(self.__renumber__)
         self.__renumberDofs()
 
     def eraseDofs(self, inodes, dofs):
-        """ Input: inodes = node indices, dofs = (list of) strings of dof names """
+        """ Input: inodes = list of node indices, dofs = (list of) strings of dof names """
         self.eraseDof(inodes, dofs)
 
     def dofCount(self):
@@ -221,25 +248,26 @@ class DofSpace(object):
         return self.ndof
 
     def getDofIndex(self, inod, dofs=None):
-        """ Input: inod = node index, dof = string of dof name
+        """ Input: inod = node index, dofs = (list of) strings of dof names
             Output: idof = dof index or list of dof indices """
-        if dofs is None:
-            idofs = []
+        idofs = []
+        if isinstance(dofs, (list, tuple, np.ndarray)):
+            for dof in dofs:
+                idofs.append(self.getDofIndex(inod, dof))
+        elif isinstance(dofs, str) and isinstance(inod, int):
+            jtype = self.types.index(dofs)
+            idofs = int(self.dofspace[inod, jtype])
+        elif dofs is None and isinstance(inod, int):
             for dof in self.dofspace[inod]:
                 if not np.isnan(dof):
                     idofs.append(int(dof))
-        elif isinstance(dofs, list):
-            idofs = []
-            for dof in dofs:
-                jtype = self.types.index(dof)
-                idofs.append(int(self.dofspace[inod, jtype]))
-        elif isinstance(dofs, str):
-            jtype = self.types.index(dofs)
-            idofs = int(self.dofspace[inod, jtype])
+        else:
+            raise TypeError(self.__type_dof__)
+
         return idofs
 
     def getDofIndices(self, inodes, dofs=None):
-        """ Input: inodes = node indices, dofs = list of strings of dof names
+        """ Input: inodes = list of node indices, dofs = (list of) strings of dof names
             Output: idofs = list of dof indices """
         if isinstance(inodes, (list, tuple, range, np.ndarray)):
             idofs = []
@@ -249,12 +277,12 @@ class DofSpace(object):
                     idofs.append(jdofs)
                 else:
                     idofs += jdofs
-        else:
+        else: # getDofIndex checks if inodes is int
             idofs = self.getDofIndex(inodes, dofs)
         return idofs
 
     def printDofSpace(self):
-        """ Prints the dof space with node numbers and dof type names """
+        """ Prints the dof space with node numbers and dof names """
         print("\n", self.types)
         i = 0
         for row in self.dofspace:
@@ -264,7 +292,7 @@ class DofSpace(object):
 
     # Private:
     def __renumberDofs(self):
-        """ Renumbers all defined dofs from 0 to ndof """
+        """ Renumbers all defined dofs from 0 to ndof-1 """
         self.ndof = 0
         for i in range(np.size(self.dofspace, 0)):
             for j in range(np.size(self.dofspace, 1)):
@@ -298,7 +326,7 @@ if __name__ == '__main__':
     dofs.printDofSpace()
 
     dofs.addType('w')
-    dofs.addDof(0, 'u')
+    dofs.addDofs([0,1], 'u')
     dofs.addDof(0, ['u', 'v', 'w'])
     dofs.addDofs(range(6), ['u', 'v', 'w'])
     dofs.printDofSpace()

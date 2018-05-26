@@ -8,7 +8,28 @@ import scipy as np
 
 
 class LoadTable(object):
-    """ LoadTable """
+    """ LoadTable
+
+    Static Members:
+        __type_int__ = "Input inod is not int!"
+        __type_int_list__ = "Input is not int or list!"
+
+    Instance Members:
+        ndof = number of degrees of freedom
+        loads = array of point loads per idof
+
+    Public Methods:
+        LoadTable()
+        initialize(props, mesh)
+        readXML(path, mesh)
+        addLoad(idof, rval=0.0)
+        addLoads(idofs, rval=0.0)
+        loads = getLoads()
+    """
+
+    # Static:
+    __type_int__ = "Input inod is not int!"
+    __type_int_list__ = "Input is not int or list!"
 
     # Public:
 
@@ -32,11 +53,14 @@ class LoadTable(object):
         self.loads = np.empty(self.ndof)
         self.loads[:] = 0
 
-        props = props.getProps("input.loads")
-        type = props.get("type")
-        path = props.get("file")
-        if type == "Input":
-            self.readXML(path, mesh)
+        try:
+            props = props.getProps("input.loads")
+            if props.get("type") == "Input":
+                path = props.get("file")
+                self.readXML(path, mesh)
+                print(path, "file read")
+        except:
+            KeyError(" No Loads provided ")
 
     #-----------------------------------------------------------------------
     #   readXML
@@ -56,31 +80,44 @@ class LoadTable(object):
 
                 if flag_c is True and not line.startswith("<Loads>"):
                     dof = re.findall(r"[a-zA-Z]+", line)[0]
-                    [node, rval] = re.findall(r"[-+]?\d*\.\d+|\d+", line)
-                    # print(dof, "[", node, "] = ", rval)
+                    [node, rval] = re.findall(r"[-+]?\d *\.\d+|[-+]?\d+", line)
+                    print(" {}[{}] = {}".format(dof, node, rval))
                     idof = mesh.getDofIndex(int(node), dof)
                     self.addLoad(idof, float(rval))
 
     #-----------------------------------------------------------------------
-    #   addLoad
+    #   Load Methods
     #-----------------------------------------------------------------------
-
-    def addLoad(self, idof, rval=0.0):
-        self.loads[idof] = rval
-
-    #-----------------------------------------------------------------------
-    #   addLoadTable
-    #-----------------------------------------------------------------------
-
-    def addLoads(self, idofs, rval=0.0):
-        if isinstance(idofs, (list, tuple, range, np.ndarray)):
-            for idof in idofs:
-                self.addLoad(idof, rval)
+    
+    def setLoad(self,  idof, rval):
+        """ Input: idof = prescribed dof index to be erased """
+        if isinstance(idof, int):
+            self.loads[idof] = rval
         else:
+            raise TypeError(self.__type_int_list__)
+
+    def setLoads(self, idofs, rval):
+        """ Input: idofs = list of prescribed dof indices to be erased """
+        if isinstance(idofs, list):
+            self.loads[idofs] = rval
+        else: # setLoad checks if idof is int
+            self.setLoad(idofs,rval)
+
+    def addLoad(self, idof, rval):
+        if isinstance(idof, int):
+            self.loads[idof] += rval
+        else:
+            raise TypeError(self.__type_int_list__)
+
+    def addLoads(self, idofs, rval):
+        if isinstance(idofs, list):
+            self.loads[idofs] += rval
+        else: # addLoad checks if idofs is int
             self.addLoad(idofs, rval)
+
+    #-----------------------------------------------------------------------
+    #   getLoads
+    #-----------------------------------------------------------------------
 
     def getLoads(self):
         return self.loads
-
-    def dofCount(self):
-        return self.ndof

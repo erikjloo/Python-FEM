@@ -13,7 +13,9 @@ start = time.time()
 
 dim = 2
 # Initialization
-if dim == 2:
+if dim == 1:
+    file = "Examples/square.pro"
+elif dim == 2:
     file = "Examples/2D_semicircle.pro"
 elif dim == 3:
     file = "Examples/3D_semicircle.pro"
@@ -35,7 +37,7 @@ module.pushBack(InputModule("input"))
 module.pushBack(InitModule())
 
 # Linear analysis
-module.pushBack(LinSolveModule())
+module.pushBack(LinSolveModule("linsolve"))
 
 # Execute
 module.init(props, globdat)
@@ -46,4 +48,6 @@ stop = time.time()
 print("Elapsed time is ",stop-start)
 
 # globdat.mesh.updateGeometry(disp)
-globdat.mesh.plotDeformed(globdat.disp, 21.5)
+globdat.mesh.plotDeformed(globdat.disp, 1)
+
+print(globdat.disp)

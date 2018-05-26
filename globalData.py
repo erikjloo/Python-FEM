@@ -2,21 +2,39 @@
 import scipy as np
 
 # Import Local Libraries
-from properties import  Properties
 from constraints import Constraints
 from loadTable import LoadTable
 from algebra import MatrixBuilder
 from models import ModelFactory
 from mesh import Mesh
 
-class GlobalData(Properties):
-    """ Global data """
+class GlobalData(object):
+    """ Global data 
+
+    Instance Members:
+        ndof = number of degrees of freedom
+        mesh = nodeset, elementset and dofspace
+        fint = vector of internal forces
+        fext = vector of external forces
+        disp = vector of displacements (solution)
+        load = load table
+        cons = constraints
+        mbuild = matrix builder
+    
+    Public Methods:
+        makeMesh(props)
+        makeModel(props)
+        makeLoadTable(props)
+        makeConstraints(props)
+        makeMatrixBuilder()
+        makeVectors()
+    """
 
     def __init__(self, props):
-        self.globdat = props
+        self.ndof = 0
         self.mesh = Mesh()
-        self.fint = np.zeros(0)
         self.fext = np.zeros(0)
+        self.fint = np.zeros(0)
         self.disp = np.zeros(0)
         self.load = LoadTable()
         self.cons = Constraints()
@@ -27,6 +45,7 @@ class GlobalData(Properties):
 
     def makeModel(self, props):
         self.model = ModelFactory("model", props, self.mesh)
+        self.ndof = self.mesh.dofCount()
 
     def makeLoadTable(self, props):
         self.load.initialize(props, self.mesh)
@@ -35,11 +54,9 @@ class GlobalData(Properties):
         self.cons.initialize(props, self.mesh)
 
     def makeMatrixBuilder(self):
-        ndof = self.mesh.dofCount()
-        self.mbuild = MatrixBuilder(ndof)
+        self.mbuild.resize(self.ndof)
 
     def makeVectors(self):
-        ndof = self.mesh.dofCount()
-        self.fint = np.zeros(ndof)
-        self.fext = np.zeros(ndof)
-        self.disp = np.zeros(ndof)
+        self.fext.resize(self.ndof)
+        self.fint.resize(self.ndof)
+        self.disp.resize(self.ndof)

@@ -6,7 +6,7 @@
         "mesh" :
         {
             "type" : "Gmsh",
-            "file" : "Examples/rve.msh",
+            "file" : "Examples/square.msh",
             "rank" : 2,
             "doElemGroups" : true
         },
@@ -27,12 +27,12 @@
     "model" :
     {
         "type"   : "Multi",
-        "models" : [ "matrix", "fibers", "pbc" ],
+        "models" : [ "matrix", "pbc" ],
 
         "matrix" :
         {
             "type"     : "Solid",
-            "elements" : "gmsh1",
+            "elements" : "1",
             "thickness" : 1,
 
             "material" :
@@ -55,35 +55,15 @@
             }
         },
 
-        "fibers" : 
-        {
-            "type" : "Solid",
-            "elements" : "gmsh0",
-            "thickness" : 1,
-
-            "material" : 
-            {
-                "type" : "PlaneStrain",
-                "young" : 74000,
-                "poisson" : 0.2
-            },
-
-            "shape" :
-            {
-                "type" : "Tri3",
-                "scheme" : "Gauss"
-            }
-        },
-        
         "pbc" :
         {
             "type"     : "Periodic",
-            "coarsenFactor" : 0.3,
+            "coarsenFactor" : 0.8,
             "strainRate" : [0.0001, -0.0002, 0.003]
         }
     },
     "solver":
     {
-        "type" : "scipy"
+        "type" : "numpy"
     }
  }
