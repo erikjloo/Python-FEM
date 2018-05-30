@@ -79,7 +79,12 @@
         {
             "type"     : "Periodic",
             "coarsenFactor" : 0.3,
-            "strainRate" : [0.0001, -0.0002, 0.003]
+            "strainRate" : [0.0001, -0.0002, 0.003],
+            "shape":
+            {
+                "type" : "Line2",
+                "scheme" : "Gauss"
+            }
         }
     },
     "nonlin":

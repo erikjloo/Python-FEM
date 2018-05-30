@@ -6,6 +6,7 @@ from copy import deepcopy
 # Import Local Libraries
 from models import Model
 from shapes import ShapeFactory
+from algebra import norm
 
 
 #===========================================================================
@@ -277,8 +278,8 @@ class PBCmodel(Model):
                 trFace.append(mesh.addNode(coord))
 
             # Loop over indices of jnodes
-            for inod in jnodes:
-                coord = mesh.getCoords(inod)
+            for jnod in jnodes:
+                coord = mesh.getCoords(jnod)
                 coord[ix] = self.box_[2*ix]
                 trFace.append(mesh.addNode(coord))
 
@@ -305,8 +306,8 @@ class PBCmodel(Model):
     def __coarsenMesh(self, mesh, trFace):
         """ Coarsens the traction mesh """
 
-        dx = (self.dx_0[0]+self.dx_0[1])/(2*self.factor)
         cn = mesh.getCoords(trFace[-1])
+        dx = (self.dx_0[0]+self.dx_0[1])/(2*self.factor)
 
         # Loop over indices of trFace:
         for inod in range(len(trFace)):
@@ -316,14 +317,14 @@ class PBCmodel(Model):
             c1 = mesh.getCoords(trFace[inod+1])
 
             # Delete indices until c1 - c0 > dx
-            while np.linalg.norm(c1 - c0) < dx:
+            while norm(c1 - c0) < dx:
                 # Delete current index
                 del trFace[inod+1]
                 # Assign next node coords to c1
                 c1 = mesh.getCoords(trFace[inod+1])
 
             # Check distance to last node
-            if np.linalg.norm(cn - c1) < dx:
+            if norm(cn - c1) < dx:
                 # Delete all nodes up to but not including the last one
                 del trFace[inod+1:-1]
                 break
@@ -341,14 +342,11 @@ class PBCmodel(Model):
         # Implementation for two dimensions
         if self.rank == 2:
 
-            # Assign trNodes[ix] onto trFace
-            trFace = self.trNodes[ix]
-
             # Loop over indices of trFace
-            for inod in range(len(trFace)-1):
+            for inod in range(len(self.trNodes[ix])-1):
 
                 # Get coords of nodes in trFace[inod: inod+2]
-                connect = trFace[inod:inod+2]
+                connect = self.trNodes[ix][inod:inod+2]
                 coords = mesh.getCoords(connect)
 
                 # Get correct index
@@ -368,9 +366,6 @@ class PBCmodel(Model):
     def get_Matrix_0(self, mbuild, fint, disp, mesh):
 
         max_hbw = 0
-
-        # Variables related to element on U mesh
-        N = np.zeros((self.rank, self.ndof))
 
         # Loop over faces of bndNodes
         for face, bndFace in enumerate(self.bndNodes):
@@ -405,7 +400,7 @@ class PBCmodel(Model):
                     H = self.bshape.evalNmatrix(xi, ndim=self.rank)
 
                     # Assemble Ke
-                    if face == 0 or face == 2:
+                    if face == 0 or face == 2 or face == 4:
                         Ke -= w[ip] * N.transpose() @ H
                     else:
                         Ke += w[ip] * N.transpose() @ H

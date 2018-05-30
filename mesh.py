@@ -104,7 +104,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         if type == "Gmsh":
             self.readGmsh(path, rank, doElemGroups)
         elif type == "XML":
-            self.readXML(path, rank)
+            self.readXML(path, rank, doElemGroups)
         else:
             print("Type can only be Gmsh or XML!")
 
@@ -172,7 +172,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                     if ntags > 0:
                         key = int(data[3])
                         if key not in self.groupNames:
-                            groupName = ('Group {}').format(key)
+                            groupName = 'Group {}'.format(key)
                             self.groupNames[key] = groupName
                             self.ngroups += 1
                             self.groups.append([])
@@ -207,13 +207,20 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #   readXML
     #-----------------------------------------------------------------------
 
-    def readXML(self, path=None, rank=3):
+    def readXML(self, path=None, rank=3, doElemGroups=False):
         """ Input: path = path_to_file """
         if path is None:
             Tk().withdraw()
             self.path = filedialog.askopenfilename()
         else:
             self.path = path
+
+        if doElemGroups is True:
+            raise NotImplementedError(" readXML does not support doElemGroups!")
+        else:
+            self.groups = [[]]
+            self.ngroups = 1
+            self.groupNames[0] = 'Group 0'
 
         with open(path, 'r') as file:
 
@@ -241,6 +248,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
                     if flag_n is True:
                         coord = [float(x) for x in data[1:rank+1]]
+                        print(coord)
                         self.addNode(coord)
 
                     #-------------------------------------------------------
@@ -249,6 +257,8 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
                     if flag_e is True:
                         connect = [int(x)-1 for x in data[1:]]
+                        print(connect)
+                        self.groups[0].append(int(data[0])-1)
                         self.addElement(connect)
 
         print(("Mesh read with {} nodes, {} elements.").format(
@@ -333,7 +343,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 if __name__ == '__main__':
 
     mesh = Mesh()
-    mesh.readXML("Examples/square.xml")
+    mesh.readXML("Examples/uniaxial.xml")
     mesh.plotMesh(rank=2)
 
     mesh = Mesh()

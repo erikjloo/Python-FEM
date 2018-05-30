@@ -102,7 +102,6 @@ class SolidModel(Model):
                             fint = internal force vector """
 
         max_hbw = 0
-        print(disp)
         # Iterate over elements assigned to model
         for iele in self.ielements:
 
@@ -124,9 +123,7 @@ class SolidModel(Model):
                 # Get strain, B matrix and weight
                 [strain, B, w] = self.shape.getStrain(coords, ele_disp, ip)
                 w = w*self.t if self.rank == 2 else w
-                print(iele)
-                print(ele_disp)
-                # print(strain)
+
                 # Get tangent stiffness matrix D
                 [stress, D] = self.mat.getStress(strain)
 

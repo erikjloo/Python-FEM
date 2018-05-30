@@ -8,7 +8,7 @@
             "type" : "Gmsh",
             "file" : "Examples/square.msh",
             "rank" : 2,
-            "doElemGroups" : true
+            "doElemGroups" : false
         },
 
         "hardening" :
@@ -32,13 +32,12 @@
         "matrix" :
         {
             "type"     : "Solid",
-            "elements" : "1",
             "thickness" : 1,
 
             "material" : 
             {
                 "type" : "PlaneStrain",
-                "young" : 5000,
+                "young" : 500,
                 "poisson" : 0.3
             },
             
@@ -53,7 +52,7 @@
         {
             "type"     : "Periodic",
             "coarsenFactor" : 0.8,
-            "strainRate" : [0.0001, -0.0002, 0.003],
+            "strainRate" : [0.0001, -0.0002, 0.03],
             "shape" :
             {
                 "type" : "Line2",

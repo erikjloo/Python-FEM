@@ -137,9 +137,6 @@ class Constraints(object):
     #   getConspace
     #-----------------------------------------------------------------------
 
-    def getCons(self):
-        return self.conspace[self.get_sdof()]
-
     def getDisps(self):
         disps = np.zeros(self.ndof)
         disps[self.sdof] = self.conspace[self.sdof]

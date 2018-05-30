@@ -6,21 +6,13 @@ import time
 from properties import Properties
 from globalData import GlobalData
 from modules import ChainModule, InputModule, InitModule, LinSolveModule
+# np.set_printoptions(precision=4)
 
-np.set_printoptions(precision=4)
+file = input("Properties file: ")
 
 start = time.time()
 
-dim = 2
-# Initialization
-if dim == 1:
-    file = "Examples/square.pro"
-elif dim == 2:
-    file = "Examples/2D_semicircle.pro"
-elif dim == 3:
-    file = "Examples/3D_semicircle.pro"
-
-# Props
+# Properties
 props = Properties()
 props.parseFile(file)
 

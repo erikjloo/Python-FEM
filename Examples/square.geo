@@ -1,12 +1,12 @@
 // This variable is a characteristic length and it controles the mesh size around a Point.
 // It is possible to specify more than one variable for this purpose.
-cl1 = 0.5/5;
-cl2 = 0.5/5;
+cl1 = 0.02288/10;
+cl2 = 0.02288/10;
 // Points contains the x, y and z coordinate and the characteristic length of the Point.
 Point(1) = {0,0,0,cl1};
-Point(2) = {0.5,0,0,cl1};
-Point(3) = {0.5,0.5,0,cl2};
-Point(4) = {0,0.5,0,cl2};
+Point(2) = {0.02288,0,0,cl1};
+Point(3) = {0.02288,0.02288,0,cl2};
+Point(4) = {0,0.02288,0,cl2};
 
 // A Line is basically a connection between two Points. A good practice is to connect the
 // Points in a counter-clockwise fashion.

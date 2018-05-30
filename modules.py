@@ -237,53 +237,54 @@ class NonlinModule(Module):
             self.tol = 1e-3
             self.type = "solve"
 
-        # GET_MATRIX_0
-        self.hbw = globdat.model.get_Matrix_0(
-            globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
-        print("Stiffness matrix: hbw = {} out of {}".format(
-            self.hbw, globdat.mesh.dofCount()))
-
     def run(self, globdat):
         """ Runs a non-linear analysis """
         
         # ADVANCE
         print("Advancing to next load step")
         # globdat.model.advance()
+        
+        # GET_MATRIX_0
+        globdat.fint = np.zeros(globdat.ndof)
+        self.hbw = globdat.model.get_Matrix_0(
+            globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
+        print("Stiffness matrix: hbw = {} out of {}".format(
+            self.hbw, globdat.mesh.dofCount()))
 
         # GET_EXT_VECTOR
+        globdat.fext = np.zeros(globdat.ndof)
         globdat.model.get_Ext_Vector(globdat.fext, globdat.mesh)
         globdat.fext += globdat.load.getLoads()
         print("External force vector: {} elements".format(len(globdat.fext)))
 
         # GET_CONSTRAINTS
         globdat.model.get_Constraints(globdat.cons, globdat.mesh)
-        Du = globdat.cons.getDisps()
-        du = deepcopy(Du)
+        du = globdat.cons.getDisps()
         sdof = globdat.cons.get_sdof()
-        globdat.disp[sdof] += Du[sdof]
+        globdat.disp[sdof] += du[sdof]
         print("Constraints: {} prescribed values".format(len(sdof)))
 
         # INITIAL RESIDUAL
         self.solver = Solver(self.type, globdat.cons)
         K = globdat.mbuild.getDenseMatrix()
-        r = globdat.fext - globdat.fint - np.array(K).dot(Du)
+        r = globdat.fext - globdat.fint - np.array(K).dot(du)
         fdof = globdat.cons.get_fdof()
-        # du = np.zeros(globdat.ndof)
 
         for iter in range(self.niter):
             
             # Update displacement vector
             self.solver.solve(K, du, r, self.hbw)
-            # Du[fdof] += du[fdof]
             globdat.disp[fdof] += du[fdof]
 
             # Find interal force vector
+            globdat.fint = np.zeros(globdat.ndof)
+            
             if self.nrkey == "full":
                 globdat.model.get_Matrix_0(
                     globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
             elif self.nrkey == "mod" or self.nrkey == "LE":
                 globdat.model.get_Int_Vector(
-                    globdat.fint, du, globdat.mesh)
+                    globdat.fint, globdat.disp, globdat.mesh)
 
             # Find out-of-balance force vector
             r = globdat.fext - globdat.fint
