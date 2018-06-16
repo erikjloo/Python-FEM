@@ -6,35 +6,40 @@ from abc import ABCMeta, abstractmethod
 #   ModelFactory
 #===========================================================================
 
-
-def ModelFactory(name, props, mesh):
-    """ Input:  props = properties
+def ModelFactory(name, props, conf, mesh):
+    """ Input:  name = model name
+                props = properties
+                conf = properties
                 mesh = mesh
         Output: model """
-    props = props.getProps(name)
-    type = props.get("type")
+
+    type = props.get("{}.type".format(name))
 
     if type == "Matrix":
         # Creates the root
         print("Creating a matrix model named", name)
-        return MatrixModel(name, props, mesh)
+        return MatrixModel(name, props, conf, mesh)
 
     elif type == "Multi":
         # Creates a node
         print("Creating a multi model named", name)
-        return MultiModel(name, props, mesh)
+        return MultiModel(name, props, conf, mesh)
 
     elif type == "Solid":
         # Creates a leaf
         from solidModel import SolidModel
         print("Creating a solid model named", name)
-        return SolidModel(name, props, mesh)
+        return SolidModel(name, props, conf, mesh)
 
     elif type == "Periodic":
         # Creates a leaf
         from PBCmodel import PBCmodel
         print("Creating a periodic model named", name)
-        return PBCmodel(name, props, mesh)
+        return PBCmodel(name, props, conf, mesh)
+    
+    else:
+        msg = "{} model not yet implemented".format(name)
+        raise NotImplementedError(msg)
 
 
 #===========================================================================
@@ -46,33 +51,50 @@ class Model(metaclass=ABCMeta):
     """ Abstract Model Class
     
     Pure Virtual Methods:
-        Model(name, props, mesh)
-        get_Matrix_0(mbuild, fint, disp, mesh)
-        get_Ext_Vector(fext, mesh)
-        get_Int_Vector(fint, disp, mesh)
-        get_Constraints(cons, mesh)
-        takeAction(action, mesh)
+        Model(name, props, conf, mesh)
+        takeAction(action, globdat)
     """
 
     @abstractmethod
-    def __init__(self, name, props, mesh):
+    def __init__(self, name, props, conf, mesh):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_Matrix_0(self, mbuild, fint, disp, mesh):
+    def takeAction(self, action, globdat):
         raise NotImplementedError()
 
-    @abstractmethod
-    def get_Ext_Vector(self, fext, mesh):
-        raise NotImplementedError()
 
-    @abstractmethod
-    def get_Constraints(self, cons, mesh):
-        raise NotImplementedError()
+#===========================================================================
+#   MatrixModel
+#===========================================================================
 
-    @abstractmethod
-    def takeAction(self, action, mesh):
-        raise NotImplementedError()
+
+class MatrixModel(Model):
+    """ The root of the model tree 
+
+    Instance Members:
+        name = model name
+        model = child model
+
+    Public Methods:
+        MatrixModel(name, props, conf, mesh)
+        takeAction(action, globdat)
+    """
+
+    def __init__(self, name, props, conf, mesh):
+        """ Creates a node and its child """
+        self.name = name
+        myProps = props.getProps(name)
+        myConf = conf.makeProps(name)
+
+        self.type = myProps.get("type")
+        myConf.set("type", self.type)
+
+        # Create child
+        self.model = ModelFactory("model", myProps, myConf, mesh)
+
+    def takeAction(self, action, globdat):
+        self.model.takeAction(action, globdat)
 
 
 #===========================================================================
@@ -88,89 +110,32 @@ class MultiModel(Model):
         models = children
 
     Public Methods:
-        MultiModel(name, props, mesh)
-        get_Matrix_0(mbuild, fint, disp, mesh)
-        get_Ext_Vector(fext, mesh)
-        get_Int_Vector(fint, disp, mesh)
-        get_Constraints(cons, mesh)
-        takeAction(action, mesh)
+        MultiModel(name, props, conf, mesh)
+        takeAction(action, globdat)
     """
 
-    def __init__(self, name, props, mesh):
+    def __init__(self, name, props, conf, mesh):
         """ Creates a node and its children """
         self.name = name
+        myProps = props.getProps(name)
+        myConf = conf.makeProps(name)
+
+        self.type = myProps.get("type")
+        sub_models = myProps.get("models")
+
+        myConf.set("type",self.type)
+        myConf.set("models",sub_models)
 
         # Create children
         self.models = []
-        for name in props.get("models"):
-            model = ModelFactory(name, props, mesh)
+        for name in sub_models:
+            model = ModelFactory(name, myProps, myConf, mesh)
             self.models.append(model)
 
-    def get_Matrix_0(self, mbuild, fint, disp, mesh):
-        hbw = []
+    def takeAction(self, action, globdat):
         for model in self.models:
-            hbw.append(model.get_Matrix_0(mbuild, fint, disp, mesh))
-        return max(hbw)
-
-    def get_Int_Vector(self, fint, disp, mesh):
-        for model in self.models:
-            model.get_Int_Vector(fint, disp, mesh)
-
-    def get_Ext_Vector(self, fext, mesh):
-        for model in self.models:
-            model.get_Ext_Vector(fext, mesh)
-
-    def get_Constraints(self, cons, mesh):
-        for model in self.models:
-            model.get_Constraints(cons, mesh)
-
-    def takeAction(self, action, mesh):
-        for model in self.models:
-            model.takeAction(action, mesh)
-
-#===========================================================================
-#   MatrixModel
-#===========================================================================
-
-
-class MatrixModel(Model):
-    """ The root of the model tree 
-
-    Instance Members:
-        name = model name
-        model = child model
-
-    Public Methods:
-        MatrixModel(name, props, mesh)
-        get_Matrix_0(mbuild, fint, disp, mesh)
-        get_Ext_Vector(fext, mesh)
-        get_Int_Vector(fint, disp, mesh)
-        get_Constraints(cons, mesh)
-        takeAction(action, mesh)
-    """
-
-    def __init__(self, name, props, mesh):
-        """ Creates a node and its child """
-        self.name = name
-
-        # Create child
-        self.model = ModelFactory("model", props, mesh)
-
-    def get_Matrix_0(self, mbuild, fint, disp, mesh):
-        return self.model.get_Matrix_0(mbuild, fint, disp, mesh)
-
-    def get_Int_Vector(self, fint, disp, mesh):
-        self.model.get_Int_Vector(fint, disp, mesh)
-
-    def get_Ext_Vector(self, fext, mesh):
-        self.model.get_Ext_Vector(fext, mesh)
-
-    def get_Constraints(self, cons, mesh):
-        self.model.get_Constraints(cons, mesh)
-
-    def takeAction(self, action, mesh):
-        self.model.takeAction(action, mesh)
-
+            model.takeAction(action, globdat)
+            
 # PointLoadModel
 
 # ConstraintsModel
@@ -188,34 +153,18 @@ class LoadScaleModel(Model):
         model = child model
 
     Public Methods:
-        MatrixModel(name, props, mesh)
-        get_Matrix_0(mbuild, fint, disp, mesh)
-        get_Ext_Vector(fext, mesh)
-        get_Int_Vector(fint, disp, mesh)
-        get_Constraints(cons, mesh)
-        takeAction(action, mesh)
+        MatrixModel(name, props, conf, mesh)
+        takeAction(action, globdat)
     """
 
-    def __init__(self, name, props, mesh):
+    def __init__(self, name, props, conf, mesh):
         """ Creates a node and its child """
         self.name = name
+        myProps = props.getProps(name)
+        myConf = conf.makeProps(name)
 
         # Create child
-        self.model = ModelFactory("model", props, mesh)
+        self.model = ModelFactory("model", myProps, myConf, mesh)
 
-    def get_Matrix_0(self, mbuild, fint, disp, mesh):
-        return self.model.get_Matrix_0(mbuild, fint, disp, mesh)
-
-    def get_Int_Vector(self, fint, disp, mesh):
-        self.model.get_Int_Vector(fint, disp, mesh)
-
-    def get_Ext_Vector(self, fext, mesh):
-        self.model.get_Ext_Vector(fext, mesh)
-
-    def get_Constraints(self, cons, mesh):
-        self.model.get_Constraints(cons, mesh)
-
-    def takeAction(self, action, mesh):
-        self.model.takeAction(action, mesh)
-
-
+    def takeAction(self, action, globdat):
+        self.model.takeAction(action, globdat)

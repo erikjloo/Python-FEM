@@ -15,6 +15,7 @@ file = "Examples/square.pro"
 
 # Props
 props = Properties()
+conf = Properties()
 props.parseFile(file)
 
 # Global Data
@@ -33,15 +34,18 @@ module.pushBack(InitModule())
 module.pushBack(NonlinModule("nonlin"))
 
 # Execute
-module.init(props, globdat)
-globdat.model.takeAction("plot_boundary",globdat.mesh)
+module.init(props, conf, globdat)
 
-for _ in range(1):
-    module.run(globdat)
+conf.print()
+
+globdat.model.takeAction("PLOT_BOUNDARY",globdat)
+
+module.run(globdat)
+module.run(globdat)
 
 module.shutdown(globdat)
 
 stop = time.time()
 print("Elapsed time is ", stop-start)
-globdat.mesh.plotDeformed(globdat.disp,5)
+globdat.mesh.plotDeformed(globdat.disp,1)
 # globdat.mesh.plotMesh()

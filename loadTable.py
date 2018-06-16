@@ -1,6 +1,7 @@
 # Import Standard Libraries
 import re
 import scipy as np
+from warnings import warn
 
 #===========================================================================
 #   LoadTable
@@ -59,8 +60,8 @@ class LoadTable(object):
                 path = props.get("file")
                 self.readXML(path, mesh)
                 print(path, "file read")
-        except:
-            KeyError(" No Loads provided ")
+        except KeyError:
+            warn(" No Loads provided ")
 
     #-----------------------------------------------------------------------
     #   readXML

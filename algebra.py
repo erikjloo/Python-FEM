@@ -47,6 +47,7 @@ class MatrixBuilder(object):
     
     def __init__(self,ndof):
         """ Input: ndof = size of square matrix """
+        self.hbw = 0
         self.K = dok_matrix((ndof,ndof),dtype="float64")
     
     def resize(self,ndof):

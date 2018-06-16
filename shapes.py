@@ -14,11 +14,16 @@ from intSchemes import gauss_legendre, newton_cotes
 #===========================================================================
 
 
-def ShapeFactory(props):
+def ShapeFactory(props, conf):
 
-    props = props.getProps("shape")
-    type = props.get("type")
-    scheme = props.get("scheme")
+    myProps = props.getProps("shape")
+    myConf = conf.makeProps("shape")
+
+    type = myProps.get("type")
+    scheme = myProps.get("scheme","Gauss")
+
+    myConf.set("type", type)
+    myConf.set("scheme", scheme)
 
     if type == "Line2":
         print("    Creating Line2 with", scheme, "quadrature")

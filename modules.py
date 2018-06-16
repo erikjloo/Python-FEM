@@ -6,6 +6,7 @@ from warnings import warn
 
 #  Import Local Libraries
 from abc import ABCMeta, abstractmethod
+from properties import Properties
 from algebra import norm
 from solvers import Solver
 
@@ -30,7 +31,7 @@ class Module(metaclass=ABCMeta):
     """ Abstract Module Class 
     
     Pure Virtual Methods:
-        init(props, globdat)
+        init(props, conf, globdat)
         run(globdat)
         shutdown(globdat)
     """
@@ -39,7 +40,7 @@ class Module(metaclass=ABCMeta):
         self.name = name
 
     @abstractmethod
-    def init(self, props, globdat): pass
+    def init(self, props, conf, globdat): pass
 
     @abstractmethod
     def run(self, globdat): pass
@@ -58,7 +59,7 @@ class ChainModule(Module):
         
     Public Methods:
         pushBack(module)
-        init(props, globdat)
+        init(props, conf, globdat)
         run(globdat)
         shutdown(globdat)
     """
@@ -70,9 +71,9 @@ class ChainModule(Module):
     def pushBack(self, module):
         self.modules.append(module)
 
-    def init(self, props, globdat):
+    def init(self, props, conf, globdat):
         for module in self.modules[:]:
-            status = module.init(props, globdat)
+            status = module.init(props, conf, globdat)
             if status == Status.DONE:
                 self.modules.remove(module)
             elif status == Status.EXIT:
@@ -101,14 +102,15 @@ class InputModule(Module):
     """ Reads props and initializes the mesh
         
     Public Methods:
-        init(props, globdat)
+        init(props, conf, globdat)
         run(globdat)
         shutdown(globdat)
     """
 
-    def init(self, props, globdat):
-        props = props.getProps(self.name)
-        globdat.makeMesh(props)
+    def init(self, props, conf, globdat):
+        myProps = props.getProps(self.name)
+        myConf = conf.makeProps(self.name)
+        globdat.makeMesh(myProps,myConf)
         return Status.DONE
 
     def run(self, globdat): pass
@@ -125,13 +127,13 @@ class InitModule(Module):
     """ Initializes the model, loads, constraints, matrix builder & vectors
             
     Public Methods:
-        init(props, globdat)
+        init(props, conf, globdat)
         run(globdat)
         shutdown(globdat)
     """
 
-    def init(self, props, globdat):
-        globdat.makeModel(props)
+    def init(self, props, conf, globdat):
+        globdat.makeModel(props, conf)
         globdat.makeLoadTable(props)
         globdat.makeConstraints(props)
         globdat.makeMatrixBuilder()
@@ -152,19 +154,18 @@ class LinSolveModule(Module):
     """ Runs a linear analysis
             
     Public Methods:
-        init(props, globdat)
+        init(props, conf, globdat)
         run(globdat)
         shutdown(globdat)
     """
 
-    def init(self, props, globdat):
+    def init(self, props, conf, globdat):
         """ Computes K, f_ext and cons """
-        try:
-            props = props.getProps(self.name)
-            self.type = props.get("solver.type")
-        except KeyError:
-            warn("No solver specified ")
-            self.type = "solve"
+
+        myProps = props.getProps(self.name)
+        myConf = conf.makeProps(self.name)
+        self.type = myProps.get("solver.type","solve")
+        myConf.set("solver.type",self.type)
         return Status.OK
 
     def run(self, globdat):
@@ -175,18 +176,17 @@ class LinSolveModule(Module):
         # globdat.model.advance()
 
         # GET_MATRIX_0
-        self.hbw = globdat.model.get_Matrix_0(
-            globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
+        globdat.model.takeAction("GET_MATRIX_0",globdat)
         print("Stiffness matrix: hbw = {} out of {}".format(
-            self.hbw, globdat.mesh.dofCount()))
+            globdat.mbuild.hbw, globdat.mesh.dofCount()))
 
         # GET_EXT_VECTOR
-        globdat.model.get_Ext_Vector(globdat.fext, globdat.mesh)
+        globdat.model.takeAction("GET_EXT_VECTOR",globdat)
         globdat.fext += globdat.load.getLoads()
         print("External force vector: {} elements".format(len(globdat.fext)))
 
         # GET_CONSTRAINTS
-        globdat.model.get_Constraints(globdat.cons, globdat.mesh)
+        globdat.model.takeAction("GET_CONSTRAINTS",globdat)
         globdat.disp = globdat.cons.getDisps()
         sdof = globdat.cons.get_sdof()
         print("Constraints: {} prescribed values".format(len(sdof)))
@@ -196,10 +196,10 @@ class LinSolveModule(Module):
         K = globdat.mbuild.getDenseMatrix()
         r = globdat.fext - globdat.fint - np.array(K).dot(globdat.disp)
 
-        self.solver.solve(K, globdat.disp, r, self.hbw)
+        self.solver.solve(K, globdat.disp, r, globdat.mbuild.hbw)
 
         # GET_INT_VECTOR
-        globdat.model.get_Int_Vector(globdat.fint, globdat.disp, globdat.mesh)
+        globdat.model.takeAction("GET_INT_VECTOR", globdat)
 
         return Status.DONE
 
@@ -216,26 +216,26 @@ class NonlinModule(Module):
     """ Runs a nonlinear analysis (NR)
             
     Public Methods:
-        init(props, globdat)
+        init(props, conf, globdat)
         run(globdat)
         shutdown(globdat)
     """
 
-    def init(self, props, globdat):
+    def init(self, props, conf, globdat):
         """ Sets up solver """
         
-        try:
-            props = props.getProps(self.name)
-            self.nrkey = props.get("type")
-            self.niter = props.get("niter")
-            self.tol = props.get("tol")
-            self.type = props.get("solver.type")
-        except KeyError:
-            warn("No solver specified ")
-            self.nrkey = "full"
-            self.niter = 20
-            self.tol = 1e-3
-            self.type = "solve"
+        myProps = props.getProps(self.name)
+        myConf = conf.makeProps(self.name)
+
+        self.nrkey = myProps.get("type","full")
+        self.niter = myProps.get("niter",2)
+        self.tol = myProps.get("tol",1e-3)
+        self.type = myProps.get("solver.type","solve")
+
+        myConf.set("type",self.nrkey)
+        myConf.set("niter",self.niter)
+        myConf.set("tol",self.tol)
+        myConf.set("solver.type",self.type)
 
     def run(self, globdat):
         """ Runs a non-linear analysis """
@@ -245,22 +245,21 @@ class NonlinModule(Module):
         # globdat.model.advance()
         
         # GET_MATRIX_0
-        globdat.fint = np.zeros(globdat.ndof)
-        self.hbw = globdat.model.get_Matrix_0(
-            globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
+        globdat.model.takeAction("GET_MATRIX_0", globdat)
         print("Stiffness matrix: hbw = {} out of {}".format(
-            self.hbw, globdat.mesh.dofCount()))
+            globdat.mbuild.hbw, globdat.mesh.dofCount()))
 
         # GET_EXT_VECTOR
         globdat.fext = np.zeros(globdat.ndof)
-        globdat.model.get_Ext_Vector(globdat.fext, globdat.mesh)
+        globdat.model.takeAction("GET_EXT_VECTOR", globdat)
         globdat.fext += globdat.load.getLoads()
         print("External force vector: {} elements".format(len(globdat.fext)))
 
         # GET_CONSTRAINTS
-        globdat.model.get_Constraints(globdat.cons, globdat.mesh)
+        globdat.model.takeAction("GET_CONSTRAINTS", globdat)
         du = globdat.cons.getDisps()
         sdof = globdat.cons.get_sdof()
+        disp_old = deepcopy(globdat.disp)
         globdat.disp[sdof] += du[sdof]
         print("Constraints: {} prescribed values".format(len(sdof)))
 
@@ -273,18 +272,16 @@ class NonlinModule(Module):
         for iter in range(self.niter):
             
             # Update displacement vector
-            self.solver.solve(K, du, r, self.hbw)
+            self.solver.solve(K, du, r, globdat.mbuild.hbw)
             globdat.disp[fdof] += du[fdof]
 
             # Find interal force vector
             globdat.fint = np.zeros(globdat.ndof)
             
             if self.nrkey == "full":
-                globdat.model.get_Matrix_0(
-                    globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
+                globdat.model.takeAction("GET_MATRIX_0",globdat)
             elif self.nrkey == "mod" or self.nrkey == "LE":
-                globdat.model.get_Int_Vector(
-                    globdat.fint, globdat.disp, globdat.mesh)
+                globdat.model.takeAction("GET_INT_VECTOR",globdat)
 
             # Find out-of-balance force vector
             r = globdat.fext - globdat.fint
@@ -303,3 +300,27 @@ class NonlinModule(Module):
         
     def shutdown(self, globdat):
         pass
+
+
+#===========================================================================
+#   NonlinModule
+#===========================================================================
+
+
+class OutputModule(Module):
+    """ Saves specified output
+            
+    Public Methods:
+        init(props, conf, globdat)
+        run(globdat)
+        shutdown(globdat)
+    """
+
+    def init(self, props, conf, globdat):
+        myProps = props.getProps(self.name)
+        myConf = props.makeProps(self.name)
+        return Status.DONE
+
+    def run(self, globdat): pass
+
+    def shutdown(self, globdat): pass

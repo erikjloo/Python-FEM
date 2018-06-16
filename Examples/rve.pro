@@ -64,8 +64,8 @@
             "material" : 
             {
                 "type" : "PlaneStrain",
-                "young" : 74000,
-                "poisson" : 0.2
+                "young" : 3760,
+                "poisson" : 0.3
             },
 
             "shape" :
@@ -78,8 +78,8 @@
         "pbc" :
         {
             "type"     : "Periodic",
-            "coarsenFactor" : 0.3,
-            "strainRate" : [0.0001, -0.0002, 0.003],
+            "coarsenFactor" : 0.6,
+            "strainRate" : [0.001, 0.0, 0.0],
             "shape":
             {
                 "type" : "Line2",
@@ -90,7 +90,7 @@
     "nonlin":
     {
         "type" : "full",
-        "niter" : 20,
+        "niter" : 1,
         "tol" : 1e-3,
         "solver" :
         {

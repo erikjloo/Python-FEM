@@ -8,23 +8,22 @@ from abc import ABCMeta, abstractmethod
 #===========================================================================
 
 
-def MaterialFactory(props):
+def MaterialFactory(props, conf):
 
-    props = props.getProps("material")
-    type = props.get("type")
+    type = props.get("material.type")
 
     if type == "Hooke":
         print("    Creating Hooke material")
-        return Hooke(props)
+        return Hooke(props, conf)
     if type == "Melro":
         print("    Creating Melro material")
-        return PlaneStrain(props)
+        return PlaneStrain(props, conf)
     elif type == "PlaneStrain":
         print("    Creating PlaneStress material")
-        return PlaneStrain(props)
+        return PlaneStrain(props, conf)
     elif type == "PlaneStress":
         print("    Creating PlaneStress material")
-        return PlaneStress(props)
+        return PlaneStress(props, conf)
 
 
 #===========================================================================
@@ -36,7 +35,7 @@ class Material(metaclass=ABCMeta):
     """ Material """
 
     @abstractmethod
-    def __init__(self, props):
+    def __init__(self, props, conf):
         raise NotImplementedError()
 
     @abstractmethod
@@ -55,10 +54,16 @@ class Material(metaclass=ABCMeta):
 
 class Hooke(Material):
 
-    def __init__(self, props):
+    def __init__(self, props, conf):
 
-        E = props.get("young")
-        nu = props.get("poisson")
+        myProps = props.getProps("material")
+        myConf = conf.makeProps("material")
+
+        E = myProps.get("young")
+        nu = myProps.get("poisson")
+
+        myConf.set("young",E)
+        myConf.set("poisson", nu)
 
         # Calculate the Lamé parameters
         self.la = nu*E/((1+nu)*(1-2*nu))
@@ -85,10 +90,16 @@ class Hooke(Material):
 
 class PlaneStrain(Material):
 
-    def __init__(self, props):
+    def __init__(self, props, conf):
 
-        E = props.get("young")
-        nu = props.get("poisson")
+        myProps = props.getProps("material")
+        myConf = conf.makeProps("material")
+
+        E = myProps.get("young")
+        nu = myProps.get("poisson")
+
+        myConf.set("young", E)
+        myConf.set("poisson", nu)
 
         # Calculate the Lamé parameters
         self.la = nu*E/((1+nu)*(1-2*nu))
@@ -115,10 +126,16 @@ class PlaneStrain(Material):
 
 class PlaneStress(Material):
 
-    def __init__(self, props):
+    def __init__(self, props, conf):
 
-        E = props.get("young")
-        nu = props.get("poisson")
+        myProps = props.getProps("material")
+        myConf = conf.makeProps("material")
+
+        E = myProps.get("young")
+        nu = myProps.get("poisson")
+
+        myConf.set("young", E)
+        myConf.set("poisson", nu)
 
         # Calculate the Lamé parameters
         self.la = E*nu/(1-nu**2)
@@ -145,10 +162,16 @@ class PlaneStress(Material):
 
 class Melro(Material):
 
-    def __init__(self, props):
+    def __init__(self, props, conf):
 
-        E = props.get("young")
-        nu = props.get("poisson")
+        myProps = props.getProps("material")
+        myConf = conf.makeProps("material")
+
+        E = myProps.get("young")
+        nu = myProps.get("poisson")
+
+        myConf.set("young", E)
+        myConf.set("poisson", nu)
 
         # Calculate the Lamé parameters
         self.la = nu*E/((1+nu)*(1-2*nu))

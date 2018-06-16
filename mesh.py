@@ -74,21 +74,22 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #   initialize
     #-----------------------------------------------------------------------
 
-    def initialize(self, props):
+    def initialize(self, props, conf):
         """ Input:  props = Properties """
         
         # Get Props
-        props = props.getProps("mesh")
-        path = props.get("file")
-        try:
-            type = props.get("type")
-            self.rank = props.get("rank")
-            self.doElemGroups = props.get("doElemGroups")
-        except KeyError:
-            warn("Mesh properties not specified")
-            type = "Gmsh" if path.split('.')[1] == "msh" else "XML"
-            self.rank = 2
-            self.doElemGroups = False
+        myProps = props.getProps("mesh")
+        myConf = conf.makeProps("mesh")
+
+        path = myProps.get("file")
+        type = myProps.get("type","Gmsh")
+        self.rank = myProps.get("rank",2)
+        self.doElemGroups = myProps.get("doElemGroups",False)
+
+        myConf.set("file",path)
+        myConf.set("type",type)
+        myConf.set("rank",self.rank)
+        myConf.set("doElemGroups",self.doElemGroups)
 
         # Read Mesh
         self.readMesh(type, path, self.rank, self.doElemGroups)
@@ -351,5 +352,5 @@ if __name__ == '__main__':
     mesh.plotMesh(rank=2)
 
     mesh = Mesh()
-    mesh.readGmsh("Examples/3D_semicircle.msh")
+    mesh.readGmsh("Examples/rve.msh")
     mesh.plotMesh(rank=2)

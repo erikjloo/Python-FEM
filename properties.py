@@ -1,9 +1,7 @@
 # Import Standard Libraries
 import json
-import scipy as np
-from enum import IntEnum
 from pprint import pprint
-
+from collections import defaultdict
 
 #===========================================================================
 #   Properties
@@ -12,9 +10,6 @@ from pprint import pprint
 
 class Properties(object):
     """ Properties
-
-    Static Members:
-        __type_str__ = "Input is not str!"
 
     Instance Members:
         properties = dictionary of properties
@@ -31,9 +26,6 @@ class Properties(object):
     """
 
     # Public:
-    __type_str__ = "Input is not str!"
-
-    # Public:
 
     #-----------------------------------------------------------------------
     #   constructor
@@ -42,7 +34,7 @@ class Properties(object):
     def __init__(self, my_dict=None):
         """ Input: dictionary """
         if my_dict is None:
-            self.properties = {}
+            self.properties = {} #defaultdict(dict)
         else:
             self.properties = my_dict
 
@@ -69,35 +61,10 @@ class Properties(object):
     #-----------------------------------------------------------------------
 
     def makeProps(self, props):
-        pass
-
-    #-----------------------------------------------------------------------
-    #   get
-    #-----------------------------------------------------------------------
-
-    def get(self, props):
-        """ Input: props = string of property names separated by '.'
-            Output: dictionary of properties of given props """
-        try:
-            props = props.split('.')
-        except:
-            TypeError(self.__type_str__)
-
-        if len(props) is 1:
-            return self.properties[props[0]]
-        if len(props) is 2:
-            return self.properties[props[0]][props[1]]
-        elif len(props) is 3:
-            return self.properties[props[0]][props[1]][props[2]]
-        else:
-            print(" Cannot nest deeper than 3 ")
-
-    #-----------------------------------------------------------------------
-    #   set
-    #-----------------------------------------------------------------------
-
-    def set(self, prop, value):
-        pass
+        """ Input:  props = string of property name to be created
+            Output: properties object (of shallow copy) of given props """
+        self.properties[props] = {}
+        return Properties(self.properties[props])
 
     #-----------------------------------------------------------------------
     #   getProps
@@ -105,8 +72,45 @@ class Properties(object):
 
     def getProps(self, props):
         """ Input: props = string of property names separated by '.'
-            Output: Properties object of given props """
+            Output: properties object (of shallow copy) of given props """
         return Properties(self.get(props))
+
+    #-----------------------------------------------------------------------
+    #   get
+    #-----------------------------------------------------------------------
+
+    def get(self, props, default=None):
+        """ Input:  props = string of property names separated by '.'
+            Output: dictionary or value of properties of given props """
+        props = props.split('.')
+
+        try:
+            tmp = self.properties[props[0]]
+            for key in props[1:]:
+                tmp = tmp[key]
+            return tmp
+        except KeyError:
+            return default
+
+    #-----------------------------------------------------------------------
+    #   set
+    #-----------------------------------------------------------------------
+
+    def set(self, props, value):
+        """ Input:  props = string of property names separated by '.'
+                    value"""
+        props = props.split('.')
+                
+        if len(props) is 1:
+            self.properties[props[0]] = value
+        elif len(props) is 2:
+            if props[0] in self.properties:
+                self.properties[props[0]][props[1]] = value
+            else:
+                self.properties[props[0]] = {}
+                self.properties[props[0]][props[1]] = value
+        else:
+            print(" Cannot nest deeper than 2 ")
 
     def print(self):
         pprint(self.properties)

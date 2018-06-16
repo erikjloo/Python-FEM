@@ -58,16 +58,21 @@ class PBCmodel(Model):
     #   initialize
     #-----------------------------------------------------------------------
 
-    def __init__(self, name, props, mesh):
+    def __init__(self, name, props, conf, mesh):
 
         # Model name
         self.name = name
         self.rank = mesh.rank
-        self.factor = props.get("coarsenFactor")
-        self.strain = props.get("strainRate")
-        if self.factor > 1.0:
-            msg = "Factor = {}. Should be less than 1".format(self.factor)
-            raise ValueError(msg)
+        myConf = conf.makeProps(name)
+        myProps = props.getProps(name)
+
+        self.type = myProps.get("type")
+        self.strain = myProps.get("strainRate")
+        self.factor = myProps.get("coarsenFactor",1.0)
+
+        myConf.set("type", self.type)
+        myConf.set("strainRate", self.strain)
+        myConf.set("coarsenFactor", self.factor)
 
         # Add displacement doftypes
         types = ['u', 'v', 'w']
@@ -99,7 +104,7 @@ class PBCmodel(Model):
         self.__createTractionMesh(mesh)
 
         # Create boundary element
-        self.bshape = ShapeFactory(props)
+        self.bshape = ShapeFactory(myProps, myConf)
         self.localrank = self.bshape.ndim
         self.nnod = self.bshape.nnod
         self.nIP = self.bshape.nIP
@@ -360,6 +365,24 @@ class PBCmodel(Model):
             raise NotImplementedError(" Not yet implemented. ")
 
     #-----------------------------------------------------------------------
+    #   takeAction
+    #-----------------------------------------------------------------------
+
+    def takeAction(self, action, globdat):
+        if action == "GET_MATRIX_0" or action == "GET_INT_VECTOR":
+            self.get_Matrix_0(globdat.mbuild, globdat.fint,
+                              globdat.disp, globdat.mesh)
+            return True  
+        elif action == "GET_CONSTRAINTS":
+            self.get_Constraints(globdat.cons, globdat.mesh)
+            return True
+        elif action == "PLOT_BOUNDARY":
+            self.plotBoundary(globdat.mesh)
+            return True
+        else:
+            return False
+
+    #-----------------------------------------------------------------------
     #   get_Matrix_0
     #-----------------------------------------------------------------------
 
@@ -380,17 +403,14 @@ class PBCmodel(Model):
                 w = self.bshape.getIntegrationWeights(coords)
                 X = self.bshape.getGlobalPoints(coords)
 
-                # Get jdofs from T-mesh
-                connect = self.__getTractionMeshNodes(mesh, X[0], face)
-                jdofs = mesh.getDofIndices(connect, self.T_doftypes)
-                hbw = max(jdofs) - min(idofs)
-                max_hbw = hbw if hbw > max_hbw else max_hbw
-                coords = mesh.getCoords(connect)
-
-                # Matrix to be assembled: K[idofs, jdofs]
-                Ke = np.zeros((self.ndof, self.ndof))
-
                 for ip in range(self.nIP):
+
+                    # Get jdofs from T-mesh
+                    connect = self.__getTractionMeshNodes(mesh, X[0], face)
+                    jdofs = mesh.getDofIndices(connect, self.T_doftypes)
+                    hbw = max(jdofs) - min(idofs)
+                    max_hbw = hbw if hbw > max_hbw else max_hbw
+                    coords = mesh.getCoords(connect)
 
                     # Get N-matrix from U-mesh
                     N = self.bshape.getNmatrix(ip, ndim=self.rank)
@@ -401,55 +421,38 @@ class PBCmodel(Model):
 
                     # Assemble Ke
                     if face == 0 or face == 2 or face == 4:
-                        Ke -= w[ip] * N.transpose() @ H
+                        Ke = - w[ip] * N.transpose() @ H
                     else:
-                        Ke += w[ip] * N.transpose() @ H
+                        Ke = + w[ip] * N.transpose() @ H
 
-                # Add Ke and KeT to mbuild
-                KeT = Ke.transpose()
-                if mbuild is not None:
+                    # Add Ke and KeT to mbuild
+                    KeT = Ke.transpose()
                     mbuild.addBlock(idofs, jdofs, Ke)
                     mbuild.addBlock(jdofs, idofs, KeT)
 
-                # Assemble U-mesh fe
-                fe = Ke.dot(disp[jdofs])
-                fint[idofs] += fe
+                    # Assemble U-mesh fe
+                    fe = Ke.dot(disp[jdofs])
+                    fint[idofs] += fe
 
-                # Assemble T-mesh fe
-                fe = KeT.dot(disp[idofs])
-                fint[jdofs] += fe
+                    # Assemble T-mesh fe
+                    fe = KeT.dot(disp[idofs])
+                    fint[jdofs] += fe
 
-        for trFace in self.trNodes:
-            self.trdofs = mesh.getDofIndices(trFace, self.T_doftypes)
-            print("        fint = ", fint[self.trdofs])
-
-        return max_hbw
-
-    #-----------------------------------------------------------------------
-    #   get_Int_Vector
-    #-----------------------------------------------------------------------
-
-    def get_Int_Vector(self, fint, disp, mesh):
-        self.get_Matrix_0(None, fint, disp, mesh)
-
-    #-----------------------------------------------------------------------
-    #   get_Ext_Vector
-    #-----------------------------------------------------------------------
-
-    def get_Ext_Vector(self, fext, mesh):
-
-        # Variables related to element on T mesh
-        H = np.zeros((self.rank, self.ndof))
+        # Variables related to corner displacements
         eps = np.zeros((self.rank, self.rank))
         eps[0, 0] = self.strain[0]
         eps[1, 1] = self.strain[1]
         eps[0, 1] = eps[1, 0] = self.strain[2]/2
 
+        kdofs = mesh.getDofIndices(self.corner0, self.U_doftypes)
+
         # Loop over faces of trNodes
         for ix, trFace in enumerate(self.trNodes):
 
-            u_corner = eps[ix, :]*self.dx_[ix]
-
+            # u_corner = eps[ix, :]*self.dx_[ix]
+            idofs = mesh.getDofIndices(self.corner[ix], self.U_doftypes)
+            u_corner = disp[idofs]
+            
             # Loop over indices of trFace
             for inod in range(len(trFace)-1):
 
@@ -458,24 +461,25 @@ class PBCmodel(Model):
                 jdofs = mesh.getDofIndices(connect, self.T_doftypes)
                 coords = mesh.getCoords(connect)
                 w = self.bshape.getIntegrationWeights(coords)
-                h = self.bshape.getShapeFunctions()
-
-                # Vector to be assembled: fext[jdofs]
-                fe = np.zeros(self.ndof)
 
                 for ip in range(self.nIP):
 
                     # Assemble H matrix
-                    H[0, 0] = H[1, 1] = h[ip][0]
-                    H[0, 2] = H[1, 3] = h[ip][1]
+                    H = - w[ip] * self.bshape.getNmatrix(ip, ndim=self.rank)
+                    Ht = H.transpose()
 
-                    # Assemble fe
-                    fe = w[ip] * (H.transpose() @ u_corner)
-                    fext[jdofs] += fe
+                    # Add H matrix to mbuild
+                    mbuild.addBlock(idofs, jdofs, H)
+                    mbuild.addBlock(jdofs, idofs, Ht)
 
-        for trFace in self.trNodes:
-            self.trdofs = mesh.getDofIndices(trFace, self.T_doftypes)
-            print("        fext = ", fext[self.trdofs])
+                    # Assemble U-mesh fe
+                    fint[idofs] += H @ disp[jdofs]
+                    fint[kdofs] -= H @ disp[jdofs]
+
+                    # Assemble T-mesh fe
+                    fint[jdofs] += Ht @ u_corner
+        
+        mbuild.hbw = max_hbw if max_hbw > mbuild.hbw else mbuild.hbw
 
     #-----------------------------------------------------------------------
     #   get_Constraints
@@ -498,14 +502,6 @@ class PBCmodel(Model):
             for jx in range(self.rank):
                 idof = mesh.getDofIndex(self.corner[ix], self.U_doftypes[jx])
                 cons.addConstraint(idof, eps[ix, jx])
-
-    #-----------------------------------------------------------------------
-    #   takeAction
-    #-----------------------------------------------------------------------
-
-    def takeAction(self, action, mesh):
-        if action == "plot_boundary":
-            self.plotBoundary(mesh)
 
     #-----------------------------------------------------------------------
     #   plotBoundary
@@ -538,37 +534,32 @@ class PBCmodel(Model):
 if __name__ == '__main__':
 
     from properties import Properties
-    from mesh import Mesh
-    from models import ModelFactory
-    from algebra import MatrixBuilder
-    from constraints import Constraints
+    from globalData import GlobalData
     np.set_printoptions(precision=4)
 
     # Props
     file = "Examples/rve.pro"
     props = Properties()
+    conf = Properties()
     props.parseFile(file)
+    globdat = GlobalData(props)
 
     # Create mesh
-    mesh = Mesh()
-    mesh.initialize(props.getProps("input"))
+    conf.makeProps("input")
+    globdat.makeMesh(props.getProps("input"),conf.getProps("input"))
 
     # Create model
-    model = ModelFactory("model", props, mesh)
+    globdat.makeModel(props, conf)
 
     # Create constraints
-    cons = Constraints()
-    cons.initialize(props, mesh)
+    globdat.makeConstraints(props)
 
     # Create matrix builder
-    ndof = mesh.dofCount()
-    mbuild = MatrixBuilder(ndof)
+    globdat.makeMatrixBuilder()
 
     # Create vectors
-    fint = np.zeros(ndof)
-    fext = np.zeros(ndof)
-    disp = np.zeros(ndof)
+    globdat.makeVectors()
 
-    model.get_Constraints(cons, mesh)
-    model.get_Ext_Vector(fext, mesh)
-    model.get_Matrix_0(mbuild, fint, disp, mesh)
+    globdat.model.takeAction("GET_CONSTRAINTS",globdat)
+    globdat.model.takeAction("PLOT_BOUNDARY",globdat)
+    globdat.model.takeAction("GET_MATRIX_0",globdat)

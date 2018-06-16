@@ -14,6 +14,7 @@ start = time.time()
 
 # Properties
 props = Properties()
+conf = Properties()
 props.parseFile(file)
 
 # Global Data
@@ -32,7 +33,7 @@ module.pushBack(InitModule())
 module.pushBack(LinSolveModule("linsolve"))
 
 # Execute
-module.init(props, globdat)
+module.init(props, conf, globdat)
 module.run(globdat)
 module.shutdown(globdat)
 

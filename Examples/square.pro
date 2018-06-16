@@ -1,8 +1,6 @@
  {
     "input":
     {
-        "modules" : ["mesh", "hardening", "loads"],
-
         "mesh" :
         {
             "type" : "Gmsh",
@@ -11,13 +9,7 @@
             "doElemGroups" : false
         },
 
-        "hardening" :
-        {
-            "type" : "Input",
-            "file" : "mises.data"
-        },
-
-        "loads" :
+        "load" :
         {
             "type" : "Input",
             "file" : "load.data"
@@ -43,28 +35,31 @@
             
             "shape" :
             {
-                "type" : "Tri3",
-                "scheme" : "Gauss"
+                "type" : "Tri3"
             }
         },
 
         "pbc" :
         {
             "type"     : "Periodic",
-            "coarsenFactor" : 0.8,
-            "strainRate" : [0.0001, -0.0002, 0.03],
+            "coarsenFactor" : 1.0,
+            "strainRate" : [0.0, 0.0, 0.005],
             "shape" :
             {
-                "type" : "Line2",
-                "scheme" : "Gauss"
+                "type" : "Line2"
             }
         }
     },
-    "nonlin":
+    "linsolve":
     {
-        "type" : "full",
+        "solver" :
+        {
+            "type" : "lstsq"
+        }
+    },
+    "nonlin":
+    {   
         "niter" : 1,
-        "tol" : 1e-5,
         "solver" :
         {
             "type" : "lstsq"

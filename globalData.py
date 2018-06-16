@@ -40,11 +40,11 @@ class GlobalData(object):
         self.cons = Constraints()
         self.mbuild = MatrixBuilder(0)
     
-    def makeMesh(self, props):
-        self.mesh.initialize(props)
+    def makeMesh(self, props, conf):
+        self.mesh.initialize(props, conf)
 
-    def makeModel(self, props):
-        self.model = ModelFactory("model", props, self.mesh)
+    def makeModel(self, props, conf):
+        self.model = ModelFactory("model", props, conf, self.mesh)
         self.ndof = self.mesh.dofCount()
 
     def makeLoadTable(self, props):

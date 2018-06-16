@@ -28,11 +28,9 @@ class SolidModel(Model):
 
     Public Methods:
         SolidModel(name, props, mesh)
+        takeAction(action, globdat)
         get_Matrix_0(mbuild, fint, disp, mesh)
-        get_Ext_Vector(fext, mesh)
         get_Int_Vector(fint, disp, mesh)
-        get_Constraints(cons, mesh)
-        takeAction(action, mesh)
 
     Private Methods:
         __getBmatrix()
@@ -46,18 +44,20 @@ class SolidModel(Model):
     #   initialize
     #-----------------------------------------------------------------------
 
-    def __init__(self, name, props, mesh):
+    def __init__(self, name, props, conf, mesh):
 
-        # Model name
         self.name = name
         self.rank = mesh.rank
-        if self.rank < 1 or self.rank > 3:
-            msg = "Rank = {}. Should be 1, 2 or 3".format(self.rank)
-            raise ValueError(msg)
+        myConf = conf.makeProps(name)
+        myProps = props.getProps(name)
+
+        self.type = myProps.get("type")
+        myConf.set("type", self.type)
 
         # Get element group
         if mesh.doElemGroups is True:
-            gmsh_group = props.get("elements")
+            gmsh_group = myProps.get("elements")
+            myConf.set("elements",gmsh_group)
             key = int(re.search(r'\d+', gmsh_group).group())
             group_name = mesh.groupNames[key]
             print("    Obtaining elements from {}".format(group_name))
@@ -80,19 +80,33 @@ class SolidModel(Model):
 
         # Add thickness (2D)
         if self.rank == 2:
-            self.t = props.get("thickness")
+            self.t = myProps.get("thickness",1.0)
+            myConf.set("thickness",self.t)
 
         # Create element
-        self.shape = ShapeFactory(props)
+        self.shape = ShapeFactory(myProps, myConf)
         localrank = self.shape.ndim
         if localrank != self.rank:
             msg = "Shape ndim = {}. Should be {}".format(localrank,self.rank)
             raise ValueError(msg)
 
         # Create material
-        self.mat = MaterialFactory(props)
+        self.mat = MaterialFactory(myProps, myConf)
         
-        
+    #-----------------------------------------------------------------------
+    #   takeAction
+    #-----------------------------------------------------------------------
+
+    def takeAction(self, action, globdat):
+        if action == "GET_MATRIX_0":
+            self.get_Matrix_0(globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
+            return True
+        elif action == "GET_INT_VECTOR":
+            self.get_Int_Vector(globdat.fint, globdat.disp, globdat.mesh)
+            return True
+        else:
+            return False
+
     #-----------------------------------------------------------------------
     #   get_Matrix_0
     #-----------------------------------------------------------------------
@@ -137,9 +151,9 @@ class SolidModel(Model):
             mbuild.addBlock(idofs, idofs, kele)
 
             # Add fint to the global force vector (Fint):
-            fint[idofs] += fe
+            fint[idofs] += kele @ disp[idofs]
             
-        return max_hbw
+        mbuild.hbw = max_hbw if mbuild.hbw < max_hbw else mbuild.hbw
 
     #-----------------------------------------------------------------------
     #   get_Int_Vector
@@ -175,23 +189,3 @@ class SolidModel(Model):
             # Add fint to the global force vector (Fint):
             fint[idofs] += fe
 
-    #-----------------------------------------------------------------------
-    #   get_Ext_Vector
-    #-----------------------------------------------------------------------
-
-    def get_Ext_Vector(self, fext, mesh):
-        pass
-
-    #-----------------------------------------------------------------------
-    #   get_Constraints
-    #-----------------------------------------------------------------------
-
-    def get_Constraints(self, cons, mesh):
-        pass
-
-    #-----------------------------------------------------------------------
-    #   takeAction
-    #-----------------------------------------------------------------------
-
-    def takeAction(self, action, *args):
-        pass

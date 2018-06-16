@@ -1,6 +1,7 @@
 # Import Standard Libraries
 import re
 import scipy as np
+from warnings import warn
 
 #===========================================================================
 #   Constraints
@@ -66,8 +67,8 @@ class Constraints(object):
                 path = props.get("file")
                 self.readXML(path, mesh)
                 print(path,"file read")
-        except:
-            KeyError(" No constraints provided ")
+        except KeyError:
+            warn(" No constraints provided ")
 
     #-----------------------------------------------------------------------
     #   readXML
