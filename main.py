@@ -5,8 +5,12 @@ import time
 # Import Local Libraries
 from properties import Properties
 from globalData import GlobalData
-from modules import ChainModule, InputModule, InitModule, LinSolveModule
-# np.set_printoptions(precision=4)
+from modules import ChainModule 
+from modules import InputModule
+from modules import InitModule
+from modules import LinSolveModule
+from modules import Execute
+np.set_printoptions(precision=4)
 
 file = input("Properties file: ")
 
@@ -33,9 +37,7 @@ module.pushBack(InitModule())
 module.pushBack(LinSolveModule("linsolve"))
 
 # Execute
-module.init(props, conf, globdat)
-module.run(globdat)
-module.shutdown(globdat)
+Execute(module, conf, props, globdat)
 
 stop = time.time()
 print("Elapsed time is ",stop-start)

@@ -62,12 +62,11 @@ class Constraints(object):
         self.conspace[:] = np.nan
 
         try:
-            props = props.getProps("input.constraints")
-            if props.get("type") == "Input":
-                path = props.get("file")
-                self.readXML(path, mesh)
-                print(path,"file read")
-        except KeyError:
+            myProps = props.getProps("input.constraints")
+            path = myProps.get("file")
+            self.readXML(path, mesh)
+            print(path,"file read")
+        except TypeError:
             warn(" No constraints provided ")
 
     #-----------------------------------------------------------------------
@@ -114,8 +113,10 @@ class Constraints(object):
         if isinstance(idofs,(list,tuple,range,np.ndarray)):
             for idof in idofs:
                 self.addConstraint(idof, rval)
-        else: # addConstraint checks if idof is int
+        elif isinstance(idofs, int):
             self.addConstraint(idof, rval)
+        else:
+            raise TypeError(self.__type_int_list__)
 
     def eraseConstraint(self,  idof):
         """ Input: idof = prescribed dof index to be erased """
@@ -131,11 +132,13 @@ class Constraints(object):
         if isinstance(idofs, (list, tuple, range, np.ndarray)):
             for idof in idofs:
                 self.eraseConstraint(idof)
-        else: # eraseConstraint checks if idofs is int
+        elif isinstance(idofs, int):
             self.eraseConstraint(idofs)
+        else:
+            raise TypeError(self.__type_int_list__)
 
     #-----------------------------------------------------------------------
-    #   getConspace
+    #   getDisps
     #-----------------------------------------------------------------------
 
     def getDisps(self):

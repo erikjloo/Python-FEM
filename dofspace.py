@@ -55,7 +55,9 @@ class DofSpace(object):
             ndof = dofCount()
             idof[s] = getDofIndex(inod, dof)
             idofs = getDofIndices(inodes, dofs)
-            printDofSpace()
+        
+        Miscellaneous:
+            printDofSpace(irows)
 
     Private Methods:
         __renumberDofs()
@@ -65,7 +67,7 @@ class DofSpace(object):
     __type_int__ = "Input inod is not int!"
     __type_str__ = "Input dof is not str!"
     __type_int_list__ = "Input is not int or list!"
-    __type_str_list__ = "Input is not list or str!"
+    __type_str_list__ = "Input is not str or list!"
     __type_dof__ = "Input inod is not int or dof is not str!"
     __renumber__ = "Erasing dofs: Dof numbers will be renumbered!"
 
@@ -113,15 +115,17 @@ class DofSpace(object):
             self.__renumberDofs()
             self.nrow -= 1
         else:
-            raise TypeError(self.__type_int_list__)
+            raise TypeError(self.__type_int__)
     
     def eraseRows(self, irows):
         """ Input: irows = list of indices of rows (nodes) to be erased """
         if isinstance(irows, (list, tuple, range, np.ndarray)):
             for irow in sorted(irows, reverse=True):
                 self.eraseRow(irow)
-        else: # eraseRow checks if irows is int
+        elif isinstance(irows, int):
             self.eraseRow(irows)
+        else:
+            raise TypeError(self.__type_int_list__)
 
     def rowCount(self):
         """ Output: number of rows (nodes) """
@@ -137,7 +141,7 @@ class DofSpace(object):
             if dof not in self.types:
                 self.types.append(dof)
         else:
-            raise TypeError(self.__type_str_list__)
+            raise TypeError(self.__type_str__)
         # Check if dofspace has enough columns for all dof types
         c_reqd = len(self.types) - np.size(self.dofspace, 1)
         if c_reqd > 0:
@@ -150,8 +154,10 @@ class DofSpace(object):
         if isinstance(dofs, (list, tuple, np.ndarray)):
             for dof in dofs:
                 self.addType(dof)
-        else: # addType checks if dofs is str
+        elif isinstance(dofs, str):
             self.addType(dofs)
+        else:
+            raise TypeError(self.__type_str_list__)
 
     def setType(self, jtype, dof):
         """ Input: jtype = dof type index, dof = string of dof name """
@@ -172,7 +178,7 @@ class DofSpace(object):
             warn(self.__renumber__)
             self.__renumberDofs()
         else:
-            raise TypeError(self.__type_str_list__)
+            raise TypeError(self.__type_str__)
 
     def eraseTypes(self, dofs):
         """ Input: dofs = list of strings of dof names to be erased """
@@ -186,8 +192,10 @@ class DofSpace(object):
             # Renumber remaining dofs
             warn(self.__renumber__)
             self.__renumberDofs()
-        else: # eraseType checks if dofs is str
+        elif isinstance(dofs, str):
             self.eraseType(dofs)
+        else:
+            raise TypeError(self.__type_str_list__)
 
     def typeCount(self):
         """ Output: number of dof types """
@@ -222,8 +230,10 @@ class DofSpace(object):
         if isinstance(inodes, (list, tuple, range, np.ndarray)):
             for inod in inodes:
                 self.addDof(inod, dofs)
-        else:  # addDof checks if inodes is an int
+        elif isinstance(inodes, int):
             self.addDof(inodes, dofs)
+        else:
+            raise TypeError(self.__type_int_list__)
 
     def eraseDof(self, inod, dofs):
         """ Input: inod = node index, dofs = (list of) strings of dof names """
@@ -277,18 +287,30 @@ class DofSpace(object):
                     idofs.append(jdofs)
                 else:
                     idofs += jdofs
-        else: # getDofIndex checks if inodes is int
+        elif isinstance(inodes, int):
             idofs = self.getDofIndex(inodes, dofs)
+        else:
+            raise TypeError(self.__type_int_list__)
         return idofs
 
-    def printDofSpace(self):
+    #-------------------------------------------------------------------
+    #   Miscellaneous
+    #-------------------------------------------------------------------
+
+    def printDofSpace(self, rows=None):
         """ Prints the dof space with node numbers and dof names """
         print("\n", self.types)
-        i = 0
-        for row in self.dofspace:
-            print(i, row)
-            i += 1
-        print("\n")
+        if rows is None:
+            for i, row in enumerate(self.dofspace):
+                print(i, row)
+            print("\n")
+        elif isinstance(rows, (list, tuple, range, np.ndarray)):
+            for i, row in zip(rows, self.dofspace[rows,:]):
+                print(i, row)
+        elif isinstance(rows, int):
+            print(rows, self.dofspace[rows,:])
+        else:
+            raise TypeError(self.__type_int_list__)
 
     # Private:
     def __renumberDofs(self):

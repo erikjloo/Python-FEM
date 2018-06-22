@@ -7,7 +7,7 @@ from copy import deepcopy
 from models import Model
 from shapes import ShapeFactory
 from algebra import norm
-
+from Voigt import voigt2TensorStrain
 
 #===========================================================================
 #   PBCmodel
@@ -33,11 +33,12 @@ class PBCmodel(Model):
 
     Public Methods:
         PBCModel(name, props, mesh)
-        get_Matrix_0(mbuild, fint, disp, mesh)
-        get_Ext_Vector(fext, mesh)
-        get_Int_Vector(fint, disp, mesh)
-        get_Constraints(cons, mesh)
         takeAction(action, mesh)
+        __get_Matrix_0(mbuild, fint, disp, mesh)
+        __get_Constraints(cons, mesh)
+        __plotBoundary(mesh)
+        __plotMeshAndBoundary(mesh)
+        __advance(i)
 
     Private Methods:
         __boundingBox(mesh)
@@ -48,14 +49,14 @@ class PBCmodel(Model):
         __findCornerNodes()
         __findSmallestElement(mesh)
         __createTractionMesh(mesh)
-        __coarsenMesh(mesh, trFace)
+        __coarsenMesh(mesh, trFace, index)
         __getTractionMeshNodes(mesh, x, face)
     """
 
     # Public:
 
     #-----------------------------------------------------------------------
-    #   initialize
+    #   constructor
     #-----------------------------------------------------------------------
 
     def __init__(self, name, props, conf, mesh):
@@ -66,13 +67,17 @@ class PBCmodel(Model):
         myConf = conf.makeProps(name)
         myProps = props.getProps(name)
 
-        self.type = myProps.get("type")
-        self.strain = myProps.get("strainRate")
+        self.type = myProps.get("type", "Periodic")
+        self.strain = myProps.get("strainRate", None)
         self.factor = myProps.get("coarsenFactor",1.0)
 
         myConf.set("type", self.type)
         myConf.set("strainRate", self.strain)
         myConf.set("coarsenFactor", self.factor)
+
+    #-----------------------------------------------------------------------
+    #   initialize
+    #-----------------------------------------------------------------------
 
         # Add displacement doftypes
         types = ['u', 'v', 'w']
@@ -113,6 +118,32 @@ class PBCmodel(Model):
             msg = "Shape ndim = {}. Should be {}".format(
                 self.localrank, self.rank-1)
             raise ValueError(msg)
+            
+    #-----------------------------------------------------------------------
+    #   takeAction
+    #-----------------------------------------------------------------------
+
+    def takeAction(self, action, globdat):
+        if action == "GET_MATRIX_0" or action == "GET_INT_VECTOR":
+            self.__get_Matrix_0(globdat.mbuild, globdat.fint,
+                              globdat.disp, globdat.mesh)
+            return True
+        elif action == "GET_CONSTRAINTS":
+            self.__get_Constraints(globdat.cons, globdat.mesh)
+            return True
+        elif action == "PLOT_BOUNDARY":
+            self.__plotBoundary(globdat.mesh)
+            return True
+        elif action == "PLOT_MESH":
+            self.__plotMeshAndBoundary(globdat.mesh)
+            return True
+        elif action == "ADVANCE":
+            self.__advance(globdat.i)
+            return True
+        else:
+            return False
+
+    # Private:
 
     #-----------------------------------------------------------------------
     #   __boundingBox
@@ -127,7 +158,7 @@ class PBCmodel(Model):
         self.box_[2:4] *= mesh.coords[0][1]
 
         # Create space for dx
-        self.dx_ = np.zeros(self.rank)
+        self.dx = np.zeros(self.rank)
 
         # Find specimen coordinates
         for coord in mesh.coords:
@@ -139,11 +170,11 @@ class PBCmodel(Model):
 
         # Find specimen dimensions
         for ix in range(self.rank):
-            self.dx_[ix] = self.box_[2*ix + 1] - self.box_[2*ix]
+            self.dx[ix] = self.box_[2*ix + 1] - self.box_[2*ix]
 
         # Print to verify
         print("        box = ", self.box_)
-        print("        dx = ", self.dx_)
+        print("        dx = ", self.dx)
 
     #-----------------------------------------------------------------------
     #   __setTolerances
@@ -238,7 +269,7 @@ class PBCmodel(Model):
         """ Finds the smallest element dimension on each bndFace """
 
         # smallest element dimensions
-        self.dx_0 = deepcopy(self.dx_)
+        self.dx_0 = deepcopy(self.dx)
 
         # Loop over faces of bndNodes
         for face, bndFace in enumerate(self.bndNodes):
@@ -258,7 +289,8 @@ class PBCmodel(Model):
 
                 # Calculate dx and compare to dx0
                 dx = c1[index] - c0[index]
-                self.dx_0[index] = dx if dx < self.dx_0[index] else self.dx_0[index]
+                if dx < self.dx_0[index]:
+                    self.dx_0[index] = dx
 
     #-----------------------------------------------------------------------
     #   __createTractionMesh
@@ -295,7 +327,7 @@ class PBCmodel(Model):
             self.__sortBndFace(mesh, trFace, index)
 
             # Coarsen trFace (works only for 2D)
-            self.__coarsenMesh(mesh, trFace)
+            self.__coarsenMesh(mesh, trFace, index)
 
             # Print to verify
             print("        trNodes[{}] = {}".format(ix, self.trNodes[ix]))
@@ -308,21 +340,21 @@ class PBCmodel(Model):
     #   __coarsenMesh
     #-----------------------------------------------------------------------
 
-    def __coarsenMesh(self, mesh, trFace):
+    def __coarsenMesh(self, mesh, trFace, index):
         """ Coarsens the traction mesh """
 
         cn = mesh.getCoords(trFace[-1])
         dx = (self.dx_0[0]+self.dx_0[1])/(2*self.factor)
 
         # Loop over indices of trFace:
-        for inod in range(len(trFace)):
+        for inod in range(len(trFace)-1):
 
             # Get nodal coordinates
             c0 = mesh.getCoords(trFace[inod])
             c1 = mesh.getCoords(trFace[inod+1])
 
             # Delete indices until c1 - c0 > dx
-            while norm(c1 - c0) < dx:
+            while norm(c1 - c0) < min(dx,self.dx[index]):
                 # Delete current index
                 del trFace[inod+1]
                 # Assign next node coords to c1
@@ -330,9 +362,9 @@ class PBCmodel(Model):
 
             # Check distance to last node
             if norm(cn - c1) < dx:
-                # Delete all nodes up to but not including the last one
+                # Delete all indices up to but not including the last one
                 del trFace[inod+1:-1]
-                break
+                return
 
     #-----------------------------------------------------------------------
     #   __getTractionMeshNodes
@@ -360,35 +392,17 @@ class PBCmodel(Model):
                 # Check if c0[index] < x[index] < c1[index]
                 if coords[0, index] < x[index] < coords[1, index]:
                     return connect
+            
+            raise RuntimeError(" No connect found. ")
 
         elif self.rank == 3:
             raise NotImplementedError(" Not yet implemented. ")
 
     #-----------------------------------------------------------------------
-    #   takeAction
+    #   __get_Matrix_0
     #-----------------------------------------------------------------------
 
-    def takeAction(self, action, globdat):
-        if action == "GET_MATRIX_0" or action == "GET_INT_VECTOR":
-            self.get_Matrix_0(globdat.mbuild, globdat.fint,
-                              globdat.disp, globdat.mesh)
-            return True  
-        elif action == "GET_CONSTRAINTS":
-            self.get_Constraints(globdat.cons, globdat.mesh)
-            return True
-        elif action == "PLOT_BOUNDARY":
-            self.plotBoundary(globdat.mesh)
-            return True
-        else:
-            return False
-
-    #-----------------------------------------------------------------------
-    #   get_Matrix_0
-    #-----------------------------------------------------------------------
-
-    def get_Matrix_0(self, mbuild, fint, disp, mesh):
-
-        max_hbw = 0
+    def __get_Matrix_0(self, mbuild, fint, disp, mesh):
 
         # Loop over faces of bndNodes
         for face, bndFace in enumerate(self.bndNodes):
@@ -399,17 +413,15 @@ class PBCmodel(Model):
                 # Get idofs and w from U-mesh
                 connect = bndFace[inod:inod+2]
                 coords = mesh.getCoords(connect)
-                idofs = mesh.getDofIndices(connect, self.U_doftypes)
-                w = self.bshape.getIntegrationWeights(coords)
                 X = self.bshape.getGlobalPoints(coords)
+                w = self.bshape.getIntegrationWeights(coords)
+                idofs = mesh.getDofIndices(connect, self.U_doftypes)
 
                 for ip in range(self.nIP):
 
                     # Get jdofs from T-mesh
-                    connect = self.__getTractionMeshNodes(mesh, X[0], face)
+                    connect = self.__getTractionMeshNodes(mesh, X[ip], face)
                     jdofs = mesh.getDofIndices(connect, self.T_doftypes)
-                    hbw = max(jdofs) - min(idofs)
-                    max_hbw = hbw if hbw > max_hbw else max_hbw
                     coords = mesh.getCoords(connect)
 
                     # Get N-matrix from U-mesh
@@ -439,20 +451,14 @@ class PBCmodel(Model):
                     fint[jdofs] += fe
 
         # Variables related to corner displacements
-        eps = np.zeros((self.rank, self.rank))
-        eps[0, 0] = self.strain[0]
-        eps[1, 1] = self.strain[1]
-        eps[0, 1] = eps[1, 0] = self.strain[2]/2
-
         kdofs = mesh.getDofIndices(self.corner0, self.U_doftypes)
 
         # Loop over faces of trNodes
         for ix, trFace in enumerate(self.trNodes):
 
-            # u_corner = eps[ix, :]*self.dx_[ix]
             idofs = mesh.getDofIndices(self.corner[ix], self.U_doftypes)
             u_corner = disp[idofs]
-            
+
             # Loop over indices of trFace
             for inod in range(len(trFace)-1):
 
@@ -478,36 +484,32 @@ class PBCmodel(Model):
 
                     # Assemble T-mesh fe
                     fint[jdofs] += Ht @ u_corner
-        
-        mbuild.hbw = max_hbw if max_hbw > mbuild.hbw else mbuild.hbw
 
     #-----------------------------------------------------------------------
-    #   get_Constraints
+    #   __get_Constraints
     #-----------------------------------------------------------------------
 
-    def get_Constraints(self, cons, mesh):
+    def __get_Constraints(self, cons, mesh):
 
         # Fix corner
         idofs = mesh.getDofIndices(self.corner0, self.U_doftypes)
         cons.addConstraints(idofs)
         
         # Voigt to tensor
-        eps = np.zeros((self.rank, self.rank))
-        eps[0, 0] = self.strain[0]
-        eps[1, 1] = self.strain[1]
-        eps[0, 1] = eps[1, 0] = self.strain[2]/2
+        if self.strain is not None:
+            eps = voigt2TensorStrain(self.strain)
 
-        # Apply strain
-        for ix in range(self.rank):
-            for jx in range(self.rank):
-                idof = mesh.getDofIndex(self.corner[ix], self.U_doftypes[jx])
-                cons.addConstraint(idof, eps[ix, jx])
+            # Apply strain
+            for ix in range(self.rank):
+                for jx in range(self.rank):
+                    idof = mesh.getDofIndex(self.corner[ix], self.U_doftypes[jx])
+                    cons.addConstraint(idof, eps[ix, jx]*self.dx[ix])
 
     #-----------------------------------------------------------------------
-    #   plotBoundary
+    #   __plotBoundary
     #-----------------------------------------------------------------------
 
-    def plotBoundary(self, mesh):
+    def __plotBoundary(self, mesh):
         """ Plots the boundary nodes """
 
         fig = plt.figure(figsize=(6, 6))
@@ -520,46 +522,37 @@ class PBCmodel(Model):
 
         for ix, trFace in enumerate(self.trNodes):
             coords = mesh.getCoords(trFace)
-            coords[:, ix] -= self.dx_[ix]/10
+            coords[:, ix] -= self.dx[ix]/10
             ax.plot(coords[:, 0], coords[:, 1],
                     marker='o', linewidth=0.3, markersize=3, color='blue')
 
         plt.show()
 
-#===========================================================================
-#   Example
-#===========================================================================
+    #-----------------------------------------------------------------------
+    #   __plotMesh
+    #-----------------------------------------------------------------------
 
+    def __plotMeshAndBoundary(self, mesh):
+        """ Plots the mesh and boundary nodes """
+        ax = mesh.plotMesh()
 
-if __name__ == '__main__':
+        for bndFace in self.bndNodes:
+            coords = mesh.getCoords(bndFace)
+            ax.plot(coords[:, 0], coords[:, 1],
+                    marker='o', linewidth=0.3, markersize=3, color='k')
 
-    from properties import Properties
-    from globalData import GlobalData
-    np.set_printoptions(precision=4)
+        for ix, trFace in enumerate(self.trNodes):
+            coords = mesh.getCoords(trFace)
+            coords[:, ix] -= self.dx[ix]/10
+            ax.plot(coords[:, 0], coords[:, 1],
+                    marker='o', linewidth=0.3, markersize=3, color='blue')
 
-    # Props
-    file = "Examples/rve.pro"
-    props = Properties()
-    conf = Properties()
-    props.parseFile(file)
-    globdat = GlobalData(props)
+        plt.show()
 
-    # Create mesh
-    conf.makeProps("input")
-    globdat.makeMesh(props.getProps("input"),conf.getProps("input"))
+    #-----------------------------------------------------------------------
+    #   __advance
+    #-----------------------------------------------------------------------
 
-    # Create model
-    globdat.makeModel(props, conf)
-
-    # Create constraints
-    globdat.makeConstraints(props)
-
-    # Create matrix builder
-    globdat.makeMatrixBuilder()
-
-    # Create vectors
-    globdat.makeVectors()
-
-    globdat.model.takeAction("GET_CONSTRAINTS",globdat)
-    globdat.model.takeAction("PLOT_BOUNDARY",globdat)
-    globdat.model.takeAction("GET_MATRIX_0",globdat)
+    def __advance(self, i):
+        if self.strain is not None:
+            pass

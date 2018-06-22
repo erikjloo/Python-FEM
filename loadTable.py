@@ -20,11 +20,13 @@ class LoadTable(object):
         loads = array of point loads per idof
 
     Public Methods:
-        LoadTable()
+        LoadTable(ndof=0)
         initialize(props, mesh)
         readXML(path, mesh)
-        addLoad(idof, rval=0.0)
-        addLoads(idofs, rval=0.0)
+        setLoad(idof, rval)
+        setLoads(idofs, rval)
+        addLoad(idof, rval)
+        addLoads(idofs, rval)
         loads = getLoads()
     """
 
@@ -38,10 +40,10 @@ class LoadTable(object):
     #   constructor
     #-----------------------------------------------------------------------
 
-    def __init__(self):
-        self.ndof = 0
-        self.loads = np.empty(0)
-        self.loads[:] = np.nan
+    def __init__(self, ndof=0):
+        self.ndof = ndof
+        self.loads = np.empty(ndof)
+        self.loads[:] = 0
 
     #-----------------------------------------------------------------------
     #   initialize
@@ -55,13 +57,12 @@ class LoadTable(object):
         self.loads[:] = 0
 
         try:
-            props = props.getProps("input.loads")
-            if props.get("type") == "Input":
-                path = props.get("file")
-                self.readXML(path, mesh)
-                print(path, "file read")
-        except KeyError:
-            warn(" No Loads provided ")
+            myProps = props.getProps("input.loads")
+            path = myProps.get("file")
+            self.readXML(path, mesh)
+            print(path, "file read")
+        except TypeError:
+            warn(" No loads provided ")
 
     #-----------------------------------------------------------------------
     #   readXML
@@ -91,30 +92,32 @@ class LoadTable(object):
     #-----------------------------------------------------------------------
     
     def setLoad(self,  idof, rval):
-        """ Input: idof = prescribed dof index to be erased """
         if isinstance(idof, int):
             self.loads[idof] = rval
         else:
-            raise TypeError(self.__type_int_list__)
+            raise TypeError(self.__type_int__)
 
     def setLoads(self, idofs, rval):
-        """ Input: idofs = list of prescribed dof indices to be erased """
         if isinstance(idofs, list):
             self.loads[idofs] = rval
-        else: # setLoad checks if idof is int
+        elif isinstance(idofs, int):
             self.setLoad(idofs,rval)
+        else:
+            raise TypeError(self.__type_int_list__)
 
     def addLoad(self, idof, rval):
         if isinstance(idof, int):
             self.loads[idof] += rval
         else:
-            raise TypeError(self.__type_int_list__)
+            raise TypeError(self.__type_int__)
 
     def addLoads(self, idofs, rval):
         if isinstance(idofs, list):
             self.loads[idofs] += rval
-        else: # addLoad checks if idofs is int
+        elif isinstance(idofs, int):
             self.addLoad(idofs, rval)
+        else:
+            raise TypeError(self.__type_int_list__)
 
     #-----------------------------------------------------------------------
     #   getLoads

@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 #   ModelFactory
 #===========================================================================
 
+
 def ModelFactory(name, props, conf, mesh):
     """ Input:  name = model name
                 props = properties
@@ -36,7 +37,7 @@ def ModelFactory(name, props, conf, mesh):
         from PBCmodel import PBCmodel
         print("Creating a periodic model named", name)
         return PBCmodel(name, props, conf, mesh)
-    
+
     else:
         msg = "{} model not yet implemented".format(name)
         raise NotImplementedError(msg)
@@ -55,9 +56,11 @@ class Model(metaclass=ABCMeta):
         takeAction(action, globdat)
     """
 
-    @abstractmethod
     def __init__(self, name, props, conf, mesh):
-        raise NotImplementedError()
+        self.name = name
+
+    def __del__(self):
+        print("Cleaning {} model".format(self.name))
 
     @abstractmethod
     def takeAction(self, action, globdat):
@@ -123,8 +126,8 @@ class MultiModel(Model):
         self.type = myProps.get("type")
         sub_models = myProps.get("models")
 
-        myConf.set("type",self.type)
-        myConf.set("models",sub_models)
+        myConf.set("type", self.type)
+        myConf.set("models", sub_models)
 
         # Create children
         self.models = []
@@ -135,10 +138,84 @@ class MultiModel(Model):
     def takeAction(self, action, globdat):
         for model in self.models:
             model.takeAction(action, globdat)
-            
-# PointLoadModel
 
-# ConstraintsModel
+
+#===========================================================================
+#   PointLoadModel
+#===========================================================================
+
+
+class PointLoadModel(Model):
+    """ Assigns forces to the external force vector
+
+    Instance Members:
+        name = model name
+
+    Public Methods:
+        PointLoadModel(name, props, conf, mesh)
+        takeAction(action, globdat)
+    """
+
+    __key__ = "PointLoadModel: loadTable not specified!"
+
+    def __init__(self, name, props, conf, mesh):
+        self.name = name
+        myProps = props.getProps(name)
+        myConf = conf.makeProps(name)
+
+        self.loadTable = myProps.get("loadTable")
+        myConf.set("loadTable", self.loadTable)
+
+        if self.loadTable is None:
+            raise KeyError(self.__key__)
+            
+    def takeAction(self, action, globdat):
+        if action == "GET_EXT_VECTOR":
+            loadTable = globdat.get(self.loadTable)
+            loadScale = globdat.get("loadScale")
+            globdat.fext += loadScale*loadTable.getLoads()
+            return True
+        else:
+            return False
+
+
+#===========================================================================
+#   ConstraintsModel
+#===========================================================================
+
+
+class ConstraintsModel(Model):
+    """ Assigns constraints
+
+    Instance Members:
+        name = model name
+
+    Public Methods:
+        ConstraintsModel(name, props, conf, mesh)
+        takeAction(action, globdat)
+    """
+
+    __key__ = "ConstraintsModel: constraints not specified!"
+
+    def __init__(self, name, props, conf, mesh):
+        self.name = name
+        myProps = props.getProps(name)
+        myConf = conf.makeProps(name)
+
+        self.constraints = myProps.get("constraints")
+        myConf.set("constraints", self.constraints)
+
+        if self.constraints is None:
+            raise KeyError(self.__key__)
+
+    def takeAction(self, action, globdat):
+        if action == "GET_CONSTRAINTS":
+            constraints = globdat.get(self.constraints)
+            loadScale = globdat.get("loadScale")
+
+            return True
+        else:
+            return False
 
 #===========================================================================
 #   LoadScaleModel

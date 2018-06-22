@@ -17,31 +17,32 @@ class SolidModel(Model):
     """ Solid Model
         
     Instance Members:
-        ielements = element indices
+        name = model name
+        type = model type ("Solid")
         rank = number of dimensions
+        group = element group
+        
         types = displacement dof types
-
+        ielements = element indices
+        inodes = node indices 
+        
         shape = element shape
-        nIP = number of integration points of shape
-        nnod = number of nodes of shape
-        localrank = local rank of shape
+        mat = material
 
     Public Methods:
         SolidModel(name, props, mesh)
         takeAction(action, globdat)
-        get_Matrix_0(mbuild, fint, disp, mesh)
-        get_Int_Vector(fint, disp, mesh)
-
+    
     Private Methods:
-        __getBmatrix()
-        __getStrain()
-        __getStress()
+        __get_Matrix_0(mbuild, fint, disp, mesh)
+        __get_Int_Vector(fint, disp, mesh)
+
     """
 
     # Public:
 
     #-----------------------------------------------------------------------
-    #   initialize
+    #   constructor
     #-----------------------------------------------------------------------
 
     def __init__(self, name, props, conf, mesh):
@@ -51,14 +52,14 @@ class SolidModel(Model):
         myConf = conf.makeProps(name)
         myProps = props.getProps(name)
 
-        self.type = myProps.get("type")
-        myConf.set("type", self.type)
+        self.type = myProps.get("type","Solid")
+        self.group = myProps.get("elements","All")
 
-        # Get element group
-        if mesh.doElemGroups is True:
-            gmsh_group = myProps.get("elements")
-            myConf.set("elements",gmsh_group)
-            key = int(re.search(r'\d+', gmsh_group).group())
+        myConf.set("type", self.type)
+        myConf.set("elements", self.group)
+
+        if self.group != "All":
+            key = int(re.search(r'\d+', self.group).group())
             group_name = mesh.groupNames[key]
             print("    Obtaining elements from {}".format(group_name))
             idx = mesh.groupNames.keys().index(key)
@@ -68,6 +69,10 @@ class SolidModel(Model):
             group_name = next(iter(mesh.groupNames.values()))
             self.ielements = mesh.groups[0]
             print("    Obtaining elements from {}".format(group_name))
+        
+    #-----------------------------------------------------------------------
+    #   initialize
+    #-----------------------------------------------------------------------
 
         # Add types
         types = ['u', 'v', 'w']
@@ -99,10 +104,10 @@ class SolidModel(Model):
 
     def takeAction(self, action, globdat):
         if action == "GET_MATRIX_0":
-            self.get_Matrix_0(globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
+            self.__get_Matrix_0(globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
             return True
         elif action == "GET_INT_VECTOR":
-            self.get_Int_Vector(globdat.fint, globdat.disp, globdat.mesh)
+            self.__get_Int_Vector(globdat.fint, globdat.disp, globdat.mesh)
             return True
         else:
             return False
@@ -111,7 +116,7 @@ class SolidModel(Model):
     #   get_Matrix_0
     #-----------------------------------------------------------------------
 
-    def get_Matrix_0(self, mbuild, fint, disp, mesh):
+    def __get_Matrix_0(self, mbuild, fint, disp, mesh):
         """ Input & Output: mbuild = MatrixBuilder = Ksys
                             fint = internal force vector """
 
@@ -159,7 +164,7 @@ class SolidModel(Model):
     #   get_Int_Vector
     #-----------------------------------------------------------------------
 
-    def get_Int_Vector(self, fint, disp, mesh):
+    def __get_Int_Vector(self, fint, disp, mesh):
         """ Input & Output: fint = internal force vector """
 
         # Iterate over elements assigned to model

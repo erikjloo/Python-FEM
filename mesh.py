@@ -40,17 +40,19 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         ngroups = number of physical groups
 
         nrow = number of rows (nodes)
-        types = list of dof type names
+        self.types = list of dof self.type names
         dofspace = array of dof indices (idofs)
         ndof = number of degrees of freedom
 
-        rank = numbder of dimensions
+        path = file path
+        type = file type
+        rank = number of dimensions
         doElemGroups = bool
         
     Public Methods:
-        readMesh(self, type, path, rank, doElemGroups)
-        readGmsh(self, path, rank, doElemGroups)
-        readXML(self, path, rank)
+        readMesh(self, self.type, self.path, rank, doElemGroups)
+        readGmsh(self, self.path, rank, doElemGroups)
+        readXML(self, self.path, rank)
         plotMesh(rank)
         plotDeformed(self, disp, scale, rank)
         updateGeometry(self, disp)
@@ -81,18 +83,18 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         myProps = props.getProps("mesh")
         myConf = conf.makeProps("mesh")
 
-        path = myProps.get("file")
-        type = myProps.get("type","Gmsh")
+        self.path = myProps.get("file")
+        self.type = myProps.get("type","Gmsh")
         self.rank = myProps.get("rank",2)
         self.doElemGroups = myProps.get("doElemGroups",False)
 
-        myConf.set("file",path)
-        myConf.set("type",type)
+        myConf.set("file",self.path)
+        myConf.set("type",self.type)
         myConf.set("rank",self.rank)
         myConf.set("doElemGroups",self.doElemGroups)
 
         # Read Mesh
-        self.readMesh(type, path, self.rank, self.doElemGroups)
+        self.readMesh(self.type, self.path, self.rank, self.doElemGroups)
         
         # Initialize DofSpace
         DofSpace.__init__(self, self.nnod, self.rank)
@@ -107,14 +109,14 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         elif type == "XML":
             self.readXML(path, rank, doElemGroups)
         else:
-            print("Type can only be Gmsh or XML!")
+            print("self.type can only be Gmsh or XML!")
 
     #-----------------------------------------------------------------------
     #   readGmsh
     #-----------------------------------------------------------------------
 
     def readGmsh(self, path=None, rank=3, doElemGroups=False):
-        """ Input: path = path_to_file """
+        """ Input: self.path = self.path_to_file """
 
         if path is None:
             Tk().withdraw()
@@ -209,7 +211,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #-----------------------------------------------------------------------
 
     def readXML(self, path=None, rank=3, doElemGroups=False):
-        """ Input: path = path_to_file """
+        """ Input: self.path = self.path_to_file """
         if path is None:
             Tk().withdraw()
             self.path = filedialog.askopenfilename()
@@ -223,7 +225,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
             self.ngroups = 1
             self.groupNames[0] = 'Group 0'
 
-        with open(path, 'r') as file:
+        with open(self.path, 'r') as file:
 
             flag_n = False
             flag_e = False
@@ -286,7 +288,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
             coords = self.getCoords(iele)
             ax.plot(coords[:, 0], coords[:, 1], linewidth=0.5, color='k')
 
-        plt.show()
+        return ax
 
     #-----------------------------------------------------------------------
     #   plotDeformed
@@ -345,12 +347,10 @@ if __name__ == '__main__':
 
     mesh = Mesh()
     mesh.readXML("Examples/uniaxial.xml")
-    mesh.plotMesh(rank=2)
+    ax = mesh.plotMesh(rank=2)
+    plt.show()
 
     mesh = Mesh()
-    mesh.readGmsh("Examples/2D_semicircle.msh")
-    mesh.plotMesh(rank=2)
-
-    mesh = Mesh()
-    mesh.readGmsh("Examples/rve.msh")
-    mesh.plotMesh(rank=2)
+    mesh.readGmsh("Examples/square.msh")
+    ax = mesh.plotMesh(rank=2)
+    plt.show()

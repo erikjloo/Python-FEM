@@ -24,7 +24,6 @@ class Solver(object):
 
         hbw = self.ndof if hbw is None else hbw
         A = A[np.ix_(self.fdof, self.fdof)]
-        # A = nearestPD(A)
         b = b[self.fdof]
 
         if self.method == "rtfreechol":

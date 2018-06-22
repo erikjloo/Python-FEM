@@ -11,19 +11,35 @@ from collections import defaultdict
 class Properties(object):
     """ Properties
 
+    Static Members:
+        __type_dict__ = " Key attribute is not a dict"
+
     Instance Members:
         properties = dictionary of properties
         
     Public Methods:
         Properties(my_dict=None)
-        parseFile(file)
-        writeFile(file)
-        makeProps(props)
-        dict = get(props)
-        set(prop, value)
-        props = getProps(props)
-        print()
+
+        Parser/Writer:
+            parseFile(file)
+            writeFile(file)
+
+        Prop Methods:
+            *props = makeProps(props)
+            *props = findProps(props)
+            *props = getProps(props)
+        
+        Dict Methods:
+            set(prop, value)
+            *dict/value = find(props)
+            *dict/value = get(props)
+            *dict = getDict()
+
+        Miscellaneous:
+            print()
     """
+
+    __type_dict__ = " {}'s value should be of type dict !"
 
     # Public:
 
@@ -52,9 +68,10 @@ class Properties(object):
     #-----------------------------------------------------------------------
 
     def writeFile(self, file):
-        """ Input: file_path """
+        """ Input:  file_path 
+            Output: text file with configuration data """
         with open(file, 'w') as f:
-            json.dump(self.properties, f)
+            json.dump(self.properties, f, sort_keys=False, indent=4)
 
     #-----------------------------------------------------------------------
     #   makeProps
@@ -63,8 +80,23 @@ class Properties(object):
     def makeProps(self, props):
         """ Input:  props = string of property name to be created
             Output: properties object (of shallow copy) of given props """
-        self.properties[props] = {}
-        return Properties(self.properties[props])
+        if props in self.properties:
+            if isinstance(self.properties[props],dict):
+                return Properties(self.properties[props])
+        else:
+            self.properties[props] = {}
+            return Properties(self.properties[props])
+
+    #-----------------------------------------------------------------------
+    #   findProps
+    #-----------------------------------------------------------------------
+
+    def findProps(self, props):
+        """ Input: props = string of property name """
+        if isinstance(self.find(props), dict):
+            return Properties(self.find(props))
+        else:
+            raise TypeError(self.__type_dict__.format(props))
 
     #-----------------------------------------------------------------------
     #   getProps
@@ -73,24 +105,10 @@ class Properties(object):
     def getProps(self, props):
         """ Input: props = string of property names separated by '.'
             Output: properties object (of shallow copy) of given props """
-        return Properties(self.get(props))
-
-    #-----------------------------------------------------------------------
-    #   get
-    #-----------------------------------------------------------------------
-
-    def get(self, props, default=None):
-        """ Input:  props = string of property names separated by '.'
-            Output: dictionary or value of properties of given props """
-        props = props.split('.')
-
-        try:
-            tmp = self.properties[props[0]]
-            for key in props[1:]:
-                tmp = tmp[key]
-            return tmp
-        except KeyError:
-            return default
+        if isinstance(self.get(props), dict):
+            return Properties(self.get(props))
+        else:
+            raise TypeError(self.__type_dict__.format(props))
 
     #-----------------------------------------------------------------------
     #   set
@@ -98,7 +116,7 @@ class Properties(object):
 
     def set(self, props, value):
         """ Input:  props = string of property names separated by '.'
-                    value"""
+                    value = value set to given props """
         props = props.split('.')
                 
         if len(props) is 1:
@@ -112,22 +130,51 @@ class Properties(object):
         else:
             print(" Cannot nest deeper than 2 ")
 
+    #-----------------------------------------------------------------------
+    #   find
+    #-----------------------------------------------------------------------
+
+    def find(self, props):
+        """ Input:  props = string of property names separated by '.'
+            Output: value = values of given props """
+        props = props.split('.')
+
+        try:
+            tmp = self.properties[props[0]]
+            for key in props[1:]:
+                tmp = tmp[key]
+            return tmp
+        except KeyError:
+            return False
+    
+    #-----------------------------------------------------------------------
+    #   get
+    #-----------------------------------------------------------------------
+
+    def get(self, props, default=None):
+        """ Input:  props = string of property names separated by '.'
+            Output: value = values of given props """
+        props = props.split('.')
+
+        try:
+            tmp = self.properties[props[0]]
+            for key in props[1:]:
+                tmp = tmp[key]
+            return tmp
+        except KeyError:
+            return default
+
+    #-----------------------------------------------------------------------
+    #   getDict
+    #-----------------------------------------------------------------------
+
+    def getDict(self):
+        """ Output: dictionary of properties """
+        return self.properties
+
+    #-----------------------------------------------------------------------
+    #   print
+    #-----------------------------------------------------------------------
+
     def print(self):
         pprint(self.properties)
-
-
-#===========================================================================
-#   Example
-#===========================================================================
-
-
-if __name__ == "__main__":
-
-    file = "Examples/2D_semicircle.pro"
-
-    props = Properties()
-    props.parseFile(file)
-    props.print()
-
-    matrix_props = props.getProps("model")
-    matrix_props.print()

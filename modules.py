@@ -6,7 +6,6 @@ from warnings import warn
 
 #  Import Local Libraries
 from abc import ABCMeta, abstractmethod
-from properties import Properties
 from algebra import norm
 from solvers import Solver
 
@@ -28,25 +27,31 @@ class Status(IntEnum):
 
 
 class Module(metaclass=ABCMeta):
-    """ Abstract Module Class 
-    
+    """ Abstract Module Class
+
     Pure Virtual Methods:
-        init(props, conf, globdat)
-        run(globdat)
+        Status = init(conf, props, globdat)
+        Status = run(globdat)
         shutdown(globdat)
     """
 
     def __init__(self, name=None):
         self.name = name
 
-    @abstractmethod
-    def init(self, props, conf, globdat): pass
+    def __del__(self):
+        print("Cleaning {} module".format(self.name))
 
     @abstractmethod
-    def run(self, globdat): pass
+    def init(self, conf, props, globdat):
+        raise NotImplementedError()
 
     @abstractmethod
-    def shutdown(self, globdat): pass
+    def run(self, globdat):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def shutdown(self, globdat):
+        raise NotImplementedError()
 
 
 #===========================================================================
@@ -56,28 +61,29 @@ class Module(metaclass=ABCMeta):
 
 class ChainModule(Module):
     """ Groups several modules in order of execution
-        
+
     Public Methods:
         pushBack(module)
-        init(props, conf, globdat)
-        run(globdat)
+        Status = init(conf, props, globdat)
+        Status = run(globdat)
         shutdown(globdat)
     """
 
-    def __init__(self, name=None):
+    def __init__(self, name="chain"):
         self.name = name
         self.modules = []
 
     def pushBack(self, module):
         self.modules.append(module)
 
-    def init(self, props, conf, globdat):
+    def init(self, conf, props, globdat):
         for module in self.modules[:]:
-            status = module.init(props, conf, globdat)
+            status = module.init(conf, props, globdat)
             if status == Status.DONE:
                 self.modules.remove(module)
             elif status == Status.EXIT:
-                break
+                return Status.EXIT
+        return Status.OK
 
     def run(self, globdat):
         for module in self.modules[:]:
@@ -85,12 +91,53 @@ class ChainModule(Module):
             if status == Status.DONE:
                 self.modules.remove(module)
             elif status == Status.EXIT:
-                break
-        return status
+                return status.EXIT
+        return status.OK
 
     def shutdown(self, globdat):
         for module in self.modules:
             module.shutdown(globdat)
+
+
+#===========================================================================
+#   ControlModule
+#===========================================================================
+
+
+class ControlModule(Module):
+    """ Controls the number of steps
+
+    Public Methods:
+        Status = init(conf, props, globdat)
+        Status = run(globdat)
+        shutdown(globdat)
+    """
+
+    __key__ = "Control: nsteps not specified!"
+    
+    def __init__(self, name="control"):
+        self.name = name
+
+    def init(self, conf, props, globdat):
+        myProps = props.getProps(self.name)
+        myConf = conf.makeProps(self.name)
+        
+        self.nsteps = myProps.get("nsteps")
+        myConf.set("nsteps",self.nsteps)
+
+        if self.nsteps is None:
+            raise KeyError(self.__key__)
+
+        return Status.OK
+
+    def run(self, globdat):
+        if globdat.i < self.nsteps:
+            return Status.OK
+        elif globdat.i == self.nsteps:
+            return Status.EXIT
+
+    def shutdown(self, globdat):
+        pass
 
 
 #===========================================================================
@@ -102,20 +149,25 @@ class InputModule(Module):
     """ Reads props and initializes the mesh
         
     Public Methods:
-        init(props, conf, globdat)
-        run(globdat)
+        Status = init(conf, props, globdat)
+        Status = run(globdat)
         shutdown(globdat)
     """
 
-    def init(self, props, conf, globdat):
+    def __init__(self, name="input"):
+        self.name = name
+
+    def init(self, conf, props, globdat):
         myProps = props.getProps(self.name)
         myConf = conf.makeProps(self.name)
-        globdat.makeMesh(myProps,myConf)
+        globdat.makeMesh(myProps, myConf)
         return Status.DONE
 
-    def run(self, globdat): pass
+    def run(self, globdat): 
+        pass
 
-    def shutdown(self, globdat): pass
+    def shutdown(self, globdat): 
+        pass
 
 
 #===========================================================================
@@ -127,12 +179,15 @@ class InitModule(Module):
     """ Initializes the model, loads, constraints, matrix builder & vectors
             
     Public Methods:
-        init(props, conf, globdat)
-        run(globdat)
+        Status = init(conf, props, globdat)
+        Status = run(globdat)
         shutdown(globdat)
     """
 
-    def init(self, props, conf, globdat):
+    def __init__(self, name="init"):
+        self.name = name
+
+    def init(self, conf, props, globdat):
         globdat.makeModel(props, conf)
         globdat.makeLoadTable(props)
         globdat.makeConstraints(props)
@@ -140,9 +195,11 @@ class InitModule(Module):
         globdat.makeVectors()
         return Status.DONE
 
-    def run(self, globdat): pass
+    def run(self, globdat):
+        pass
 
-    def shutdown(self, globdat): pass
+    def shutdown(self, globdat): 
+        pass
 
 
 #===========================================================================
@@ -154,39 +211,41 @@ class LinSolveModule(Module):
     """ Runs a linear analysis
             
     Public Methods:
-        init(props, conf, globdat)
-        run(globdat)
+        Status = init(conf, props, globdat)
+        Status = run(globdat)
         shutdown(globdat)
     """
 
-    def init(self, props, conf, globdat):
-        """ Computes K, f_ext and cons """
+    def __init__(self, name="linsolve"):
+        self.name = name
 
+    def init(self, conf, props, globdat):
         myProps = props.getProps(self.name)
         myConf = conf.makeProps(self.name)
-        self.type = myProps.get("solver.type","solve")
-        myConf.set("solver.type",self.type)
+
+        self.type = myProps.get("solver.type", "solve")
+        myConf.set("solver.type", self.type)
+
         return Status.OK
 
     def run(self, globdat):
-        """ Runs a linear analysis """
 
         # ADVANCE
-        print("Advancing to next load step")
-        # globdat.model.advance()
+        print("Advancing to the next load step")
+        globdat.i += 1
+        globdat.model.takeAction("ADVANCE", globdat)
 
         # GET_MATRIX_0
-        globdat.model.takeAction("GET_MATRIX_0",globdat)
-        print("Stiffness matrix: hbw = {} out of {}".format(
-            globdat.mbuild.hbw, globdat.mesh.dofCount()))
+        globdat.model.takeAction("GET_MATRIX_0", globdat)
+        print("Stiffness matrix: {} dofs".format(globdat.ndof))
 
         # GET_EXT_VECTOR
-        globdat.model.takeAction("GET_EXT_VECTOR",globdat)
+        globdat.model.takeAction("GET_EXT_VECTOR", globdat)
         globdat.fext += globdat.load.getLoads()
-        print("External force vector: {} elements".format(len(globdat.fext)))
+        print("External force vector: {} dofs".format(len(globdat.fext)))
 
         # GET_CONSTRAINTS
-        globdat.model.takeAction("GET_CONSTRAINTS",globdat)
+        globdat.model.takeAction("GET_CONSTRAINTS", globdat)
         globdat.disp = globdat.cons.getDisps()
         sdof = globdat.cons.get_sdof()
         print("Constraints: {} prescribed values".format(len(sdof)))
@@ -199,11 +258,12 @@ class LinSolveModule(Module):
         self.solver.solve(K, globdat.disp, r, globdat.mbuild.hbw)
 
         # GET_INT_VECTOR
+        globdat.fint = np.zeros(globdat.ndof)
         globdat.model.takeAction("GET_INT_VECTOR", globdat)
 
-        return Status.DONE
+        return Status.EXIT
 
-    def shutdown(self, globdat):
+    def shutdown(self, globdat): 
         pass
 
 
@@ -216,50 +276,52 @@ class NonlinModule(Module):
     """ Runs a nonlinear analysis (NR)
             
     Public Methods:
-        init(props, conf, globdat)
-        run(globdat)
+        Status = init(conf, props, globdat)
+        Status = run(globdat)
         shutdown(globdat)
     """
 
-    def init(self, props, conf, globdat):
-        """ Sets up solver """
-        
+    def __init__(self, name="nonlin"):
+        self.name = name
+
+    def init(self, conf, props, globdat):
         myProps = props.getProps(self.name)
         myConf = conf.makeProps(self.name)
 
-        self.nrkey = myProps.get("type","full")
-        self.niter = myProps.get("niter",2)
-        self.tol = myProps.get("tol",1e-3)
-        self.type = myProps.get("solver.type","solve")
+        self.nrkey = myProps.get("type", "full")
+        self.niter = myProps.get("niter",20)
+        self.tiny = myProps.get("tiny",1e-10)
+        self.tol = myProps.get("tol", 1e-3)
+        self.type = myProps.get("solver.type", "solve")
 
-        myConf.set("type",self.nrkey)
-        myConf.set("niter",self.niter)
-        myConf.set("tol",self.tol)
-        myConf.set("solver.type",self.type)
+        myConf.set("type", self.nrkey)
+        myConf.set("niter", self.niter)
+        myConf.set("tiny", self.tiny)
+        myConf.set("tol", self.tol)
+        myConf.set("solver.type", self.type)
+
+        return Status.OK
 
     def run(self, globdat):
-        """ Runs a non-linear analysis """
-        
+
         # ADVANCE
-        print("Advancing to next load step")
-        # globdat.model.advance()
-        
+        print("Advancing to the next load step")
+        globdat.i += 1
+        globdat.model.takeAction("ADVANCE", globdat)
+
         # GET_MATRIX_0
         globdat.model.takeAction("GET_MATRIX_0", globdat)
-        print("Stiffness matrix: hbw = {} out of {}".format(
-            globdat.mbuild.hbw, globdat.mesh.dofCount()))
+        print("Stiffness matrix: {} dofs".format(globdat.ndof))
 
         # GET_EXT_VECTOR
         globdat.fext = np.zeros(globdat.ndof)
         globdat.model.takeAction("GET_EXT_VECTOR", globdat)
-        globdat.fext += globdat.load.getLoads()
-        print("External force vector: {} elements".format(len(globdat.fext)))
+        print("External force vector: {} dofs".format(len(globdat.fext)))
 
         # GET_CONSTRAINTS
         globdat.model.takeAction("GET_CONSTRAINTS", globdat)
         du = globdat.cons.getDisps()
         sdof = globdat.cons.get_sdof()
-        disp_old = deepcopy(globdat.disp)
         globdat.disp[sdof] += du[sdof]
         print("Constraints: {} prescribed values".format(len(sdof)))
 
@@ -270,57 +332,117 @@ class NonlinModule(Module):
         fdof = globdat.cons.get_fdof()
 
         for iter in range(self.niter):
-            
+
             # Update displacement vector
             self.solver.solve(K, du, r, globdat.mbuild.hbw)
             globdat.disp[fdof] += du[fdof]
 
             # Find interal force vector
             globdat.fint = np.zeros(globdat.ndof)
-            
+
             if self.nrkey == "full":
-                globdat.model.takeAction("GET_MATRIX_0",globdat)
+                globdat.model.takeAction("GET_MATRIX_0", globdat)
             elif self.nrkey == "mod" or self.nrkey == "LE":
-                globdat.model.takeAction("GET_INT_VECTOR",globdat)
+                globdat.model.takeAction("GET_INT_VECTOR", globdat)
+            else:
+                raise ValueError("{} not implemented !".format(self.nrkey))
 
             # Find out-of-balance force vector
             r = globdat.fext - globdat.fint
             nrm = norm(r[fdof])
-            print("    Iteration {}: norm = {:.2f} ".format(iter,nrm))
+            print("    Iteration {}: norm = {:.10f} ".format(iter, nrm))
             
-            # Check convergence
-            if iter == 0:
+            # Check convergence in first iteration
+            if iter == 0 and nrm <= self.tiny:
+                print("    Converged in {} iterations".format(iter+1))
+                return Status.OK
+            elif iter == 0 and nrm > self.tiny:
                 nrm1 = deepcopy(nrm)
+            
+            # Check convergence in later iterations
             if nrm < self.tol*nrm1:
                 print("    Converged in {} iterations".format(iter+1))
-                break
-        
-        # globdat.mesh.updateGeometry(Du)
-        # Commit
-        
-    def shutdown(self, globdat):
+                return Status.OK
+
+    def shutdown(self, globdat): 
         pass
 
 
 #===========================================================================
-#   NonlinModule
+#   SampleModule
 #===========================================================================
 
 
-class OutputModule(Module):
-    """ Saves specified output
+class SampleModule(Module):
+    """ Samples force-displacement points
             
     Public Methods:
-        init(props, conf, globdat)
-        run(globdat)
+        Status = init(conf, props, globdat)
+        Status = run(globdat)
         shutdown(globdat)
     """
 
-    def init(self, props, conf, globdat):
+    __key__ = "Sample: file or dofs not specified!"
+
+    def __init__(self, name="sample"):
+        self.name = name
+
+    def init(self, conf, props, globdat):
         myProps = props.getProps(self.name)
-        myConf = props.makeProps(self.name)
-        return Status.DONE
+        myConf = conf.makeProps(self.name)
 
-    def run(self, globdat): pass
+        self.path = myProps.get("file")
+        self.dofs = myProps.get("dofs")
 
-    def shutdown(self, globdat): pass
+        if self.path is None or self.dofs is None:
+            raise KeyError(self.__key__)
+        
+        myConf.set("file", self.path)
+        myConf.set("dofs", self.dofs)
+        open(self.path, "w+").close()
+
+        self.run(globdat)
+        return Status.OK
+
+    def run(self, globdat):
+        i = globdat.i
+        f = globdat.fint[self.dofs]
+        u = globdat.disp[self.dofs]
+        txt = "{}".format(i)
+
+        if len(self.dofs) > 1:
+            for u_f in zip(u, f):
+                txt += " {} {} ".format(u_f[0], u_f[1])
+            txt += " \n"
+        elif len(self.dofs) == 1:
+            txt += " {} {} ".format(u, f)
+
+        with open(self.path, 'a') as f:
+            f.write(txt)
+        return Status.OK
+
+    def shutdown(self, globdat): 
+        pass 
+
+
+#===========================================================================
+#   Execute
+#===========================================================================
+
+
+def Execute(module, conf, props, globdat):
+
+    # Initialize all modules
+    print("==== Initializing modules ================")
+    status = module.init(conf, props, globdat)
+    conf.print()
+    globdat.model.takeAction("PLOT_MESH", globdat)
+    globdat.mesh.printDofSpace(15)
+    # Run modules until Status.EXIT is issued
+    while status != Status.EXIT:
+        print("==== Running modules =====================")
+        status = module.run(globdat)
+
+    # Shutdown remaining modules
+    print("==== Shutting down modules ===============")
+    module.shutdown(globdat)
