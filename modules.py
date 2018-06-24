@@ -6,7 +6,12 @@ from warnings import warn
 
 #  Import Local Libraries
 from abc import ABCMeta, abstractmethod
-from algebra import norm
+from constraints import Constraints
+from properties import Properties
+from loadTable import LoadTable
+from algebra import MatrixBuilder, norm
+from models import ModelFactory
+from mesh import Mesh
 from solvers import Solver
 
 
@@ -184,13 +189,31 @@ class InitModule(Module):
         shutdown(globdat)
     """
 
-    def __init__(self, name="init"):
+    def __init__(self, name="input"):
         self.name = name
 
     def init(self, conf, props, globdat):
+        myProps = props.getProps(self.name)
+        myConf = conf.makeProps(self.name)
+
+        modules = myProps.get("modules")
+        myConf.set("modules",modules)
+
+        for module in modules:
+            type = myProps.get("{}.type".format(module))
+            if type == "Mesh":
+                pass #for now
+            if type == "Loads":
+                load = LoadTable()
+                load.initialize(module, myConf, myProps, globdat.mesh)
+                globdat.set(module,load)
+            elif type == "Constraints":
+                cons = Constraints()
+                cons.initialize(module, myConf, myProps, globdat.mesh)
+            else:
+                raise KeyError("Unknown input type: {}".format(type))
         globdat.makeModel(props, conf)
-        globdat.makeLoadTable(props)
-        globdat.makeConstraints(props)
+
         globdat.makeMatrixBuilder()
         globdat.makeVectors()
         return Status.DONE
@@ -320,6 +343,7 @@ class NonlinModule(Module):
 
         # GET_CONSTRAINTS
         globdat.model.takeAction("GET_CONSTRAINTS", globdat)
+        # globdat.disp[sdof] = globdat.cons.getConstraints()
         du = globdat.cons.getDisps()
         sdof = globdat.cons.get_sdof()
         globdat.disp[sdof] += du[sdof]

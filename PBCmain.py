@@ -1,5 +1,6 @@
 # Import Standard Libraries
 import scipy as np
+# import fileinput
 import time
 
 # Import Local Libraries
@@ -18,7 +19,7 @@ start = time.time()
 
 file = input("Properties file: ")
 
-# Props
+# Props        
 props = Properties()
 conf = Properties()
 props.parseFile(file)

@@ -30,7 +30,7 @@ class SolidModel(Model):
         mat = material
 
     Public Methods:
-        SolidModel(name, props, mesh)
+        SolidModel(name, conf, props, mesh)
         takeAction(action, globdat)
     
     Private Methods:
@@ -45,8 +45,7 @@ class SolidModel(Model):
     #   constructor
     #-----------------------------------------------------------------------
 
-    def __init__(self, name, props, conf, mesh):
-
+    def __init__(self, name, conf, props, mesh):
         self.name = name
         self.rank = mesh.rank
         myConf = conf.makeProps(name)
@@ -117,9 +116,6 @@ class SolidModel(Model):
     #-----------------------------------------------------------------------
 
     def __get_Matrix_0(self, mbuild, fint, disp, mesh):
-        """ Input & Output: mbuild = MatrixBuilder = Ksys
-                            fint = internal force vector """
-
         max_hbw = 0
         # Iterate over elements assigned to model
         for iele in self.ielements:
@@ -165,8 +161,6 @@ class SolidModel(Model):
     #-----------------------------------------------------------------------
 
     def __get_Int_Vector(self, fint, disp, mesh):
-        """ Input & Output: fint = internal force vector """
-
         # Iterate over elements assigned to model
         for iele in self.ielements:
 
@@ -193,4 +187,3 @@ class SolidModel(Model):
 
             # Add fint to the global force vector (Fint):
             fint[idofs] += fe
-

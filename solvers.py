@@ -16,13 +16,11 @@ class Solver(object):
     def __init__(self, method, cons):
 
         self.method = method
-        self.ndof = cons.dofCount()
         self.fdof = cons.get_fdof()
 
     def solve(self, A, x, b, hbw=None):
         """ Solves Ax = b """
 
-        hbw = self.ndof if hbw is None else hbw
         A = A[np.ix_(self.fdof, self.fdof)]
         b = b[self.fdof]
 

@@ -1,7 +1,6 @@
 # Import Standard Libraries
 import json
 from pprint import pprint
-from collections import defaultdict
 
 #===========================================================================
 #   Properties
@@ -50,7 +49,7 @@ class Properties(object):
     def __init__(self, my_dict=None):
         """ Input: dictionary """
         if my_dict is None:
-            self.properties = {} #defaultdict(dict)
+            self.properties = {}
         else:
             self.properties = my_dict
 

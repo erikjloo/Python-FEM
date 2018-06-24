@@ -21,7 +21,7 @@ class Constraints(object):
         sdof = list of supported degrees of freedom
         
     Public Methods:
-        Constraints()
+        Constraints(ndof=0)
         initialize(props, mesh)
         readXML(path, mesh)
         addConstraint(idof, rval=0.0)
@@ -45,29 +45,39 @@ class Constraints(object):
     #-----------------------------------------------------------------------
 
     def __init__(self, ndof=0):
-        self.ndof = ndof
+        """ Input: ndof = number of degrees of freedom """
         self.sdof = []
         self.conspace = np.empty(ndof)
         self.conspace[:] = np.nan
+
+    def resize(self, ndof):
+        """ Input: ndof = new size external force vector """
+        self.conspace.resize(ndof)
 
     #-----------------------------------------------------------------------
     #   initialize
     #-----------------------------------------------------------------------
 
-    def initialize(self, props, mesh):
-        """ Input:  props = Properties
+    def initialize(self, name, conf, props, mesh):
+        """ Input:  name = table name
+                    conf = output properties
+                    props = input properties
                     mesh = Mesh """
         self.ndof = mesh.dofCount()
-        self.conspace = np.empty(self.ndof)
+        self.resize(self.ndof)
         self.conspace[:] = np.nan
+        self.name = name
+        myProps = props.getProps(name)
+        myConf = conf.makeProps(name)
 
-        try:
-            myProps = props.getProps("input.constraints")
-            path = myProps.get("file")
-            self.readXML(path, mesh)
-            print(path,"file read")
-        except TypeError:
-            warn(" No constraints provided ")
+        self.type = myProps.get("type", "Constraints")
+        path = myProps.get("file")
+
+        myConf.set("type", self.type)
+        myConf.set("file", path)
+
+        self.readXML(path, mesh)
+        print(path, "file read")
 
     #-----------------------------------------------------------------------
     #   readXML
@@ -108,7 +118,7 @@ class Constraints(object):
             raise TypeError(self.__type_int__)
             
     def addConstraints(self, idofs, rval=0.0):
-        """ Input:  idofs = list of dof indices
+        """ Input:  idofs = (list of) dof indices
                     rval = prescribed displacement (default: 0.0) """
         if isinstance(idofs,(list,tuple,range,np.ndarray)):
             for idof in idofs:
@@ -128,7 +138,7 @@ class Constraints(object):
             raise TypeError(self.__type_int_list__)
 
     def eraseConstraints(self, idofs):
-        """ Input: idofs = list of prescribed dof indices to be erased """
+        """ Input: idofs = (list of) prescribed dof indices to be erased """
         if isinstance(idofs, (list, tuple, range, np.ndarray)):
             for idof in idofs:
                 self.eraseConstraint(idof)
@@ -146,9 +156,9 @@ class Constraints(object):
         disps[self.sdof] = self.conspace[self.sdof]
         return disps
 
-    def dofCount(self):
-        return self.ndof
-
+    def getConstraints(self):
+        return self.conspace[self.sdof]
+        
     def get_fdof(self):
         fdof = np.argwhere(np.isnan(self.conspace)).transpose()[0]
         return fdof.tolist()

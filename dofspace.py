@@ -118,7 +118,7 @@ class DofSpace(object):
             raise TypeError(self.__type_int__)
     
     def eraseRows(self, irows):
-        """ Input: irows = list of indices of rows (nodes) to be erased """
+        """ Input: irows = (list of) indices of rows (nodes) to be erased """
         if isinstance(irows, (list, tuple, range, np.ndarray)):
             for irow in sorted(irows, reverse=True):
                 self.eraseRow(irow)
@@ -150,7 +150,7 @@ class DofSpace(object):
             self.dofspace = np.hstack((self.dofspace, c_new))
 
     def addTypes(self, dofs):
-        """ Input: dofs =  list of strings of dof names """
+        """ Input: dofs =  (list of) strings of dof names """
         if isinstance(dofs, (list, tuple, np.ndarray)):
             for dof in dofs:
                 self.addType(dof)
@@ -181,7 +181,7 @@ class DofSpace(object):
             raise TypeError(self.__type_str__)
 
     def eraseTypes(self, dofs):
-        """ Input: dofs = list of strings of dof names to be erased """
+        """ Input: dofs = (list of) strings of dof names to be erased """
         if isinstance(dofs, (list, tuple, np.ndarray)):
             for dof in dofs:
                 # Delete column from dofspace
@@ -226,7 +226,7 @@ class DofSpace(object):
             raise TypeError(self.__type_dof__)
 
     def addDofs(self, inodes, dofs):
-        """ Input: inodes = list of node indices, dofs = (list of) strings of dof names """
+        """ Input: inodes = (list of) node indices, dofs = (list of) strings of dof names """
         if isinstance(inodes, (list, tuple, range, np.ndarray)):
             for inod in inodes:
                 self.addDof(inod, dofs)
@@ -250,7 +250,7 @@ class DofSpace(object):
         self.__renumberDofs()
 
     def eraseDofs(self, inodes, dofs):
-        """ Input: inodes = list of node indices, dofs = (list of) strings of dof names """
+        """ Input: inodes = (list of) node indices, dofs = (list of) strings of dof names """
         self.eraseDof(inodes, dofs)
 
     def dofCount(self):
@@ -259,7 +259,7 @@ class DofSpace(object):
 
     def getDofIndex(self, inod, dofs=None):
         """ Input: inod = node index, dofs = (list of) strings of dof names
-            Output: idof = dof index or list of dof indices """
+            Output: idof = (list of) dof indices """
         idofs = []
         if isinstance(dofs, (list, tuple, np.ndarray)):
             for dof in dofs:
@@ -277,8 +277,8 @@ class DofSpace(object):
         return idofs
 
     def getDofIndices(self, inodes, dofs=None):
-        """ Input: inodes = list of node indices, dofs = (list of) strings of dof names
-            Output: idofs = list of dof indices """
+        """ Input: inodes = (list of) node indices, dofs = (list of) strings of dof names
+            Output: idofs = (list of) dof indices """
         if isinstance(inodes, (list, tuple, range, np.ndarray)):
             idofs = []
             for inod in inodes:
@@ -298,7 +298,8 @@ class DofSpace(object):
     #-------------------------------------------------------------------
 
     def printDofSpace(self, rows=None):
-        """ Prints the dof space with node numbers and dof names """
+        """ Input: rows = (list of) row indices to be printed """
+        """ Prints dof space with (given) node numbers and dof names """
         print("\n", self.types)
         if rows is None:
             for i, row in enumerate(self.dofspace):

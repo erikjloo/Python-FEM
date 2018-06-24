@@ -47,12 +47,8 @@ class GlobalData(Properties):
         self.mesh.initialize(props, conf)
 
     def makeModel(self, props, conf):
-        self.model = ModelFactory("model", props, conf, self.mesh)
+        self.model = ModelFactory("model", conf, props, self.mesh)
         self.ndof = self.mesh.dofCount()
-
-    def makeLoadTable(self, props):
-        # self.set("load",self.load)
-        self.load.initialize(props, self.mesh)
 
     def makeConstraints(self, props):
         # self.set("cons",self.cons)

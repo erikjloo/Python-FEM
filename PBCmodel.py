@@ -18,27 +18,32 @@ class PBCmodel(Model):
     """ Periodic Boundary Conditions Model
         
     Instance Members:
+        name = model name
         rank = number of dimensions
+        type = model type ("Periodic")
+        strain = prescribed strain rate
+        factor = prescribed coarsening factor
+
         U_doftypes = displacement dof types
         T_doftypes = traction dof types
         bshape = boundary element shape
-        nIP = number of integration points of boundary element
-        nnod = number of nodes of boundary element
-        localrank = local rank of boundary element
+        nIP = number of integration points of bshape
+        nnod = number of nodes associated with bshape
+        ndof = number of degrees of freedom of bshape
+        localrank = local rank (ndim) of bshape
 
         bndNodes = boundary nodes = [xmin, xmax, ymin, ymax]
         trNodes = traction nodes = [xmin, ymin]
         corner0 = corner at xmin & ymin
         corner = [cornerx, cornery]
 
+        dx_0 = smallest element dimensions
+        box = specimen coordinates
+        dx = specimen dimensions
+
     Public Methods:
-        PBCModel(name, props, mesh)
-        takeAction(action, mesh)
-        __get_Matrix_0(mbuild, fint, disp, mesh)
-        __get_Constraints(cons, mesh)
-        __plotBoundary(mesh)
-        __plotMeshAndBoundary(mesh)
-        __advance(i)
+        PBCModel(name, conf, props, mesh)
+        takeAction(action, globdat)
 
     Private Methods:
         __boundingBox(mesh)
@@ -50,7 +55,12 @@ class PBCmodel(Model):
         __findSmallestElement(mesh)
         __createTractionMesh(mesh)
         __coarsenMesh(mesh, trFace, index)
+        __get_Matrix_0(mbuild, fint, disp, mesh)
         __getTractionMeshNodes(mesh, x, face)
+        __get_Constraints(cons, mesh)
+        __plotMeshAndBoundary(mesh)
+        __plotBoundary(mesh)
+        __advance(i)
     """
 
     # Public:
@@ -59,7 +69,7 @@ class PBCmodel(Model):
     #   constructor
     #-----------------------------------------------------------------------
 
-    def __init__(self, name, props, conf, mesh):
+    def __init__(self, name, conf, props, mesh):
 
         # Model name
         self.name = name
@@ -182,6 +192,7 @@ class PBCmodel(Model):
 
     def __setTolerances(self):
         """ Sets tolerances for finding boundary nodes """
+
         self.xtol = []
         for ix in range(self.rank):
             self.xtol.append(
@@ -403,6 +414,7 @@ class PBCmodel(Model):
     #-----------------------------------------------------------------------
 
     def __get_Matrix_0(self, mbuild, fint, disp, mesh):
+        """ Augments mbuild and fint with Ke, KeT, H, etc. """
 
         # Loop over faces of bndNodes
         for face, bndFace in enumerate(self.bndNodes):
@@ -534,8 +546,8 @@ class PBCmodel(Model):
 
     def __plotMeshAndBoundary(self, mesh):
         """ Plots the mesh and boundary nodes """
-        ax = mesh.plotMesh()
 
+        ax = mesh.plotMesh()
         for bndFace in self.bndNodes:
             coords = mesh.getCoords(bndFace)
             ax.plot(coords[:, 0], coords[:, 1],

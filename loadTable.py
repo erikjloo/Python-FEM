@@ -12,16 +12,17 @@ class LoadTable(object):
     """ LoadTable
 
     Static Members:
-        __type_int__ = "Input inod is not int!"
-        __type_int_list__ = "Input is not int or list!"
+        __type_int__ = "Input idof is not int!"
+        __type_int_list__ = "Input idofs is not int or list!"
 
     Instance Members:
-        ndof = number of degrees of freedom
+        name = table name
+        type = table type ("Loads")
         loads = array of point loads per idof
 
     Public Methods:
         LoadTable(ndof=0)
-        initialize(props, mesh)
+        initialize(name, conf, props, mesh)
         readXML(path, mesh)
         setLoad(idof, rval)
         setLoads(idofs, rval)
@@ -31,8 +32,8 @@ class LoadTable(object):
     """
 
     # Static:
-    __type_int__ = "Input inod is not int!"
-    __type_int_list__ = "Input is not int or list!"
+    __type_int__ = "Input idof is not int!"
+    __type_int_list__ = "Input idofs is not int or list!"
 
     # Public:
 
@@ -41,28 +42,37 @@ class LoadTable(object):
     #-----------------------------------------------------------------------
 
     def __init__(self, ndof=0):
-        self.ndof = ndof
+        """ Input: ndof = number of degrees of freedom """
         self.loads = np.empty(ndof)
         self.loads[:] = 0
+
+    def resize(self, ndof):
+        """ Input: ndof = new size external force vector """
+        self.loads.resize(ndof)
 
     #-----------------------------------------------------------------------
     #   initialize
     #-----------------------------------------------------------------------
 
-    def initialize(self, props, mesh):
-        """ Input:  props = properties """
-
-        self.ndof = mesh.dofCount()
-        self.loads = np.empty(self.ndof)
+    def initialize(self, name, conf, props, mesh):
+        """ Input:  name = table name
+                    conf = output properties
+                    props = input properties
+                    mesh = Mesh """
+        self.resize(mesh.dofCount())
         self.loads[:] = 0
+        self.name = name
+        myProps = props.getProps(name)
+        myConf = conf.makeProps(name)
 
-        try:
-            myProps = props.getProps("input.loads")
-            path = myProps.get("file")
-            self.readXML(path, mesh)
-            print(path, "file read")
-        except TypeError:
-            warn(" No loads provided ")
+        self.type = myProps.get("type","Loads")
+        path = myProps.get("file")
+
+        myConf.set("type", self.type)
+        myConf.set("file",path)
+
+        self.readXML(path, mesh)
+        print(path, "file read")
 
     #-----------------------------------------------------------------------
     #   readXML
@@ -92,12 +102,14 @@ class LoadTable(object):
     #-----------------------------------------------------------------------
     
     def setLoad(self,  idof, rval):
+        """ Input: idof = dof index, rval = load to be set """
         if isinstance(idof, int):
             self.loads[idof] = rval
         else:
             raise TypeError(self.__type_int__)
 
     def setLoads(self, idofs, rval):
+        """ Input: idofs = (list of) dof indices, rval = load to be set"""
         if isinstance(idofs, list):
             self.loads[idofs] = rval
         elif isinstance(idofs, int):
@@ -106,12 +118,14 @@ class LoadTable(object):
             raise TypeError(self.__type_int_list__)
 
     def addLoad(self, idof, rval):
+        """ Input: idof = dof index, rval = load to be added """
         if isinstance(idof, int):
             self.loads[idof] += rval
         else:
             raise TypeError(self.__type_int__)
 
     def addLoads(self, idofs, rval):
+        """ Input: idofs = (list of) dof indices, rval = load to be added """
         if isinstance(idofs, list):
             self.loads[idofs] += rval
         elif isinstance(idofs, int):
