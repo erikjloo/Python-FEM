@@ -1,17 +1,16 @@
 # Import Standard Libraries
 from abc import ABCMeta, abstractmethod
 
-
 #===========================================================================
 #   ModelFactory
 #===========================================================================
 
 
-def ModelFactory(name, conf, props, mesh):
+def ModelFactory(name, conf, props, globdat):
     """ Input:  name = model name
                 conf = output properties
                 props = input properties
-                mesh = mesh
+                globdat = global properties
         Output: model """
 
     message = "Creating a {} model named {}"
@@ -20,39 +19,39 @@ def ModelFactory(name, conf, props, mesh):
     if type == "Matrix":
         # Creates the root
         print(message.format(type, name))
-        return MatrixModel(name, conf, props, mesh)
+        return MatrixModel(name, conf, props, globdat)
 
     elif type == "Multi":
         # Creates a node
         print(message.format(type, name))
-        return MultiModel(name, conf, props, mesh)
+        return MultiModel(name, conf, props, globdat)
 
     elif type == "Solid":
         # Creates a leaf
         from solidModel import SolidModel
         print(message.format(type, name))
-        return SolidModel(name, conf, props, mesh)
+        return SolidModel(name, conf, props, globdat)
 
     elif type == "Periodic":
         # Creates a leaf
         from PBCmodel import PBCmodel
         print(message.format(type, name))
-        return PBCmodel(name, conf, props, mesh)
+        return PBCmodel(name, conf, props, globdat)
 
     elif type == "PointLoad":
         # Creates a leaf
         print(message.format(type, name))
-        return PointLoadModel(name, conf, props, mesh)
+        return PointLoadModel(name, conf, props, globdat)
 
     elif type == "Constraints":
         # Creates a leaf
         print(message.format(type, name))
-        return ConstraintsModel(name, conf, props, mesh)
+        return ConstraintsModel(name, conf, props, globdat)
 
     elif type == "LoadScale":
         # Creates a node
         print(message.format(type, name))
-        return LoadScaleModel(name, conf, props, mesh)
+        return LoadScaleModel(name, conf, props, globdat)
 
     else:
         msg = "{} model not implemented".format(name)
@@ -68,13 +67,11 @@ class Model(metaclass=ABCMeta):
     """ Abstract Model Class
     
     Pure Virtual Methods:
-        Model(name, conf, props, mesh)
+        Model(name, conf, props, globdat)
         takeAction(action, globdat)
     """
 
-    __key__ = "{}: {} not specified!"
-
-    def __init__(self, name, conf, props, mesh):
+    def __init__(self, name, conf, props, globdat):
         self.name = name
 
     def __del__(self):
@@ -99,11 +96,11 @@ class MatrixModel(Model):
         model = child model
 
     Public Methods:
-        MatrixModel(name, conf, props, mesh)
+        MatrixModel(name, conf, props, globdat)
         takeAction(action, globdat)
     """
 
-    def __init__(self, name, conf, props, mesh):
+    def __init__(self, name, conf, props, globdat):
         """ Creates a node and its child """
         self.name = name
         myProps = props.getProps(name)
@@ -113,7 +110,7 @@ class MatrixModel(Model):
         myConf.set("type", self.type)
 
         # Create child
-        self.model = ModelFactory("model", myConf, myProps, mesh)
+        self.model = ModelFactory("model", myConf, myProps, globdat)
 
     def takeAction(self, action, globdat):
         self.model.takeAction(action, globdat)
@@ -133,11 +130,11 @@ class MultiModel(Model):
         models = children
 
     Public Methods:
-        MultiModel(name, conf, props, mesh)
+        MultiModel(name, conf, props, globdat)
         takeAction(action, globdat)
     """
 
-    def __init__(self, name, conf, props, mesh):
+    def __init__(self, name, conf, props, globdat):
         """ Creates a node and its children """
         self.name = name
         myProps = props.getProps(name)
@@ -149,13 +146,10 @@ class MultiModel(Model):
         myConf.set("type", self.type)
         myConf.set("models", sub_models)
 
-        if sub_models is None:
-            raise KeyError(self.__key__.format(self.type, "models"))
-
         # Create children
         self.models = []
         for name in sub_models:
-            model = ModelFactory(name, myConf, myProps, mesh)
+            model = ModelFactory(name, myConf, myProps, globdat)
             self.models.append(model)
 
     def takeAction(self, action, globdat):
@@ -177,11 +171,11 @@ class PointLoadModel(Model):
         loadTable = name of LoadTable object
 
     Public Methods:
-        PointLoadModel(name, conf, props, mesh)
+        PointLoadModel(name, conf, props, globdat)
         takeAction(action, globdat)
     """
 
-    def __init__(self, name, conf, props, mesh):
+    def __init__(self, name, conf, props, globdat):
         self.name = name
         myProps = props.getProps(name)
         myConf = conf.makeProps(name)
@@ -192,9 +186,9 @@ class PointLoadModel(Model):
         myConf.set("type", self.type)
         myConf.set("loadTable", self.loadTable)
 
-        if self.loadTable is None:
-            raise KeyError(self.__key__.format(self.type, "loadTable"))
-
+        load = globdat.get(self.loadTable)
+        load.initialize(globdat.mesh)
+        
     def takeAction(self, action, globdat):
         if action == "GET_EXT_VECTOR":
             loadTable = globdat.get(self.loadTable)
@@ -219,13 +213,11 @@ class ConstraintsModel(Model):
         conTable = name of Constraints object
 
     Public Methods:
-        ConstraintsModel(name, conf, props, mesh)
+        ConstraintsModel(name, conf, props, globdat)
         takeAction(action, globdat)
     """
 
-    __key__ = "ConstraintsModel: constraints not specified!"
-
-    def __init__(self, name, conf, props, mesh):
+    def __init__(self, name, conf, props, globdat):
         self.name = name
         myProps = props.getProps(name)
         myConf = conf.makeProps(name)
@@ -235,9 +227,6 @@ class ConstraintsModel(Model):
 
         myConf.set("type", self.type)
         myConf.set("conTable", self.conTable)
-
-        if self.conTable is None:
-            raise KeyError(self.__key__.format(self.type, "conTable"))
 
     def takeAction(self, action, globdat):
         if action == "GET_CONSTRAINTS":
@@ -262,11 +251,11 @@ class LoadScaleModel(Model):
         model = child model
 
     Public Methods:
-        MatrixModel(name, conf, props, mesh)
+        MatrixModel(name, conf, props, globdat)
         takeAction(action, globdat)
     """
 
-    def __init__(self, name, conf, props, mesh):
+    def __init__(self, name, conf, props, globdat):
         """ Creates a node and its child """
         self.name = name
         myProps = props.getProps(name)
@@ -276,7 +265,7 @@ class LoadScaleModel(Model):
         myConf.set("type",self.type)
 
         # Create child
-        self.model = ModelFactory("model", myConf, myProps, mesh)
+        self.model = ModelFactory("model", myConf, myProps, globdat)
 
     def takeAction(self, action, globdat):
         if action == "ADVANCE":

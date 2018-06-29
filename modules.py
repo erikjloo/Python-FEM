@@ -2,7 +2,6 @@
 import scipy as np
 from enum import IntEnum
 from copy import deepcopy
-from warnings import warn
 
 #  Import Local Libraries
 from abc import ABCMeta, abstractmethod
@@ -118,8 +117,6 @@ class ControlModule(Module):
         shutdown(globdat)
     """
 
-    __key__ = "Control: nsteps not specified!"
-    
     def __init__(self, name="control"):
         self.name = name
 
@@ -129,9 +126,6 @@ class ControlModule(Module):
         
         self.nsteps = myProps.get("nsteps")
         myConf.set("nsteps",self.nsteps)
-
-        if self.nsteps is None:
-            raise KeyError(self.__key__)
 
         return Status.OK
 
@@ -165,7 +159,9 @@ class InputModule(Module):
     def init(self, conf, props, globdat):
         myProps = props.getProps(self.name)
         myConf = conf.makeProps(self.name)
-        globdat.makeMesh(myProps, myConf)
+        mesh = Mesh(myConf, myProps)
+        globdat.set("mesh",mesh)
+        globdat.mesh.initialize(myConf, myProps)
         return Status.DONE
 
     def run(self, globdat): 
@@ -193,6 +189,8 @@ class InitModule(Module):
         self.name = name
 
     def init(self, conf, props, globdat):
+        globdat.makeModel(conf, props)
+
         myProps = props.getProps(self.name)
         myConf = conf.makeProps(self.name)
 
@@ -201,9 +199,9 @@ class InitModule(Module):
 
         for module in modules:
             type = myProps.get("{}.type".format(module))
-            if type == "Mesh":
+            if type == "Gmsh" or type == "XML":
                 pass #for now
-            if type == "Loads":
+            elif type == "Loads":
                 load = LoadTable()
                 load.initialize(module, myConf, myProps, globdat.mesh)
                 globdat.set(module,load)
@@ -212,7 +210,6 @@ class InitModule(Module):
                 cons.initialize(module, myConf, myProps, globdat.mesh)
             else:
                 raise KeyError("Unknown input type: {}".format(type))
-        globdat.makeModel(props, conf)
 
         globdat.makeMatrixBuilder()
         globdat.makeVectors()
@@ -323,6 +320,7 @@ class NonlinModule(Module):
         myConf.set("tol", self.tol)
         myConf.set("solver.type", self.type)
 
+        globdat.i = 0
         return Status.OK
 
     def run(self, globdat):
@@ -406,8 +404,6 @@ class SampleModule(Module):
         shutdown(globdat)
     """
 
-    __key__ = "Sample: file or dofs not specified!"
-
     def __init__(self, name="sample"):
         self.name = name
 
@@ -417,9 +413,6 @@ class SampleModule(Module):
 
         self.path = myProps.get("file")
         self.dofs = myProps.get("dofs")
-
-        if self.path is None or self.dofs is None:
-            raise KeyError(self.__key__)
         
         myConf.set("file", self.path)
         myConf.set("dofs", self.dofs)

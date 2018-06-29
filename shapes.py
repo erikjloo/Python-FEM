@@ -1,7 +1,7 @@
 # Import Standard Libraries
 import re
-import warnings
 import scipy as np
+from warnings import warn
 from abc import ABCMeta, abstractmethod
 
 # Import Local Libraries
@@ -458,7 +458,7 @@ class Shape(metaclass=ABCMeta):
 
         elif self.ndim == 2 and np.size(coords, axis=1) == 3:
 
-            warnings.warn("Unverified result, please verify!!")
+            warn("Unverified result, please verify!!")
 
             # Transformation matrix
             i_bar = coords[2, :] - coords[1, :]  # [dx, dy, dz along one side]

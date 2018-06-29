@@ -1,7 +1,26 @@
 # Import Standard Libraries
-import warnings
 import scipy as np
 from itertools import chain
+
+
+#===========================================================================
+#   ItemSet
+#===========================================================================
+
+
+class ItemSet(object):
+    """ Item Set
+
+    Static Members:
+        __type__ = "Input is not list or array!"
+        __type_int__ = "Input is not int!"
+        __type_int_list__ = "Input is not int or list!"
+    """
+
+    # Static:
+    __type__ = "Input is not list or array!"
+    __type_int__ = "Input is not int!"
+    __type_int_list__ = "Input is not int or list!"
 
 
 #===========================================================================
@@ -9,11 +28,12 @@ from itertools import chain
 #===========================================================================
 
 
-class NodeSet(object):
+class NodeSet(ItemSet):
     """ Node Set
 
     Static Members:
         __type__ = "Input is not list or array!"
+        __type_int__ = "Input is not int!"
         __type_int_list__ = "Input is not int or list!"
 
     Instance Members:
@@ -30,10 +50,6 @@ class NodeSet(object):
         nnod = nodeCount()
         coord[s] = getCoords(inod[es])
     """
-
-    # Static:
-    __type__ = "Input is not list or array!"
-    __type_int_list__ = "Input is not int or list!"
 
     # Public:
     def __init__(self):
@@ -81,30 +97,33 @@ class NodeSet(object):
             del self.coords[inod]
             self.nnod -= 1
         else:
-            raise TypeError(self.__type_int_list__)
+            raise TypeError(self.__type_int__)
 
     def eraseNodes(self, inodes):
-        """ Input: inodes = list of indices of nodes to be erased """
+        """ Input: inodes = (list of) indices of nodes to be erased """
         if isinstance(inodes, (list, tuple, range, np.ndarray)):
             for inod in sorted(inodes, reverse=True):
                 self.eraseNode(inod)
-        else: # eraseNode checks if inodes is int
+        elif isinstance(inodes, int):
             self.eraseNode(inodes)
+        else:
+            raise TypeError(self.__type_int_list__)
 
     def nodeCount(self):
         """ Output: number of nodes """
         return self.nnod
 
     def getCoords(self, inodes=None):
-        """ Input: inodes = node index or list of node indices
+        """ Input: inodes = (list of) node indices
             Output: coordinates of inodes (if given) """
-        coords = np.array(self.coords)
         if inodes is None:
-            return coords
+            return np.array(self.coords)
         elif isinstance(inodes, (list, tuple, range, np.ndarray)):
-            return coords[np.ix_(inodes), :][0]
+            return np.array([self.coords[inod] for inod in inodes])
+        elif isinstance(inodes, int):
+            return np.array(self.coords[inodes])
         else:
-            return coords[inodes]
+            raise TypeError(self.__type_int_list__)
 
 
 #===========================================================================
@@ -112,11 +131,12 @@ class NodeSet(object):
 #===========================================================================
 
 
-class ElementSet(object):
+class ElementSet(ItemSet):
     """ Element set
 
     Static Members:
         __type__ = "Input is not list or array!"
+        __type_int__ = "Input is not int!"
         __type_int_list__ = "Input is not int or list!"
 
     Instance Members:
@@ -134,10 +154,6 @@ class ElementSet(object):
         connect[ivity] = getNodes(iele[ments])
         inodes = getNodeIndices(iele[ments])
     """
-
-    # Static:
-    __type__ = "Input is not list or array!"
-    __type_int_list__ = "Input is not int or list!"
 
     # Public:
     def __init__(self):
@@ -185,22 +201,24 @@ class ElementSet(object):
             del self.connectivity[iele]
             self.nele -= 1
         else:
-            raise TypeError(self.__type_int_list__)
+            raise TypeError(self.__type_int__)
 
     def eraseElements(self, ielements):
-        """ Input: ieles = list of indices of elements to be erased """
+        """ Input: ieles = (list of) indices of elements to be erased """
         if isinstance(ielements, (list, tuple, range, np.ndarray)):
             for iele in sorted(ielements, reverse=True):
                 self.eraseElement(iele)
-        else:
+        elif isinstance(ielements, int):
             self.eraseElement(ielements)
+        else:
+            raise TypeError(self.__type_int_list__)
 
     def elemCount(self):
         """ Output: number of elements """
         return self.nele
 
     def getNodes(self, ielements=None):
-        """ Input: ielements = element index or list of element indices
+        """ Input: ielements = ielements = (list of) element indices
             Output: element connectivity vector(s) of ielements (if given) """
         if ielements is None:
             return self.connectivity
@@ -209,11 +227,13 @@ class ElementSet(object):
             for iele in ielements:
                 connectivity.append(self.connectivity[iele])
             return connectivity
-        else:
+        elif isinstance(ielements, int):
             return self.connectivity[ielements]
+        else:
+            raise TypeError(self.__type_int_list__)
     
     def getNodeIndices(self, ielements=None):
-        """ Input: ielements = element index or list of element indices
+        """ Input: ielements = (list of) element indices
             Output: inodes = node indices of given element indices """
         connectivity = self.getNodes(ielements)
         return list(set(chain.from_iterable(connectivity)))

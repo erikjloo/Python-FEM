@@ -2,7 +2,6 @@
 import scipy as np
 from warnings import warn
 
-
 #===========================================================================
 #   DofSpace
 #===========================================================================
@@ -12,8 +11,8 @@ class DofSpace(object):
     """ Dof Space 
     
     Static Members:
-        __type_int__ = "Input inod is not int!"
-        __type_str__ = "Input dof is not str!"
+        __type_int__ = "Input is not int!"
+        __type_str__ = "Input is not str!"
         __type_int_list__ = "Input is not int or list!"
         __type_str_list__ = "Input is not list or str!"
         __type_dof__ = "Input inod is not int or dof is not str!"
@@ -64,8 +63,8 @@ class DofSpace(object):
     """
     
     # Static:
-    __type_int__ = "Input inod is not int!"
-    __type_str__ = "Input dof is not str!"
+    __type_int__ = "Input is not int!"
+    __type_str__ = "Input is not str!"
     __type_int_list__ = "Input is not int or list!"
     __type_str_list__ = "Input is not str or list!"
     __type_dof__ = "Input inod is not int or dof is not str!"
@@ -236,7 +235,7 @@ class DofSpace(object):
             raise TypeError(self.__type_int_list__)
 
     def eraseDof(self, inod, dofs):
-        """ Input: inod = node index, dofs = (list of) strings of dof names """
+        """ Input: inodes = (list of) node indices, dofs = (list of) strings of dof names """
         if isinstance(dofs, (list, tuple, np.ndarray)):
             for dof in dofs:
                 jtype = self.types.index(dof)

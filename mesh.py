@@ -3,14 +3,12 @@ import re
 import scipy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from warnings import warn
 from tkinter import Tk, filedialog
 from indexed import IndexedOrderedDict
 
 #Import Local Libraries
 from itemset import NodeSet, ElementSet
 from dofspace import DofSpace
-
 
 #===========================================================================
 #   Mesh
@@ -25,9 +23,10 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         __type_int__ = "Input is not int!"
         __type_str__ = "Input is not str!"
         __type_int_list__ = "Input is not int or list!"
-        __type_str_list__ = "Input is not list or str!"
+        __type_str_list__ = "Input is not str or list!"
+        __type_dof__ = "Input inod is not int or dof is not str!"
         __renumber__ = "Erasing dofs: Dof numbers will be renumbered!"
-
+        
     Instance Members:
         coords = list of nodal coordinates
         nnod = number of nodes
@@ -35,14 +34,14 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         connectivity = list of element connectivities
         nele = number of elements
 
+        nrow = number of rows (nodes)
+        types = list of dof names
+        dofspace = array of dof indices (idofs)
+        ndof = number of degrees of freedom
+
         groups = list of elements in each physical group
         groupNames = names of physical groups
         ngroups = number of physical groups
-
-        nrow = number of rows (nodes)
-        self.types = list of dof self.type names
-        dofspace = array of dof indices (idofs)
-        ndof = number of degrees of freedom
 
         path = file path
         type = file type
@@ -50,9 +49,11 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         doElemGroups = bool
         
     Public Methods:
-        readMesh(self, self.type, self.path, rank, doElemGroups)
-        readGmsh(self, self.path, rank, doElemGroups)
-        readXML(self, self.path, rank)
+        Mesh()
+        initialize(conf, props):
+        readMesh(self, type, path, rank, doElemGroups)
+        readGmsh(self, path, rank, doElemGroups)
+        readXML(self, path, rank)
         plotMesh(rank)
         plotDeformed(self, disp, scale, rank)
         updateGeometry(self, disp)
@@ -76,8 +77,9 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #   initialize
     #-----------------------------------------------------------------------
 
-    def initialize(self, props, conf):
-        """ Input:  props = Properties """
+    def initialize(self, conf, props):
+        """ Input:  conf = output properties
+                    props = input properties """
         
         # Get Props
         myProps = props.getProps("mesh")
@@ -288,6 +290,14 @@ class Mesh(NodeSet, ElementSet, DofSpace):
             coords = self.getCoords(iele)
             ax.plot(coords[:, 0], coords[:, 1], linewidth=0.5, color='k')
 
+        # Plot Points
+        # loc = [862, 25, 234, 26, 875]
+        # coords = self.getCoords(loc)
+        # ax.plot(coords[:, 0], coords[:, 1], linewidth=2, color='r')
+
+        # loc = [100, 101, 102, 103, 104]
+        # coords = self.getCoords(loc)
+        # ax.plot(coords[:, 0], coords[:, 1], linewidth=2, color='b')
         return ax
 
     #-----------------------------------------------------------------------
@@ -351,6 +361,6 @@ if __name__ == '__main__':
     plt.show()
 
     mesh = Mesh()
-    mesh.readGmsh("Examples/square.msh")
+    mesh.readGmsh("Examples/rve.msh")
     ax = mesh.plotMesh(rank=2)
     plt.show()

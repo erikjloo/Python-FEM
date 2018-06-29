@@ -1,7 +1,6 @@
 # Import Standard Libraries
 import re
 import scipy as np
-from warnings import warn
 
 #===========================================================================
 #   Constraints
@@ -12,17 +11,19 @@ class Constraints(object):
     """ Constraints
 
     Static Members:
-        __type_int__ = "Input inod is not int!"
-        __type_int_list__ = "Input is not int or list!"
+        __type_int__ = "Input idof is not int!"
+        __type_int_list__ = "Input idofs is not int or list!"
 
     Instance Members:
+        name = table name
+        type = table type ("Constraints")
         ndof = number of degrees of freedom
         conspace = array of constraints per idof
         sdof = list of supported degrees of freedom
         
     Public Methods:
         Constraints(ndof=0)
-        initialize(props, mesh)
+        initialize(name, conf, props, mesh)
         readXML(path, mesh)
         addConstraint(idof, rval=0.0)
         addConstraints(idofs, rval=0.0)
@@ -46,6 +47,7 @@ class Constraints(object):
 
     def __init__(self, ndof=0):
         """ Input: ndof = number of degrees of freedom """
+        self.ndof = ndof
         self.sdof = []
         self.conspace = np.empty(ndof)
         self.conspace[:] = np.nan
@@ -63,9 +65,6 @@ class Constraints(object):
                     conf = output properties
                     props = input properties
                     mesh = Mesh """
-        self.ndof = mesh.dofCount()
-        self.resize(self.ndof)
-        self.conspace[:] = np.nan
         self.name = name
         myProps = props.getProps(name)
         myConf = conf.makeProps(name)
@@ -76,6 +75,9 @@ class Constraints(object):
         myConf.set("type", self.type)
         myConf.set("file", path)
 
+        self.ndof = mesh.dofCount()
+        self.conspace.resize(self.ndof)
+        self.conspace[:] = np.nan
         self.readXML(path, mesh)
         print(path, "file read")
 
@@ -84,8 +86,7 @@ class Constraints(object):
     #-----------------------------------------------------------------------
 
     def readXML(self, path, mesh):
-        """ Input:  path = path_to_file 
-                    mesh = Mesh"""
+        """ Input:  path = path_to_file, mesh = Mesh """
         with open(path, 'r') as file:
             
             flag_c = False
@@ -135,7 +136,7 @@ class Constraints(object):
             idx = self.sdof.index(idof)
             del self.sdof[idx]
         else:
-            raise TypeError(self.__type_int_list__)
+            raise TypeError(self.__type_int__)
 
     def eraseConstraints(self, idofs):
         """ Input: idofs = (list of) prescribed dof indices to be erased """

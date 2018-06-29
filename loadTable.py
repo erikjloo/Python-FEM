@@ -1,7 +1,6 @@
 # Import Standard Libraries
 import re
 import scipy as np
-from warnings import warn
 
 #===========================================================================
 #   LoadTable
@@ -21,8 +20,8 @@ class LoadTable(object):
         loads = array of point loads per idof
 
     Public Methods:
-        LoadTable(ndof=0)
-        initialize(name, conf, props, mesh)
+        LoadTable(name, conf, props, mesh)
+        initialize(mesh)
         readXML(path, mesh)
         setLoad(idof, rval)
         setLoads(idofs, rval)
@@ -41,45 +40,41 @@ class LoadTable(object):
     #   constructor
     #-----------------------------------------------------------------------
 
-    def __init__(self, ndof=0):
-        """ Input: ndof = number of degrees of freedom """
-        self.loads = np.empty(ndof)
-        self.loads[:] = 0
+    def __init__(self, name, conf=None, props=None, mesh=None):
+        """ Input:  name = table name or ndof
+                    conf = output properties
+                    props = input properties
+                    mesh = Mesh """
+        if isinstance(name, str):
+            self.name = name
+            myProps = props.getProps(name)
+            myConf = conf.makeProps(name)
 
-    def resize(self, ndof):
-        """ Input: ndof = new size external force vector """
-        self.loads.resize(ndof)
+            self.type = myProps.get("type", "Loads")
+            self.path = myProps.get("file")
+
+            myConf.set("type", self.type)
+            myConf.set("file", self.path)
+
+        elif isinstance(name, int):
+            self.loads = np.empty(name)
+            self.loads[:] = 0
 
     #-----------------------------------------------------------------------
     #   initialize
     #-----------------------------------------------------------------------
 
-    def initialize(self, name, conf, props, mesh):
-        """ Input:  name = table name
-                    conf = output properties
-                    props = input properties
-                    mesh = Mesh """
-        self.resize(mesh.dofCount())
-        self.loads[:] = 0
-        self.name = name
-        myProps = props.getProps(name)
-        myConf = conf.makeProps(name)
-
-        self.type = myProps.get("type","Loads")
-        path = myProps.get("file")
-
-        myConf.set("type", self.type)
-        myConf.set("file",path)
-
-        self.readXML(path, mesh)
-        print(path, "file read")
+    def initialize(self, mesh):
+        self.loads = np.zeros(mesh.dofCount())
+        self.readXML(self.path, mesh)
+        print(self.path, "file read")
 
     #-----------------------------------------------------------------------
     #   readXML
     #-----------------------------------------------------------------------
 
     def readXML(self, path, mesh):
-        """ Input: path = path_to_file """
+        """ Input:  path = path_to_file, mesh = Mesh """
         with open(path, 'r') as file:
 
             flag_c = False
