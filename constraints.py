@@ -17,22 +17,23 @@ class Constraints(object):
     Instance Members:
         name = table name
         type = table type ("Constraints")
+        path = file path to constraints
         ndof = number of degrees of freedom
-        conspace = array of constraints per idof
+        rvals = array of constraints per idof
         sdof = list of supported degrees of freedom
         
     Public Methods:
-        Constraints(ndof=0)
-        initialize(name, conf, props, mesh)
+        Constraints(name, conf, props)
+        initialize(mesh)
         readXML(path, mesh)
         addConstraint(idof, rval=0.0)
         addConstraints(idofs, rval=0.0)
         eraseConstraint(idof)
         eraseConstraints(idofs)
-        disps = getDisps()
+        updateSolution(solu)
         ndof = dofCount()
-        fdof = get_fdof()
-        sdof = get_sdof()
+        fdof = getFdof()
+        sdof = getSdof()
     """
 
     # Static:
@@ -45,41 +46,38 @@ class Constraints(object):
     #   constructor
     #-----------------------------------------------------------------------
 
-    def __init__(self, ndof=0):
-        """ Input: ndof = number of degrees of freedom """
-        self.ndof = ndof
-        self.sdof = []
-        self.conspace = np.empty(ndof)
-        self.conspace[:] = np.nan
+    def __init__(self, name, conf=None, props=None):
+        """ Input:  name = table name or ndof
+                    conf = output properties
+                    props = input properties """
+        if isinstance(name, str):
+            self.name = name
+            myProps = props.getProps(name)
+            myConf = conf.makeProps(name)
 
-    def resize(self, ndof):
-        """ Input: ndof = new size external force vector """
-        self.conspace.resize(ndof)
+            self.type = myProps.get("type", "Constraints")
+            self.path = myProps.get("file")
+
+            myConf.set("type", self.type)
+            myConf.set("file", self.path)
+
+        elif isinstance(name, int):
+            self.sdof = []
+            self.rvals = np.empty(name)
+            self.rvals[:] = np.nan
 
     #-----------------------------------------------------------------------
     #   initialize
     #-----------------------------------------------------------------------
 
-    def initialize(self, name, conf, props, mesh):
-        """ Input:  name = table name
-                    conf = output properties
-                    props = input properties
-                    mesh = Mesh """
-        self.name = name
-        myProps = props.getProps(name)
-        myConf = conf.makeProps(name)
-
-        self.type = myProps.get("type", "Constraints")
-        path = myProps.get("file")
-
-        myConf.set("type", self.type)
-        myConf.set("file", path)
-
+    def initialize(self, mesh):
+        self.sdof = []
         self.ndof = mesh.dofCount()
-        self.conspace.resize(self.ndof)
-        self.conspace[:] = np.nan
-        self.readXML(path, mesh)
-        print(path, "file read")
+        self.rvals = np.empty(self.ndof)
+        self.rvals[:] = np.nan
+        self.readXML(self.path, mesh)
+        print(self.path, "file read")
+        return self.rvals, self.sdof
 
     #-----------------------------------------------------------------------
     #   readXML
@@ -112,8 +110,8 @@ class Constraints(object):
         """ Input:  idof = dof index
                     rval = prescribed displacement (default: 0.0) """
         if isinstance(idof, int):
+            self.rvals[idof] = rval
             if idof not in self.sdof:
-                self.conspace[idof] = rval
                 self.sdof.append(idof)
         else:
             raise TypeError(self.__type_int__)
@@ -132,7 +130,7 @@ class Constraints(object):
     def eraseConstraint(self,  idof):
         """ Input: idof = prescribed dof index to be erased """
         if isinstance(idof, int):
-            self.conspace[idof] = np.nan
+            self.rvals[idof] = np.nan
             idx = self.sdof.index(idof)
             del self.sdof[idx]
         else:
@@ -149,20 +147,14 @@ class Constraints(object):
             raise TypeError(self.__type_int_list__)
 
     #-----------------------------------------------------------------------
-    #   getDisps
+    #   updateSolution
     #-----------------------------------------------------------------------
+    def updateSolution(self, solu):
+        solu[self.sdof] = self.rvals[self.sdof]
 
-    def getDisps(self):
-        disps = np.zeros(self.ndof)
-        disps[self.sdof] = self.conspace[self.sdof]
-        return disps
-
-    def getConstraints(self):
-        return self.conspace[self.sdof]
-        
-    def get_fdof(self):
-        fdof = np.argwhere(np.isnan(self.conspace)).transpose()[0]
+    def getFdof(self):
+        fdof = np.argwhere(np.isnan(self.rvals)).transpose()[0]
         return fdof.tolist()
 
-    def get_sdof(self):
+    def getSdof(self):
         return self.sdof

@@ -5,13 +5,12 @@ from copy import deepcopy
 
 #  Import Local Libraries
 from abc import ABCMeta, abstractmethod
-from constraints import Constraints
-from properties import Properties
-from loadTable import LoadTable
 from algebra import MatrixBuilder, norm
-from models import ModelFactory
-from mesh import Mesh
+from constraints import Constraints
+from loadTable import LoadTable
 from solvers import Solver
+from models import Model
+from mesh import Mesh
 
 
 #===========================================================================
@@ -145,7 +144,7 @@ class ControlModule(Module):
 
 
 class InputModule(Module):
-    """ Reads props and initializes the mesh
+    """ Reads props and initializes the mesh, loads and constraints
         
     Public Methods:
         Status = init(conf, props, globdat)
@@ -159,9 +158,23 @@ class InputModule(Module):
     def init(self, conf, props, globdat):
         myProps = props.getProps(self.name)
         myConf = conf.makeProps(self.name)
-        mesh = Mesh(myConf, myProps)
-        globdat.set("mesh",mesh)
-        globdat.mesh.initialize(myConf, myProps)
+
+        modules = myProps.get("modules")
+        myConf.set("modules", modules)
+
+        for module in modules:
+            type = myProps.get("{}.type".format(module))
+            if type == "Gmsh" or type == "XML":
+                mesh = Mesh(myConf, myProps)
+                globdat.set("mesh",mesh)
+            elif type == "Loads":
+                load = LoadTable(module, myConf, myProps)
+                globdat.set(module, load)
+            elif type == "Constraints":
+                cons = Constraints(module, myConf, myProps)
+                globdat.set(module, cons)
+            else:
+                raise KeyError("Unknown input type: {}".format(type))
         return Status.DONE
 
     def run(self, globdat): 
@@ -185,34 +198,18 @@ class InitModule(Module):
         shutdown(globdat)
     """
 
-    def __init__(self, name="input"):
+    def __init__(self, name="init"):
         self.name = name
 
     def init(self, conf, props, globdat):
-        globdat.makeModel(conf, props)
-
-        myProps = props.getProps(self.name)
-        myConf = conf.makeProps(self.name)
-
-        modules = myProps.get("modules")
-        myConf.set("modules",modules)
-
-        for module in modules:
-            type = myProps.get("{}.type".format(module))
-            if type == "Gmsh" or type == "XML":
-                pass #for now
-            elif type == "Loads":
-                load = LoadTable()
-                load.initialize(module, myConf, myProps, globdat.mesh)
-                globdat.set(module,load)
-            elif type == "Constraints":
-                cons = Constraints()
-                cons.initialize(module, myConf, myProps, globdat.mesh)
-            else:
-                raise KeyError("Unknown input type: {}".format(type))
-
-        globdat.makeMatrixBuilder()
-        globdat.makeVectors()
+        globdat.model = Model.modelFactory("model", conf, props, globdat)
+        ndof = globdat.set("ndof",globdat.get("mesh").dofCount())
+        globdat.set("mbuild", MatrixBuilder(ndof))
+        globdat.set("fext", np.zeros(ndof))
+        globdat.set("fint", np.zeros(ndof))
+        globdat.set("solu", np.zeros(ndof))
+        globdat.set("loadScale",1.0)
+        globdat.i = 0
         return Status.DONE
 
     def run(self, globdat):
@@ -253,32 +250,33 @@ class LinSolveModule(Module):
         # ADVANCE
         print("Advancing to the next load step")
         globdat.i += 1
+        ndof = globdat.get("ndof")
+        globdat.set("fext", np.zeros(ndof))
+        globdat.set("loadScale", globdat.i)
         globdat.model.takeAction("ADVANCE", globdat)
-
-        # GET_MATRIX_0
         globdat.model.takeAction("GET_MATRIX_0", globdat)
-        print("Stiffness matrix: {} dofs".format(globdat.ndof))
-
-        # GET_EXT_VECTOR
         globdat.model.takeAction("GET_EXT_VECTOR", globdat)
-        globdat.fext += globdat.load.getLoads()
-        print("External force vector: {} dofs".format(len(globdat.fext)))
-
-        # GET_CONSTRAINTS
         globdat.model.takeAction("GET_CONSTRAINTS", globdat)
-        globdat.disp = globdat.cons.getDisps()
-        sdof = globdat.cons.get_sdof()
-        print("Constraints: {} prescribed values".format(len(sdof)))
 
         # INITIAL RESIDUAL
-        self.solver = Solver(self.type, globdat.cons)
-        K = globdat.mbuild.getDenseMatrix()
-        r = globdat.fext - globdat.fint - np.array(K).dot(globdat.disp)
+        mbuild = globdat.get("mbuild")
+        fext = globdat.get("fext")
+        fint = globdat.get("fint")
+        cons = globdat.get("cons")
+        disp = globdat.get("solu")
+        ndof = globdat.get("ndof")
 
-        self.solver.solve(K, globdat.disp, r, globdat.mbuild.hbw)
+        old_disp = deepcopy(disp)
+        cons.updateSolution(disp)
 
-        # GET_INT_VECTOR
-        globdat.fint = np.zeros(globdat.ndof)
+        du = disp - old_disp
+        K = mbuild.getDenseMatrix()
+        r = fext - fint - np.array(K).dot(du)
+
+        solver = Solver(self.type, cons)
+        solver.solve(K, disp, r, mbuild.hbw)
+
+        globdat.set("fint",np.zeros(ndof))
         globdat.model.takeAction("GET_INT_VECTOR", globdat)
 
         return Status.EXIT
@@ -320,7 +318,6 @@ class NonlinModule(Module):
         myConf.set("tol", self.tol)
         myConf.set("solver.type", self.type)
 
-        globdat.i = 0
         return Status.OK
 
     def run(self, globdat):
@@ -328,39 +325,38 @@ class NonlinModule(Module):
         # ADVANCE
         print("Advancing to the next load step")
         globdat.i += 1
+        ndof = globdat.get("ndof")
+        globdat.set("fext",np.zeros(ndof))
+        globdat.set("loadScale", globdat.i)
         globdat.model.takeAction("ADVANCE", globdat)
-
-        # GET_MATRIX_0
         globdat.model.takeAction("GET_MATRIX_0", globdat)
-        print("Stiffness matrix: {} dofs".format(globdat.ndof))
-
-        # GET_EXT_VECTOR
-        globdat.fext = np.zeros(globdat.ndof)
         globdat.model.takeAction("GET_EXT_VECTOR", globdat)
-        print("External force vector: {} dofs".format(len(globdat.fext)))
-
-        # GET_CONSTRAINTS
         globdat.model.takeAction("GET_CONSTRAINTS", globdat)
-        # globdat.disp[sdof] = globdat.cons.getConstraints()
-        du = globdat.cons.getDisps()
-        sdof = globdat.cons.get_sdof()
-        globdat.disp[sdof] += du[sdof]
-        print("Constraints: {} prescribed values".format(len(sdof)))
 
-        # INITIAL RESIDUAL
-        self.solver = Solver(self.type, globdat.cons)
-        K = globdat.mbuild.getDenseMatrix()
-        r = globdat.fext - globdat.fint - np.array(K).dot(du)
-        fdof = globdat.cons.get_fdof()
+        mbuild = globdat.get("mbuild")
+        fext = globdat.get("fext")
+        fint = globdat.get("fint")
+        cons = globdat.get("cons")
+        disp = globdat.get("solu")
+        
+        old_disp = deepcopy(disp)
+        cons.updateSolution(disp)
+
+        du = disp - old_disp
+        K = mbuild.getDenseMatrix()
+        r = fext - fint - np.array(K).dot(du)
+
+        solver = Solver(self.type, cons)
+        fdof = cons.getFdof()
 
         for iter in range(self.niter):
 
             # Update displacement vector
-            self.solver.solve(K, du, r, globdat.mbuild.hbw)
-            globdat.disp[fdof] += du[fdof]
+            solver.solve(K, du, r, mbuild.hbw)
+            disp[fdof] += du[fdof]
 
             # Find interal force vector
-            globdat.fint = np.zeros(globdat.ndof)
+            globdat.set("fint",np.zeros(ndof))
 
             if self.nrkey == "full":
                 globdat.model.takeAction("GET_MATRIX_0", globdat)
@@ -370,7 +366,7 @@ class NonlinModule(Module):
                 raise ValueError("{} not implemented !".format(self.nrkey))
 
             # Find out-of-balance force vector
-            r = globdat.fext - globdat.fint
+            r = fext - globdat.get("fint")
             nrm = norm(r[fdof])
             print("    Iteration {}: norm = {:.10f} ".format(iter, nrm))
             
@@ -423,8 +419,11 @@ class SampleModule(Module):
 
     def run(self, globdat):
         i = globdat.i
-        f = globdat.fint[self.dofs]
-        u = globdat.disp[self.dofs]
+        fint = globdat.get("fint")
+        disp = globdat.get("solu")
+
+        f = fint[self.dofs]
+        u = disp[self.dofs]
         txt = "{}".format(i)
 
         if len(self.dofs) > 1:
@@ -436,6 +435,7 @@ class SampleModule(Module):
 
         with open(self.path, 'a') as f:
             f.write(txt)
+            
         return Status.OK
 
     def shutdown(self, globdat): 
@@ -454,7 +454,8 @@ def Execute(module, conf, props, globdat):
     status = module.init(conf, props, globdat)
     conf.print()
     globdat.model.takeAction("PLOT_MESH", globdat)
-    globdat.mesh.printDofSpace(15)
+    mesh = globdat.get("mesh")
+    mesh.printDofSpace(15)
     # Run modules until Status.EXIT is issued
     while status != Status.EXIT:
         print("==== Running modules =====================")

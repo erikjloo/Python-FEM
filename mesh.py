@@ -49,8 +49,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         doElemGroups = bool
         
     Public Methods:
-        Mesh()
-        initialize(conf, props):
+        Mesh(conf, props)
         readMesh(self, type, path, rank, doElemGroups)
         readGmsh(self, path, rank, doElemGroups)
         readXML(self, path, rank)
@@ -65,7 +64,9 @@ class Mesh(NodeSet, ElementSet, DofSpace):
     #   constructor
     #-----------------------------------------------------------------------
 
-    def __init__(self):
+    def __init__(self, conf=None, props=None):
+        """ Input:  conf = output properties
+                    props = input properties """
 
         NodeSet.__init__(self)
         ElementSet.__init__(self)
@@ -73,33 +74,26 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         self.groupNames = IndexedOrderedDict()
         self.ngroups = 0
 
-    #-----------------------------------------------------------------------
-    #   initialize
-    #-----------------------------------------------------------------------
+        if conf and props:
+            # Get Props
+            myProps = props.getProps("mesh")
+            myConf = conf.makeProps("mesh")
 
-    def initialize(self, conf, props):
-        """ Input:  conf = output properties
-                    props = input properties """
-        
-        # Get Props
-        myProps = props.getProps("mesh")
-        myConf = conf.makeProps("mesh")
+            self.path = myProps.get("file")
+            self.type = myProps.get("type", "Gmsh")
+            self.rank = myProps.get("rank", 2)
+            self.doElemGroups = myProps.get("doElemGroups", False)
 
-        self.path = myProps.get("file")
-        self.type = myProps.get("type","Gmsh")
-        self.rank = myProps.get("rank",2)
-        self.doElemGroups = myProps.get("doElemGroups",False)
+            myConf.set("file", self.path)
+            myConf.set("type", self.type)
+            myConf.set("rank", self.rank)
+            myConf.set("doElemGroups", self.doElemGroups)
 
-        myConf.set("file",self.path)
-        myConf.set("type",self.type)
-        myConf.set("rank",self.rank)
-        myConf.set("doElemGroups",self.doElemGroups)
+            # Read Mesh
+            self.readMesh(self.type, self.path, self.rank, self.doElemGroups)
 
-        # Read Mesh
-        self.readMesh(self.type, self.path, self.rank, self.doElemGroups)
-        
-        # Initialize DofSpace
-        DofSpace.__init__(self, self.nnod, self.rank)
+            # Initialize DofSpace
+            DofSpace.__init__(self, self.nnod, self.rank)
 
     #-----------------------------------------------------------------------
     #   readMesh
@@ -111,14 +105,14 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         elif type == "XML":
             self.readXML(path, rank, doElemGroups)
         else:
-            print("self.type can only be Gmsh or XML!")
+            raise TypeError("type can only be Gmsh or XML!")
 
     #-----------------------------------------------------------------------
     #   readGmsh
     #-----------------------------------------------------------------------
 
     def readGmsh(self, path=None, rank=3, doElemGroups=False):
-        """ Input: self.path = self.path_to_file """
+        """ Input: path = path_to_file """
 
         if path is None:
             Tk().withdraw()
@@ -291,11 +285,11 @@ class Mesh(NodeSet, ElementSet, DofSpace):
             ax.plot(coords[:, 0], coords[:, 1], linewidth=0.5, color='k')
 
         # Plot Points
-        # loc = [862, 25, 234, 26, 875]
+        # loc = [61, 1211, 460, 1213]
         # coords = self.getCoords(loc)
         # ax.plot(coords[:, 0], coords[:, 1], linewidth=2, color='r')
 
-        # loc = [100, 101, 102, 103, 104]
+        # loc = [100, 101, 102, 103]
         # coords = self.getCoords(loc)
         # ax.plot(coords[:, 0], coords[:, 1], linewidth=2, color='b')
         return ax
@@ -355,10 +349,10 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
 if __name__ == '__main__':
 
-    mesh = Mesh()
-    mesh.readXML("Examples/uniaxial.xml")
-    ax = mesh.plotMesh(rank=2)
-    plt.show()
+    # mesh = Mesh()
+    # mesh.readXML("Examples/uniaxial.xml")
+    # ax = mesh.plotMesh(rank=2)
+    # plt.show()
 
     mesh = Mesh()
     mesh.readGmsh("Examples/rve.msh")

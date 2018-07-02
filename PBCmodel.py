@@ -5,7 +5,7 @@ from copy import deepcopy
 
 # Import Local Libraries
 from models import Model
-from shapes import ShapeFactory
+from shapes import Shape
 from algebra import norm
 from Voigt import voigt2TensorStrain
 
@@ -42,7 +42,7 @@ class PBCmodel(Model):
         dx = specimen dimensions
 
     Public Methods:
-        PBCModel(name, conf, props, mesh)
+        PBCModel(name, conf, props, globdat)
         takeAction(action, globdat)
 
     Private Methods:
@@ -69,21 +69,21 @@ class PBCmodel(Model):
     #   constructor
     #-----------------------------------------------------------------------
 
-    def __init__(self, name, conf, props, mesh):
-
-        # Model name
+    def __init__(self, name, conf, props, globdat):
         self.name = name
-        self.rank = mesh.rank
         myConf = conf.makeProps(name)
         myProps = props.getProps(name)
 
         self.type = myProps.get("type", "Periodic")
-        self.strain = myProps.get("strainRate", None)
+        self.strain = myProps.find("strainRate", None)
         self.factor = myProps.get("coarsenFactor",1.0)
 
         myConf.set("type", self.type)
         myConf.set("strainRate", self.strain)
         myConf.set("coarsenFactor", self.factor)
+
+        mesh = globdat.get("mesh")
+        self.rank = mesh.rank
 
     #-----------------------------------------------------------------------
     #   initialize
@@ -119,7 +119,7 @@ class PBCmodel(Model):
         self.__createTractionMesh(mesh)
 
         # Create boundary element
-        self.bshape = ShapeFactory(myProps, myConf)
+        self.bshape = Shape.shapeFactory(myConf, myProps)
         self.localrank = self.bshape.ndim
         self.nnod = self.bshape.nnod
         self.nIP = self.bshape.nIP
@@ -135,17 +135,24 @@ class PBCmodel(Model):
 
     def takeAction(self, action, globdat):
         if action == "GET_MATRIX_0" or action == "GET_INT_VECTOR":
-            self.__get_Matrix_0(globdat.mbuild, globdat.fint,
-                              globdat.disp, globdat.mesh)
+            mesh = globdat.get("mesh")
+            mbuild = globdat.get("mbuild")
+            fint = globdat.get("fint")
+            disp = globdat.get("solu")
+            self.__get_Matrix_0(mbuild, fint, disp, mesh)
             return True
         elif action == "GET_CONSTRAINTS":
-            self.__get_Constraints(globdat.cons, globdat.mesh)
+            mesh = globdat.get("mesh")
+            cons = globdat.get("cons")
+            self.__get_Constraints(cons, mesh)
             return True
         elif action == "PLOT_BOUNDARY":
-            self.__plotBoundary(globdat.mesh)
+            mesh = globdat.get("mesh")
+            self.__plotBoundary(mesh)
             return True
         elif action == "PLOT_MESH":
-            self.__plotMeshAndBoundary(globdat.mesh)
+            mesh = globdat.get("mesh")
+            self.__plotMeshAndBoundary(mesh)
             return True
         elif action == "ADVANCE":
             self.__advance(globdat.i)
@@ -217,6 +224,24 @@ class PBCmodel(Model):
                     self.bndNodes[2*ix + 1].append(inod)
 
     #-----------------------------------------------------------------------
+    #   __findCornerNodes
+    #-----------------------------------------------------------------------
+
+    def __findCornerNodes(self):
+        """ Finds the intersection of each bndFace """
+
+        self.corner = []
+        if self.rank == 2:
+            self.corner0 = self.bndNodes[0][0]
+            self.corner.append(self.bndNodes[1][0])
+            self.corner.append(self.bndNodes[3][0])
+            print("        corner0 = ", self.corner0)
+            print("        cornerx = ", self.corner[0])
+            print("        cornery = ", self.corner[1])
+        elif self.rank == 3:
+            raise NotImplementedError(" Not yet implemented. ")
+            
+    #-----------------------------------------------------------------------
     #   __sortBndNodes
     #-----------------------------------------------------------------------
 
@@ -253,24 +278,6 @@ class PBCmodel(Model):
                 # Swap indices if necessary
                 if c0[index] > c1[index]:
                     bndFace[jnod + 1], bndFace[jnod] = bndFace[jnod], bndFace[jnod + 1]
-
-    #-----------------------------------------------------------------------
-    #   __findCornerNodes
-    #-----------------------------------------------------------------------
-
-    def __findCornerNodes(self):
-        """ Finds the intersection of each bndFace """
-
-        self.corner = []
-        self.corner0 = self.bndNodes[0][0]
-        if self.rank == 2:
-            self.corner.append(self.bndNodes[1][0])
-            self.corner.append(self.bndNodes[3][0])
-            print("        corner0 = ", self.corner0)
-            print("        cornerx = ", self.corner[0])
-            print("        cornery = ", self.corner[1])
-        elif self.rank == 3:
-            raise NotImplementedError(" Not yet implemented. ")
 
     #-----------------------------------------------------------------------
     #   __findSmallestElement
@@ -323,12 +330,12 @@ class PBCmodel(Model):
             # Loop over indices of inodes
             for inod in inodes:
                 coord = mesh.getCoords(inod)
+                coord[ix] = self.box_[2*ix + 1]
                 trFace.append(mesh.addNode(coord))
 
             # Loop over indices of jnodes
             for jnod in jnodes:
                 coord = mesh.getCoords(jnod)
-                coord[ix] = self.box_[2*ix]
                 trFace.append(mesh.addNode(coord))
 
             # Get correct index
@@ -340,12 +347,12 @@ class PBCmodel(Model):
             # Coarsen trFace (works only for 2D)
             self.__coarsenMesh(mesh, trFace, index)
 
+            # Add dofs to traction mesh
+            mesh.addDofs(trFace, self.T_doftypes)
+            
             # Print to verify
             print("        trNodes[{}] = {}".format(ix, self.trNodes[ix]))
 
-        # Add dofs to traction mesh
-        for trFace in self.trNodes:
-            mesh.addDofs(trFace, self.T_doftypes)
 
     #-----------------------------------------------------------------------
     #   __coarsenMesh
@@ -445,9 +452,11 @@ class PBCmodel(Model):
 
                     # Assemble Ke
                     if face == 0 or face == 2 or face == 4:
-                        Ke = - w[ip] * N.transpose() @ H
-                    else:
+                        # Negative face
                         Ke = + w[ip] * N.transpose() @ H
+                    elif face == 1 or face == 3 or face == 5:
+                        # Possitive face
+                        Ke = - w[ip] * N.transpose() @ H
 
                     # Add Ke and KeT to mbuild
                     KeT = Ke.transpose()
@@ -483,7 +492,7 @@ class PBCmodel(Model):
                 for ip in range(self.nIP):
 
                     # Assemble H matrix
-                    H = - w[ip] * self.bshape.getNmatrix(ip, ndim=self.rank)
+                    H = w[ip] * self.bshape.getNmatrix(ip, ndim=self.rank)
                     Ht = H.transpose()
 
                     # Add H matrix to mbuild
@@ -534,7 +543,7 @@ class PBCmodel(Model):
 
         for ix, trFace in enumerate(self.trNodes):
             coords = mesh.getCoords(trFace)
-            coords[:, ix] -= self.dx[ix]/10
+            coords[:, ix] += self.dx[ix]/10
             ax.plot(coords[:, 0], coords[:, 1],
                     marker='o', linewidth=0.3, markersize=3, color='blue')
 
@@ -555,7 +564,7 @@ class PBCmodel(Model):
 
         for ix, trFace in enumerate(self.trNodes):
             coords = mesh.getCoords(trFace)
-            coords[:, ix] -= self.dx[ix]/10
+            coords[:, ix] += self.dx[ix]/10
             ax.plot(coords[:, 0], coords[:, 1],
                     marker='o', linewidth=0.3, markersize=3, color='blue')
 

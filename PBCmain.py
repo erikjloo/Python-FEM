@@ -1,11 +1,9 @@
 # Import Standard Libraries
-import scipy as np
-# import fileinput
 import time
+import scipy as np
 
 # Import Local Libraries
 from properties import Properties
-from globalData import GlobalData
 from modules import ChainModule
 from modules import InputModule
 from modules import InitModule
@@ -16,14 +14,13 @@ from modules import Execute
 np.set_printoptions(precision=4)
 
 start = time.time()
-
 file = input("Properties file: ")
 
-# Props        
-props = Properties()
+# Props & Globdat     
 conf = Properties()
+props = Properties()
+globdat = Properties()
 props.parseFile(file)
-globdat = GlobalData(props)
 
 # Chain module
 module = ChainModule()
@@ -38,4 +35,6 @@ Execute(module, conf, props, globdat)
 
 stop = time.time()
 print("Elapsed time is ", stop-start)
-globdat.mesh.plotDeformed(globdat.disp,1)
+
+mesh = globdat.get("mesh")
+mesh.plotDeformed(globdat.get("solu"),1)

@@ -1,5 +1,6 @@
 # Import Standard Libraries
 import json
+import inspect
 from pprint import pprint
 
 #===========================================================================
@@ -29,7 +30,7 @@ class Properties(object):
             *props = getProps(props)
         
         Dict Methods:
-            set(prop, value)
+            *dict/value = set(prop, value)
             *dict/value = find(props)
             *dict/value = get(props)
             *dict = getDict()
@@ -43,7 +44,7 @@ class Properties(object):
     # Public:
 
     #-----------------------------------------------------------------------
-    #   constructor
+    #   Constructor
     #-----------------------------------------------------------------------
 
     def __init__(self, my_dict=None):
@@ -54,17 +55,13 @@ class Properties(object):
             self.properties = my_dict
 
     #-----------------------------------------------------------------------
-    #   parseFile
+    #   Parser/Writer
     #-----------------------------------------------------------------------
 
     def parseFile(self, file):
         """ Input: file_path """
         with open(file, 'r') as f:
             self.properties = json.load(f)
-
-    #-----------------------------------------------------------------------
-    #   writeFile
-    #-----------------------------------------------------------------------
 
     def writeFile(self, file):
         """ Input:  file_path 
@@ -73,7 +70,7 @@ class Properties(object):
             json.dump(self.properties, f, sort_keys=False, indent=4)
 
     #-----------------------------------------------------------------------
-    #   makeProps
+    #   Prop Methods
     #-----------------------------------------------------------------------
 
     def makeProps(self, props):
@@ -86,20 +83,12 @@ class Properties(object):
             self.properties[props] = {}
             return Properties(self.properties[props])
 
-    #-----------------------------------------------------------------------
-    #   findProps
-    #-----------------------------------------------------------------------
-
     def findProps(self, props):
         """ Input: props = string of property name """
         if isinstance(self.find(props), dict):
             return Properties(self.find(props))
         else:
             raise TypeError(self.__type_dict__.format(props))
-
-    #-----------------------------------------------------------------------
-    #   getProps
-    #-----------------------------------------------------------------------
 
     def getProps(self, props):
         """ Input: props = string of property names separated by '.'
@@ -110,49 +99,30 @@ class Properties(object):
             raise TypeError(self.__type_dict__.format(props))
 
     #-----------------------------------------------------------------------
-    #   set
+    #   Dict Methods
     #-----------------------------------------------------------------------
 
     def set(self, props, value):
         """ Input:  props = string of property names separated by '.'
-                    value = value set to given props """
+            Output: value = value set to given props """
         props = props.split('.')
                 
         if len(props) is 1:
             self.properties[props[0]] = value
+            return self.properties[props[0]]
         elif len(props) is 2:
             if props[0] in self.properties:
                 self.properties[props[0]][props[1]] = value
             else:
                 self.properties[props[0]] = {}
                 self.properties[props[0]][props[1]] = value
+            return self.properties[props[0]][props[1]]
         else:
             print(" Cannot nest deeper than 2 ")
 
-    #-----------------------------------------------------------------------
-    #   find
-    #-----------------------------------------------------------------------
-
-    def find(self, props):
+    def find(self, props, default=None):
         """ Input:  props = string of property names separated by '.'
-            Output: value = values of given props """
-        props = props.split('.')
-
-        try:
-            tmp = self.properties[props[0]]
-            for key in props[1:]:
-                tmp = tmp[key]
-            return tmp
-        except KeyError:
-            return False
-    
-    #-----------------------------------------------------------------------
-    #   get
-    #-----------------------------------------------------------------------
-
-    def get(self, props, default=None):
-        """ Input:  props = string of property names separated by '.'
-            Output: value = values of given props """
+            Output: value = values of given props or default """
         props = props.split('.')
 
         try:
@@ -163,16 +133,24 @@ class Properties(object):
         except KeyError:
             return default
 
-    #-----------------------------------------------------------------------
-    #   getDict
-    #-----------------------------------------------------------------------
+    def get(self, props, default=None):
+        """ Input:  props = string of property names separated by '.'
+            Output: value = values of given props or KeyError if None """
+
+        tmp = self.find(props, default)
+        if tmp is None:
+            stack = inspect.stack()
+            name = stack[1][0].f_locals["self"].__class__
+            raise KeyError("{}: {} not specified !".format(name, props))
+        else:
+            return tmp
 
     def getDict(self):
         """ Output: dictionary of properties """
         return self.properties
 
     #-----------------------------------------------------------------------
-    #   print
+    #   Miscellaneous
     #-----------------------------------------------------------------------
 
     def print(self):

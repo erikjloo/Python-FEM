@@ -4,9 +4,8 @@ import scipy as np
 
 # Import Local Libraries
 from models import Model
-from shapes import ShapeFactory
-from materials import MaterialFactory
-
+from shapes import Shape
+from materials import Material
 
 #===========================================================================
 #   SolidModel
@@ -30,7 +29,7 @@ class SolidModel(Model):
         mat = material
 
     Public Methods:
-        SolidModel(name, conf, props, mesh)
+        SolidModel(name, conf, props, globdat)
         takeAction(action, globdat)
     
     Private Methods:
@@ -45,9 +44,8 @@ class SolidModel(Model):
     #   constructor
     #-----------------------------------------------------------------------
 
-    def __init__(self, name, conf, props, mesh):
+    def __init__(self, name, conf, props, globdat):
         self.name = name
-        self.rank = mesh.rank
         myConf = conf.makeProps(name)
         myProps = props.getProps(name)
 
@@ -56,6 +54,9 @@ class SolidModel(Model):
 
         myConf.set("type", self.type)
         myConf.set("elements", self.group)
+
+        mesh = globdat.get("mesh")
+        self.rank = mesh.rank
 
         if self.group != "All":
             key = int(re.search(r'\d+', self.group).group())
@@ -88,14 +89,14 @@ class SolidModel(Model):
             myConf.set("thickness",self.t)
 
         # Create element
-        self.shape = ShapeFactory(myProps, myConf)
+        self.shape = Shape.shapeFactory(myConf, myProps)
         localrank = self.shape.ndim
         if localrank != self.rank:
             msg = "Shape ndim = {}. Should be {}".format(localrank,self.rank)
             raise ValueError(msg)
 
         # Create material
-        self.mat = MaterialFactory(myProps, myConf)
+        self.mat = Material.materialFactory(myConf, myProps)
         
     #-----------------------------------------------------------------------
     #   takeAction
@@ -103,10 +104,17 @@ class SolidModel(Model):
 
     def takeAction(self, action, globdat):
         if action == "GET_MATRIX_0":
-            self.__get_Matrix_0(globdat.mbuild, globdat.fint, globdat.disp, globdat.mesh)
+            mbuild = globdat.get("mbuild")
+            fint = globdat.get("fint")
+            disp = globdat.get("solu")
+            mesh = globdat.get("mesh")
+            self.__get_Matrix_0(mbuild, fint, disp, mesh)
             return True
         elif action == "GET_INT_VECTOR":
-            self.__get_Int_Vector(globdat.fint, globdat.disp, globdat.mesh)
+            fint = globdat.get("fint")
+            disp = globdat.get("solu")
+            mesh = globdat.get("mesh")
+            self.__get_Int_Vector(fint, disp, mesh)
             return True
         else:
             return False

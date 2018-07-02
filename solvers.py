@@ -3,9 +3,6 @@ import scipy as np
 import itertools
 from scipy.linalg import solve, lstsq
 
-# Import Local Libraries
-from algebra import isPD, nearestPD
-
 #===========================================================================
 #   Solver
 #===========================================================================
@@ -16,7 +13,7 @@ class Solver(object):
     def __init__(self, method, cons):
 
         self.method = method
-        self.fdof = cons.get_fdof()
+        self.fdof = cons.getFdof()
 
     def solve(self, A, x, b, hbw=None):
         """ Solves Ax = b """

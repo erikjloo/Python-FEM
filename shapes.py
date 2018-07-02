@@ -8,40 +8,6 @@ from abc import ABCMeta, abstractmethod
 from algebra import determinant, inverse, norm, gram_schmidt
 from intSchemes import gauss_legendre, newton_cotes
 
-
-#===========================================================================
-#   ShapeFactory
-#===========================================================================
-
-
-def ShapeFactory(props, conf):
-
-    myProps = props.getProps("shape")
-    myConf = conf.makeProps("shape")
-
-    type = myProps.get("type")
-    scheme = myProps.get("scheme","Gauss")
-
-    myConf.set("type", type)
-    myConf.set("scheme", scheme)
-
-    if type == "Line2":
-        print("    Creating Line2 with", scheme, "quadrature")
-        return Line2(scheme)
-
-    elif type == "Tri3":
-        print("    Creating Tri3 with", scheme, "quadrature")
-        return Tri3(scheme)
-
-    elif type == "Quad4":
-        print("    Creating Quad4 with", scheme, "quadrature")
-        return Quad4(scheme)
-
-    elif type == "Tetra4":
-        print("    Creating Tetra4 with", scheme, "quadrature")
-        return Tetra4(scheme)
-
-
 #===========================================================================
 #   Shape
 #===========================================================================
@@ -478,6 +444,30 @@ class Shape(metaclass=ABCMeta):
         elif self.ndim == 3 and np.size(coords, axis=1) > 3:
             raise ValueError("Element dimensions exceeded !")
 
+    @staticmethod
+    def shapeFactory(conf, props):
+        myProps = props.getProps("shape")
+        myConf = conf.makeProps("shape")
+
+        type = myProps.get("type")
+        scheme = myProps.get("scheme", "Gauss")
+
+        myConf.set("type", type)
+        myConf.set("scheme", scheme)
+
+        message = "Creating {} with {} quadrature"
+        print(message.format(type, scheme))
+
+        if type == "Line2":
+            return Line2(scheme)
+        elif type == "Tri3":
+            return Tri3(scheme)
+        elif type == "Quad4":
+            return Quad4(scheme)
+        elif type == "Tetra4":
+            return Tetra4(scheme)
+        else:
+            raise KeyError("{} shape not implemented".format(type))
 
 #===========================================================================
 #   Line2

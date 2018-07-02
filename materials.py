@@ -3,38 +3,23 @@ import scipy as np
 from abc import ABCMeta, abstractmethod
 
 #===========================================================================
-#   MaterialFactory
-#===========================================================================
-
-
-def MaterialFactory(props, conf):
-
-    type = props.get("material.type")
-
-    if type == "Hooke":
-        print("    Creating Hooke material")
-        return Hooke(props, conf)
-    if type == "Melro":
-        print("    Creating Melro material")
-        return PlaneStrain(props, conf)
-    elif type == "PlaneStrain":
-        print("    Creating PlaneStress material")
-        return PlaneStrain(props, conf)
-    elif type == "PlaneStress":
-        print("    Creating PlaneStress material")
-        return PlaneStress(props, conf)
-
-
-#===========================================================================
 #   Material
 #===========================================================================
 
 
 class Material(metaclass=ABCMeta):
-    """ Material """
-
+    """ Abstract Material Class
+    
+    Pure Virtual Methods:
+        Material(conf, props)
+        getStress(strain)
+        getTangent()
+    
+    Static Method:
+        materialFactory(conf, props)
+    """
     @abstractmethod
-    def __init__(self, props, conf):
+    def __init__(self, conf, props):
         raise NotImplementedError()
 
     @abstractmethod
@@ -44,7 +29,23 @@ class Material(metaclass=ABCMeta):
     @abstractmethod
     def getTangent(self):
         raise NotImplementedError()
+    
+    @staticmethod
+    def materialFactory(conf, props):
+        message = "    Creating {} material"
+        type = props.get("material.type")
+        print(message.format(type))
 
+        if type == "Hooke":
+            return Hooke(conf, props)
+        if type == "Melro":
+            return PlaneStrain(conf, props)
+        elif type == "PlaneStrain":
+            return PlaneStrain(conf, props)
+        elif type == "PlaneStress":
+            return PlaneStress(conf, props)
+        else:
+            raise KeyError("{} material not implemented".format(type))
 
 #===========================================================================
 #   Hooke
@@ -53,8 +54,7 @@ class Material(metaclass=ABCMeta):
 
 class Hooke(Material):
 
-    def __init__(self, props, conf):
-
+    def __init__(self, conf, props):
         myProps = props.getProps("material")
         myConf = conf.makeProps("material")
 
@@ -89,8 +89,7 @@ class Hooke(Material):
 
 class PlaneStrain(Material):
 
-    def __init__(self, props, conf):
-
+    def __init__(self, conf, props):
         myProps = props.getProps("material")
         myConf = conf.makeProps("material")
 
@@ -125,8 +124,7 @@ class PlaneStrain(Material):
 
 class PlaneStress(Material):
 
-    def __init__(self, props, conf):
-
+    def __init__(self, conf, props):
         myProps = props.getProps("material")
         myConf = conf.makeProps("material")
 
@@ -161,8 +159,7 @@ class PlaneStress(Material):
 
 class Melro(Material):
 
-    def __init__(self, props, conf):
-
+    def __init__(self, conf, props):
         myProps = props.getProps("material")
         myConf = conf.makeProps("material")
 

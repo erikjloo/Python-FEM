@@ -17,17 +17,18 @@ class LoadTable(object):
     Instance Members:
         name = table name
         type = table type ("Loads")
-        loads = array of point loads per idof
+        path = file path to loads
+        rvals = array of point loads per idof
 
     Public Methods:
-        LoadTable(name, conf, props, mesh)
+        LoadTable(name, conf, props)
         initialize(mesh)
         readXML(path, mesh)
         setLoad(idof, rval)
         setLoads(idofs, rval)
         addLoad(idof, rval)
         addLoads(idofs, rval)
-        loads = getLoads()
+        rvals = getLoads()
     """
 
     # Static:
@@ -40,11 +41,10 @@ class LoadTable(object):
     #   constructor
     #-----------------------------------------------------------------------
 
-    def __init__(self, name, conf=None, props=None, mesh=None):
+    def __init__(self, name, conf=None, props=None):
         """ Input:  name = table name or ndof
                     conf = output properties
-                    props = input properties
-                    mesh = Mesh """
+                    props = input properties """
         if isinstance(name, str):
             self.name = name
             myProps = props.getProps(name)
@@ -57,17 +57,18 @@ class LoadTable(object):
             myConf.set("file", self.path)
 
         elif isinstance(name, int):
-            self.loads = np.empty(name)
-            self.loads[:] = 0
+            self.rvals = np.empty(name)
+            self.rvals[:] = 0
 
     #-----------------------------------------------------------------------
     #   initialize
     #-----------------------------------------------------------------------
 
     def initialize(self, mesh):
-        self.loads = np.zeros(mesh.dofCount())
+        self.rvals = np.zeros(mesh.dofCount())
         self.readXML(self.path, mesh)
         print(self.path, "file read")
+        return self.rvals
 
     #-----------------------------------------------------------------------
     #   readXML
@@ -99,32 +100,28 @@ class LoadTable(object):
     def setLoad(self,  idof, rval):
         """ Input: idof = dof index, rval = load to be set """
         if isinstance(idof, int):
-            self.loads[idof] = rval
+            self.rvals[idof] = rval
         else:
             raise TypeError(self.__type_int__)
 
     def setLoads(self, idofs, rval):
         """ Input: idofs = (list of) dof indices, rval = load to be set"""
-        if isinstance(idofs, list):
-            self.loads[idofs] = rval
-        elif isinstance(idofs, int):
-            self.setLoad(idofs,rval)
+        if isinstance(idofs, (int,list)):
+            self.rvals[idofs] = rval
         else:
             raise TypeError(self.__type_int_list__)
 
     def addLoad(self, idof, rval):
         """ Input: idof = dof index, rval = load to be added """
         if isinstance(idof, int):
-            self.loads[idof] += rval
+            self.rvals[idof] += rval
         else:
             raise TypeError(self.__type_int__)
 
     def addLoads(self, idofs, rval):
         """ Input: idofs = (list of) dof indices, rval = load to be added """
-        if isinstance(idofs, list):
-            self.loads[idofs] += rval
-        elif isinstance(idofs, int):
-            self.addLoad(idofs, rval)
+        if isinstance(idofs, (int,list)):
+            self.rvals[idofs] += rval
         else:
             raise TypeError(self.__type_int_list__)
 
@@ -133,4 +130,4 @@ class LoadTable(object):
     #-----------------------------------------------------------------------
 
     def getLoads(self):
-        return self.loads
+        return self.rvals

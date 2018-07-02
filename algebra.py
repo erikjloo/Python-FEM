@@ -13,37 +13,36 @@ from scipy.linalg import inv, det, norm, svd, eigvals, cholesky, LinAlgError
 class MatrixBuilder(object):
     """ Dok Sparse Matrix Builder
 
-    Static Members:
-        __type_int__ = "Input idof or jdof is not int!"
-
     Instance Members:
         K = global stiffness matrix
         
     Public Methods:
         MatrixBuilder(ndof)
         resize(ndof)
-        addValue(idof, jdof, val)
-        setValue(idof, jdof, val)
-        val = getValue(idof, jdof)
-        addBlock(idofs, jdofs, block)
-        setBlock(idofs, jdofs, block)
-        block = getBlock(idofs, jdofs)
-        K = getDenseMatrix()
-        K = getMatrix()
-        print()
-        plot()
+        
+        Single Value Methods:
+            addValue(idof, jdof, val)
+            setValue(idof, jdof, val)
+            val = getValue(idof, jdof)
+        
+        Block Methods:
+            addBlock(idofs, jdofs, block)
+            setBlock(idofs, jdofs, block)
+            block = getBlock(idofs, jdofs)
 
+        Miscellaneous:
+            K = getDenseMatrix()
+            K = getMatrix()
+            print()
+            plot()
     """
-
-    # Static:
-    __type_int__ = "Input idof or jdof is not int!"
 
     # Public:
 
     #-----------------------------------------------------------------
-    #   constructor
+    #   Constructor
     #-----------------------------------------------------------------
-    
+
     def __init__(self,ndof):
         """ Input: ndof = size of square matrix """
         self.hbw = 0
@@ -54,26 +53,20 @@ class MatrixBuilder(object):
         self.K.resize((ndof,ndof))
 
     #-----------------------------------------------------------------
-    #   add single value
+    #   Single Value Methods
     #-----------------------------------------------------------------
 
     def setValue(self, idof, jdof, val):
         """ Input:  idof = row index
                     jdof = col index
                     val = value to be set in K[idof,jdof] """
-        if isinstance(idof, int) and isinstance(jdof, int):
-            self.K[idof, jdof] = val
-        else:
-            raise TypeError(self.__type_int__)
+        self.K[idof, jdof] = val
 
     def addValue(self,idof,jdof,val):
         """ Input:  idof = row index
                     jdof = col index
                     val = value to be added to K[idof,jdof] """
-        if isinstance(idof, int) and isinstance(jdof, int):
-            self.K[idof,jdof] += val
-        else:
-            raise TypeError(self.__type_int__)
+        self.K[idof,jdof] += val
 
     def getValue(self,idof,jdof):
         """ Input:  idof = row index
@@ -82,7 +75,7 @@ class MatrixBuilder(object):
         return self.K[idof,jdof]
 
     #-----------------------------------------------------------------
-    #   add block
+    #   Block Methods
     #-----------------------------------------------------------------
     
     def setBlock(self,idofs,jdofs,block):
@@ -104,7 +97,7 @@ class MatrixBuilder(object):
         return self.K[np.ix_(idofs,jdofs)].todense()
 
     #-----------------------------------------------------------------
-    #   get matrix
+    #   Miscellaneous
     #-----------------------------------------------------------------
 
     def getDenseMatrix(self):
@@ -114,10 +107,6 @@ class MatrixBuilder(object):
     def getMatrix(self):
         """ Output: K """
         return self.K
-
-    #-----------------------------------------------------------------
-    #   print and plot
-    #-----------------------------------------------------------------
 
     def print(self):
         pp = PrettyPrinter(indent=1, width=120, compact=True)
@@ -183,9 +172,6 @@ if __name__ == "__main__":
     idofs = range(1,7)
     mbuild.addBlock(idofs, idofs, block)
 
-    # Add block 3
-    idofs = np.array([2,3,4,5,6,7])
-    mbuild.addBlock(idofs, idofs, block)
     print("\nBlock =\n\n",mbuild.getBlock((1,2,3,4),(1,2,3)))
 
     print("\nSystem Matrix = ")
@@ -194,7 +180,6 @@ if __name__ == "__main__":
     print("\nSystem Matrix = ")
     mbuild.resize(5)
     mbuild.print()
-
     mbuild.plot()
 
 
