@@ -1,7 +1,7 @@
  {
     "input":
     {
-
+        "modules" : ["mesh","load","cons"],
         "mesh" :
         {
             "type" : "Gmsh",
@@ -10,34 +10,47 @@
             "doElemGroups" : false
         },
 
-        "loads" :
+        "load" :
         {
-            "type" : "Input",
+            "type" : "Loads",
             "file" : "Examples/3D_semicircle.xml"
         },
 
-        "constraints" :
+        "cons" :
         {
-            "type" : "Input",
+            "type" : "Constraints",
             "file" : "Examples/3D_semicircle.xml"
         }
     },
-
     "model" :
     {
-        "type"     : "Solid",
+        "models" : ["model","load","cons"],
+        "model" :
+        {
+            "type"     : "Solid",
 
-        "material" :
-        {
-            "type"   : "Hooke",
-            "young"  : 100000,
-            "poisson": 0.2
+            "material" :
+            {
+                "type"   : "Hooke",
+                "young"  : 100000,
+                "poisson": 0.2
+            },
+                
+            "shape" :
+            {
+                "type" : "Tetra4",
+                "scheme" : "Gauss"
+            }
         },
-            
-        "shape" :
+        "load" : 
         {
-            "type" : "Tetra4",
-            "scheme" : "Gauss"
+            "type" : "PointLoad",
+            "loadTable" : "load"
+        },
+        "cons" :
+        {
+            "type" : "Constraints",
+            "conTable" : "cons"
         }
     },
     "linsolve":
