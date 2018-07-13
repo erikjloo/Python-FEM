@@ -1,7 +1,7 @@
  {
     "input":
     {
-        "modules" : ["mesh", "loads", "constraints" ],
+        "modules" : ["mesh", "load", "cons" ],
 
         "mesh" :
         {
@@ -11,42 +11,54 @@
             "doElemGroups" : false
         },
 
-        "loads" :
+        "load" :
         {
-            "type" : "Input",
+            "type" : "Loads",
             "file" : "Examples/uniaxial.xml"
         },
 
-        "constraints" :
+        "cons" :
         {
-            "type" : "Input",
+            "type" : "Constraints",
             "file" : "Examples/uniaxial.xml"
         }
     },
 
     "model" :
     {
-        "type"     : "Solid",
-        "thickness" : 1,
-
-        "material" :
+        "type" : "Multi",
+        "models" : ["model","load","cons"],
+        "model":
         {
-            "type"   : "PlaneStrain",
-            "young"      : 3760,
-            "poisson"    : 0.3
-        },        
+            "type"     : "Solid",
+            "thickness" : 1,
 
-        "shape" :
+            "material" :
+            {
+                "type"   : "PlaneStrain",
+                "young"      : 3760,
+                "poisson"    : 0.3
+            },        
+
+            "shape" :
+            {
+                "type" : "Quad4",
+                "scheme" : "Gauss"
+            }
+        },
+        "load" : 
         {
-            "type" : "Quad4",
-            "scheme" : "Gauss"
+            "type" : "PointLoad",
+            "loadTable" : "load"
+        },
+        "cons" :
+        {
+            "type" : "Constraints",
+            "conTable" : "cons"
         }
     },
     "linsolve":
     {
-        "solver" :
-        {
-            "type" : "lstsq"
-        }
+        "solver": { "type" : "lstsq" }
     }
  }

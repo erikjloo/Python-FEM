@@ -3,7 +3,7 @@ import re
 import scipy as np
 
 # Import Local Libraries
-from models import Model
+from models import Model, Action
 from shapes import Shape
 from materials import Material
 
@@ -103,14 +103,14 @@ class SolidModel(Model):
     #-----------------------------------------------------------------------
 
     def takeAction(self, action, globdat):
-        if action == "GET_MATRIX_0":
+        if action == Action.GET_MATRIX_0:
             mbuild = globdat.get("mbuild")
             fint = globdat.get("fint")
             disp = globdat.get("solu")
             mesh = globdat.get("mesh")
             self.__get_Matrix_0(mbuild, fint, disp, mesh)
             return True
-        elif action == "GET_INT_VECTOR":
+        elif action == Action.GET_INT_VECTOR:
             fint = globdat.get("fint")
             disp = globdat.get("solu")
             mesh = globdat.get("mesh")

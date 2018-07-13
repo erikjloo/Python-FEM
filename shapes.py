@@ -397,8 +397,8 @@ class Shape(metaclass=ABCMeta):
             # Transformation matrix
             dx_dy = coords[1, :] - coords[0, :]
             i_bar = dx_dy/norm(dx_dy)
-            j_bar = np.dot(np.array([[0, -1], [1, 0]]), i_bar)
-            Gamma = [i_bar, j_bar]
+            j_bar = i_bar.dot([[0, 1], [-1, 0]])
+            Gamma = np.array([i_bar, j_bar])
 
             # Transform into local coordinates
             coords = Gamma @ coords.transpose()
@@ -411,9 +411,9 @@ class Shape(metaclass=ABCMeta):
 
             # Transformation matrix
             i_bar = coords[1, :] - coords[0, :]  # [dx, dy, dz]
-            j_bar = [0, 1, 0]  # Assume j-bar points upwards
+            j_bar = np.array([0, 1, 0])  # Assume j-bar points upwards
             k_bar = np.cross(i_bar, j_bar)
-            Gamma = gram_schmidt(i_bar, j_bar, k_bar)
+            Gamma = np.array(gram_schmidt(i_bar, j_bar, k_bar))
 
             # Transform into local coordinates
             coords = Gamma @ coords.transpose()
@@ -427,12 +427,10 @@ class Shape(metaclass=ABCMeta):
             warn("Unverified result, please verify!!")
 
             # Transformation matrix
-            i_bar = coords[2, :] - coords[1, :]  # [dx, dy, dz along one side]
-            # [dx, dy, dz along another side]
-            j_bar = coords[3, :] - coords[2, :]
+            i_bar = coords[2, :] - coords[1, :]
+            j_bar = coords[3, :] - coords[2, :] 
             k_bar = np.cross(i_bar, j_bar)
-            i_bar, j_bar, k_bar = gram_schmidt(i_bar, j_bar, k_bar)
-            Gamma = [i_bar, j_bar, k_bar]
+            Gamma = np.array(gram_schmidt(i_bar, j_bar, k_bar))
 
             # Transform into local coordinates
             coords = Gamma @ coords.transpose()
@@ -443,6 +441,10 @@ class Shape(metaclass=ABCMeta):
 
         elif self.ndim == 3 and np.size(coords, axis=1) > 3:
             raise ValueError("Element dimensions exceeded !")
+
+    #-----------------------------------------------------------------------
+    #   shapeFactory
+    #-----------------------------------------------------------------------
 
     @staticmethod
     def shapeFactory(conf, props):

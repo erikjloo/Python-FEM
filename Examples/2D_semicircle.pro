@@ -24,6 +24,7 @@
     },
     "model" :
     {
+        "type" : "Multi",
         "models" : ["model","load","cons"],
         "model" :
         {
@@ -56,9 +57,6 @@
     },
     "linsolve":
     {
-        "solver":
-        {
-            "type" : "lstsq"
-        }
+        "solver": { "type" : "lstsq" }
     }
  }

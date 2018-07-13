@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 
 # Import Local Libraries
-from models import Model
+from models import Model, Action
 from shapes import Shape
 from algebra import norm
 from Voigt import voigt2TensorStrain
@@ -55,7 +55,7 @@ class PBCmodel(Model):
         __findSmallestElement(mesh)
         __createTractionMesh(mesh)
         __coarsenMesh(mesh, trFace, index)
-        __get_Matrix_0(mbuild, fint, disp, mesh)
+        __get_Matrix_0(mbuild, fint, solu, mesh)
         __getTractionMeshNodes(mesh, x, face)
         __get_Constraints(cons, mesh)
         __plotMeshAndBoundary(mesh)
@@ -134,14 +134,14 @@ class PBCmodel(Model):
     #-----------------------------------------------------------------------
 
     def takeAction(self, action, globdat):
-        if action == "GET_MATRIX_0" or action == "GET_INT_VECTOR":
+        if action == Action.GET_MATRIX_0 or action == Action.GET_INT_VECTOR:
             mesh = globdat.get("mesh")
             mbuild = globdat.get("mbuild")
             fint = globdat.get("fint")
-            disp = globdat.get("solu")
-            self.__get_Matrix_0(mbuild, fint, disp, mesh)
+            solu = globdat.get("solu")
+            self.__get_Matrix_0(mbuild, fint, solu, mesh)
             return True
-        elif action == "GET_CONSTRAINTS":
+        elif action == Action.GET_CONSTRAINTS:
             mesh = globdat.get("mesh")
             cons = globdat.get("cons")
             self.__get_Constraints(cons, mesh)
@@ -154,7 +154,7 @@ class PBCmodel(Model):
             mesh = globdat.get("mesh")
             self.__plotMeshAndBoundary(mesh)
             return True
-        elif action == "ADVANCE":
+        elif action == Action.ADVANCE:
             self.__advance(globdat.i)
             return True
         else:
@@ -347,6 +347,9 @@ class PBCmodel(Model):
             # Coarsen trFace (works only for 2D)
             self.__coarsenMesh(mesh, trFace, index)
 
+            # if ix == self.rank-1:
+            #     self.trNodes[ix][-1] = self.trNodes[ix-1][-1]
+
             # Add dofs to traction mesh
             mesh.addDofs(trFace, self.T_doftypes)
             
@@ -420,7 +423,7 @@ class PBCmodel(Model):
     #   __get_Matrix_0
     #-----------------------------------------------------------------------
 
-    def __get_Matrix_0(self, mbuild, fint, disp, mesh):
+    def __get_Matrix_0(self, mbuild, fint, solu, mesh):
         """ Augments mbuild and fint with Ke, KeT, H, etc. """
 
         # Loop over faces of bndNodes
@@ -458,27 +461,24 @@ class PBCmodel(Model):
                         # Possitive face
                         Ke = - w[ip] * N.transpose() @ H
 
-                    # Add Ke and KeT to mbuild
                     KeT = Ke.transpose()
+                    # Add Ke and KeT matrices to mbuild
                     mbuild.addBlock(idofs, jdofs, Ke)
                     mbuild.addBlock(jdofs, idofs, KeT)
 
-                    # Assemble U-mesh fe
-                    fe = Ke.dot(disp[jdofs])
-                    fint[idofs] += fe
-
-                    # Assemble T-mesh fe
-                    fe = KeT.dot(disp[idofs])
-                    fint[jdofs] += fe
+                    # Assemble U-mesh and T-mesh fint
+                    fint[idofs] += Ke @ solu[jdofs]
+                    fint[jdofs] += KeT @ solu[idofs]
 
         # Variables related to corner displacements
         kdofs = mesh.getDofIndices(self.corner0, self.U_doftypes)
+        u_fixed = solu[kdofs]
 
         # Loop over faces of trNodes
         for ix, trFace in enumerate(self.trNodes):
 
             idofs = mesh.getDofIndices(self.corner[ix], self.U_doftypes)
-            u_corner = disp[idofs]
+            u_corner = solu[idofs]
 
             # Loop over indices of trFace
             for inod in range(len(trFace)-1):
@@ -493,18 +493,19 @@ class PBCmodel(Model):
 
                     # Assemble H matrix
                     H = w[ip] * self.bshape.getNmatrix(ip, ndim=self.rank)
-                    Ht = H.transpose()
 
-                    # Add H matrix to mbuild
+                    Ht = H.transpose()
+                    # Add H and Ht matrices to mbuild
                     mbuild.addBlock(idofs, jdofs, H)
                     mbuild.addBlock(jdofs, idofs, Ht)
+                    mbuild.addBlock(kdofs, jdofs, -H)
+                    mbuild.addBlock(jdofs, kdofs, -Ht)
 
-                    # Assemble U-mesh fe
-                    fint[idofs] += H @ disp[jdofs]
-                    fint[kdofs] -= H @ disp[jdofs]
-
-                    # Assemble T-mesh fe
+                    # Assemble U-mesh and T-mesh fint
+                    fint[idofs] += H @ solu[jdofs]
                     fint[jdofs] += Ht @ u_corner
+                    fint[kdofs] -= H @ solu[jdofs]
+                    fint[jdofs] -= Ht @ u_fixed
 
     #-----------------------------------------------------------------------
     #   __get_Constraints

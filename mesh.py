@@ -237,7 +237,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                 elif line.startswith("</Elements>"):
                     flag_e = False
 
-                data = re.findall(r"[-+]?\d*\.\d+|\d+", line)
+                data = re.findall(r"[-+]?\d+ *\.\d+|[-+]?\d+", line)
 
                 if len(data) > 0 and data[0].isdigit():
 
@@ -247,7 +247,6 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
                     if flag_n is True:
                         coord = [float(x) for x in data[1:rank+1]]
-                        print(coord)
                         self.addNode(coord)
 
                     #-------------------------------------------------------
@@ -256,7 +255,6 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
                     if flag_e is True:
                         connect = [int(x)-1 for x in data[1:]]
-                        print(connect)
                         self.groups[0].append(int(data[0])-1)
                         self.addElement(connect)
 
@@ -284,14 +282,6 @@ class Mesh(NodeSet, ElementSet, DofSpace):
             coords = self.getCoords(iele)
             ax.plot(coords[:, 0], coords[:, 1], linewidth=0.5, color='k')
 
-        # Plot Points
-        # loc = [61, 1211, 460, 1213]
-        # coords = self.getCoords(loc)
-        # ax.plot(coords[:, 0], coords[:, 1], linewidth=2, color='r')
-
-        # loc = [100, 101, 102, 103]
-        # coords = self.getCoords(loc)
-        # ax.plot(coords[:, 0], coords[:, 1], linewidth=2, color='b')
         return ax
 
     #-----------------------------------------------------------------------
@@ -348,11 +338,6 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
 
 if __name__ == '__main__':
-
-    # mesh = Mesh()
-    # mesh.readXML("Examples/uniaxial.xml")
-    # ax = mesh.plotMesh(rank=2)
-    # plt.show()
 
     mesh = Mesh()
     mesh.readGmsh("Examples/rve.msh")

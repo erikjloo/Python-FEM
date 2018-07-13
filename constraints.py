@@ -97,7 +97,7 @@ class Constraints(object):
                 
                 if flag_c is True and not line.startswith("<Constraints>"):
                     dof = re.findall(r"[a-zA-Z]+", line)[0]
-                    [node, rval] = re.findall(r"[-+]?\d *\.\d+|[-+]?\d+", line)
+                    [node, rval] = re.findall(r"[-+]?\d+ *\.\d+|[-+]?\d+", line)
                     print(" {}[{}] = {}".format(dof, node, rval))
                     idof = mesh.getDofIndex(int(node), dof)
                     self.addConstraint(idof, float(rval))

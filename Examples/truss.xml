@@ -1,0 +1,21 @@
+<Nodes>
+    1 -10 0;
+    2 0 0.5;
+    3 10 0;
+</Nodes>
+
+<Elements>
+    1 1 2;
+    2 2 3;
+</Elements>
+
+<Loads>
+    v[1] = -50;
+</Loads>
+
+<Constraints>
+    u[0] = 0.0;
+    v[0] = 0.0;
+    u[2] = 0.0;
+    v[2] = 0.0;
+</Constraints>

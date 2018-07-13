@@ -1,8 +1,8 @@
  {
+    "control": { "nsteps" : 4 },
     "input":
     {
-        "modules" : ["mesh", "hardening", "loads"],
-
+        "modules" : ["mesh" , "load" , "cons" ],
         "mesh" :
         {
             "type" : "Gmsh",
@@ -10,24 +10,22 @@
             "rank" : 2,
             "doElemGroups" : true
         },
-
-        "hardening" :
-        {
-            "type" : "Input",
-            "file" : "mises.data"
+        "load" : 
+        { 
+            "type" : "Loads",
+            "file" : "Examples/rve.xml"
         },
-
-        "loads" :
+        "cons":
         {
-            "type" : "Input",
-            "file" : "load.data"
+            "type" : "Constraints",
+            "file" : "Examples/rve.xml"
         }
     },
 
     "model" :
     {
         "type"   : "Multi",
-        "models" : [ "matrix", "fibers", "pbc" ],
+        "models" : [ "matrix", "fibers", "pbc" , "cons" ],
 
         "matrix" :
         {
@@ -35,24 +33,14 @@
             "elements" : "gmsh1",
             "thickness" : 1,
 
-            "material" :
+            "material" : 
             {
-                "type"   : "Melro",
-                "rank"    : 2,
-                "state"  : "PLANE_STRAIN",
-                "young"      : 3760,
-                "poisson"    : 0.3,
-                "poissonP"   : 0.39,
-                "rmTolerance" : 0.0000000001,
-                "sigmaT" : "st(x)",
-                "sigmaC" : "st(x)"
+                "type" : "PlaneStrain",
+                "young" : 3760,
+                "poisson" : 0.3
             },
             
-            "shape" :
-            {
-                "type" : "Tri3",
-                "scheme" : "Gauss"
-            }
+            "shape" : { "type" : "Tri3" }
         },
 
         "fibers" : 
@@ -64,37 +52,42 @@
             "material" : 
             {
                 "type" : "PlaneStrain",
-                "young" : 3760,
-                "poisson" : 0.3
+                "young" : 74000,
+                "poisson" : 0.2
             },
 
-            "shape" :
-            {
-                "type" : "Tri3",
-                "scheme" : "Gauss"
-            }
+            "shape" : { "type" : "Tri3" }
         },
         
         "pbc" :
         {
             "type"     : "Periodic",
-            "coarsenFactor" : 0.6,
-            "strainRate" : [0.001, 0.0, 0.0],
-            "shape":
-            {
-                "type" : "Line2",
-                "scheme" : "Gauss"
-            }
+            "coarsenFactor" : 0.7,
+            "strain" : [0.1, -0.0428571428571429, 0.0],
+            "strainRate" : [0.0, 0.0, 0.1],
+            "shape": { "type" : "Line2" }
+        },
+        "load" : 
+        {
+            "type" : "PointLoad",
+            "loadTable" : "load"
+        },
+        "cons" :
+        {
+            "type" : "Constraints",
+            "conTable" : "cons"
         }
     },
     "nonlin":
     {
-        "type" : "full",
-        "niter" : 1,
-        "tol" : 1e-3,
-        "solver" :
-        {
-            "type" : "lstsq"
-        }
+        "type" : "NR",
+        "niter" : 2,
+        "tol" : 1e-4,
+        "solver" : { "type" : "solve" }
+    },
+    "sample":
+    {
+        "file": "Examples/lodi.dat",
+        "dofs": [3006,3007]
     }
  }

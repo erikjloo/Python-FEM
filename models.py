@@ -1,5 +1,20 @@
 # Import Standard Libraries
 from abc import ABCMeta, abstractmethod
+from enum import IntEnum
+
+#===========================================================================
+#   Status
+#===========================================================================
+
+
+class Action(IntEnum):
+    GET_MATRIX_0 = 0
+    GET_EXT_VECTOR = 1
+    GET_INT_VECTOR = 2
+    GET_CONSTRAINTS = 3
+    ADVANCE = 4
+    COMMIT = 5
+
 
 #===========================================================================
 #   Model
@@ -40,6 +55,9 @@ class Model(metaclass=ABCMeta):
         elif type == "Solid":
             from solidModel import SolidModel
             return SolidModel(name, conf, props, globdat)
+        elif type == "Truss":
+            from trussModel import TrussModel
+            return TrussModel(name, conf, props, globdat)
         elif type == "Periodic":
             from PBCmodel import PBCmodel
             return PBCmodel(name, conf, props, globdat)
@@ -159,12 +177,10 @@ class PointLoadModel(Model):
         self.rvals = load.initialize(mesh)
 
     def takeAction(self, action, globdat):
-        if action == "GET_EXT_VECTOR":
+        if action == Action.GET_EXT_VECTOR:
             fext = globdat.get("fext")
             scale = globdat.get("loadScale")
             fext += scale*self.rvals
-            print(scale)
-            print(fext[3])
             globdat.set("fext",fext)
             return True
         else:
@@ -205,7 +221,7 @@ class ConstraintsModel(Model):
         self.rvals, self.sdof = cons.initialize(mesh)
 
     def takeAction(self, action, globdat):
-        if action == "GET_CONSTRAINTS":
+        if action == Action.GET_CONSTRAINTS:
             cons = globdat.get(self.conTable)
             scale = globdat.find("loadScale",1)
             for idof in self.sdof:
@@ -246,7 +262,7 @@ class LoadScaleModel(Model):
     def takeAction(self, action, globdat):
         if action == "ADVANCE":
             self.model.takeAction(action, globdat)
-        elif action == "GET_CONSTRAINTS" or action == "GET_EXT_VECTOR":
+        elif action == Action.GET_CONSTRAINTS or action == Action.GET_EXT_VECTOR:
             # update thing,
             # call child
             return True

@@ -5,13 +5,12 @@ from copy import deepcopy
 
 #  Import Local Libraries
 from abc import ABCMeta, abstractmethod
-from algebra import MatrixBuilder, norm
-from constraints import Constraints
-from loadTable import LoadTable
-from solvers import Solver
-from models import Model
 from mesh import Mesh
-
+from models import Model, Action
+from algebra import MatrixBuilder, norm
+from loadTable import LoadTable
+from constraints import Constraints
+from solvers import Solver
 
 #===========================================================================
 #   Status
@@ -253,31 +252,28 @@ class LinSolveModule(Module):
         ndof = globdat.get("ndof")
         globdat.set("fext", np.zeros(ndof))
         globdat.set("loadScale", globdat.i)
-        globdat.model.takeAction("ADVANCE", globdat)
-        globdat.model.takeAction("GET_MATRIX_0", globdat)
-        globdat.model.takeAction("GET_EXT_VECTOR", globdat)
-        globdat.model.takeAction("GET_CONSTRAINTS", globdat)
+
+        globdat.model.takeAction(Action.ADVANCE, globdat)
+        globdat.model.takeAction(Action.GET_MATRIX_0, globdat)
+        globdat.model.takeAction(Action.GET_EXT_VECTOR, globdat)
+        globdat.model.takeAction(Action.GET_CONSTRAINTS, globdat)
 
         # INITIAL RESIDUAL
         mbuild = globdat.get("mbuild")
         fext = globdat.get("fext")
-        fint = globdat.get("fint")
         cons = globdat.get("cons")
         disp = globdat.get("solu")
         ndof = globdat.get("ndof")
 
         old_disp = deepcopy(disp)
         cons.updateSolution(disp)
+        Du = globdat.set("Du",disp - old_disp)
 
-        du = disp - old_disp
         K = mbuild.getDenseMatrix()
-        r = fext - fint - np.array(K).dot(du)
+        r = fext - np.array(K).dot(Du)
 
         solver = Solver(self.type, cons)
         solver.solve(K, disp, r, mbuild.hbw)
-
-        globdat.set("fint",np.zeros(ndof))
-        globdat.model.takeAction("GET_INT_VECTOR", globdat)
 
         return Status.EXIT
 
@@ -312,6 +308,13 @@ class NonlinModule(Module):
         self.tol = myProps.get("tol", 1e-3)
         self.type = myProps.get("solver.type", "solve")
 
+        if self.nrkey not in ["NR","MNR","full","mod"]:
+            raise ValueError("{} not implemented !".format(self.nrkey))
+        if self.nrkey == "NR" or self.nrkey == "full":
+            self.action = Action.GET_MATRIX_0 
+        elif self.nrkey == "MNR" or self.nrkey == "mod":
+            self.action = Action.GET_INT_VECTOR
+
         myConf.set("type", self.nrkey)
         myConf.set("niter", self.niter)
         myConf.set("tiny", self.tiny)
@@ -326,12 +329,16 @@ class NonlinModule(Module):
         print("Advancing to the next load step")
         globdat.i += 1
         ndof = globdat.get("ndof")
-        globdat.set("fext",np.zeros(ndof))
+        globdat.set("du", np.zeros(ndof))
+        globdat.set("Du", np.zeros(ndof))
+        globdat.set("fext", np.zeros(ndof))
+        globdat.set("fint", np.zeros(ndof))
         globdat.set("loadScale", globdat.i)
-        globdat.model.takeAction("ADVANCE", globdat)
-        globdat.model.takeAction("GET_MATRIX_0", globdat)
-        globdat.model.takeAction("GET_EXT_VECTOR", globdat)
-        globdat.model.takeAction("GET_CONSTRAINTS", globdat)
+
+        globdat.model.takeAction(Action.ADVANCE, globdat)
+        globdat.model.takeAction(Action.GET_MATRIX_0, globdat)
+        globdat.model.takeAction(Action.GET_EXT_VECTOR, globdat)
+        globdat.model.takeAction(Action.GET_CONSTRAINTS, globdat)
 
         mbuild = globdat.get("mbuild")
         fext = globdat.get("fext")
@@ -339,6 +346,102 @@ class NonlinModule(Module):
         cons = globdat.get("cons")
         disp = globdat.get("solu")
         
+        old_disp = deepcopy(disp)
+        cons.updateSolution(disp)
+        du = globdat.set("du", disp-old_disp)
+        Du = globdat.set("Du", deepcopy(du))
+
+        K = mbuild.getDenseMatrix()
+        r = fext - fint - np.array(K).dot(Du)
+
+        solver = Solver(self.type, cons)
+        fdof = cons.getFdof()
+        nrm1 = 0.0
+
+        for iter in range(self.niter):
+
+            # Update displacement vector
+            solver.solve(K, du, r, mbuild.hbw)
+            disp[fdof] += du[fdof]
+            Du[fdof] += du[fdof]
+
+            # Find interal force vector
+            globdat.set("fint",np.zeros(ndof))
+            globdat.model.takeAction(self.action, globdat)
+
+            # Find out-of-balance force vector
+            r = fext - globdat.get("fint")
+            nrm = norm(r[fdof])
+            print("    Iteration {}: norm = {:.10f} ".format(iter, nrm))
+            
+            # Check convergence
+            if (iter == 0 and nrm <= self.tiny) or (iter > 0 and nrm < self.tol*nrm1):
+                print("    Converged in {} iterations".format(iter+1))
+                globdat.model.takeAction(Action.COMMIT, globdat)
+                return Status.OK
+            elif iter == 0 and nrm > self.tiny:
+                nrm1 = deepcopy(nrm)
+        
+        return Status.EXIT
+
+    def shutdown(self, globdat): 
+        pass
+
+
+#===========================================================================
+#   ArclenModule
+#===========================================================================
+
+
+class ArclenModule(Module):
+    """ Runs a nonlinear analysis (NR)
+            
+    Public Methods:
+        Status = init(conf, props, globdat)
+        Status = run(globdat)
+        shutdown(globdat)
+    """
+
+    def __init__(self, name="nonlin"):
+        self.name = name
+
+    def init(self, conf, props, globdat):
+        myProps = props.getProps(self.name)
+        myConf = conf.makeProps(self.name)
+
+        self.nrkey = myProps.get("type", "full")
+        self.niter = myProps.get("niter", 20)
+        self.tiny = myProps.get("tiny", 1e-10)
+        self.tol = myProps.get("tol", 1e-3)
+        self.type = myProps.get("solver.type", "solve")
+
+        myConf.set("type", self.nrkey)
+        myConf.set("niter", self.niter)
+        myConf.set("tiny", self.tiny)
+        myConf.set("tol", self.tol)
+        myConf.set("solver.type", self.type)
+
+        return Status.OK
+
+    def run(self, globdat):
+
+        # ADVANCE
+        print("Advancing to the next load step")
+        globdat.i += 1
+        ndof = globdat.get("ndof")
+        globdat.set("fext", np.zeros(ndof))
+        globdat.set("loadScale", globdat.i)
+        globdat.model.takeAction(Action.ADVANCE, globdat)
+        globdat.model.takeAction(Action.GET_MATRIX_0, globdat)
+        globdat.model.takeAction(Action.GET_EXT_VECTOR, globdat)
+        globdat.model.takeAction(Action.GET_CONSTRAINTS, globdat)
+
+        mbuild = globdat.get("mbuild")
+        fext = globdat.get("fext")
+        fint = globdat.get("fint")
+        cons = globdat.get("cons")
+        disp = globdat.get("solu")
+
         old_disp = deepcopy(disp)
         cons.updateSolution(disp)
 
@@ -356,12 +459,12 @@ class NonlinModule(Module):
             disp[fdof] += du[fdof]
 
             # Find interal force vector
-            globdat.set("fint",np.zeros(ndof))
+            globdat.set("fint", np.zeros(ndof))
 
             if self.nrkey == "full":
-                globdat.model.takeAction("GET_MATRIX_0", globdat)
+                globdat.model.takeAction(Action.GET_MATRIX_0, globdat)
             elif self.nrkey == "mod" or self.nrkey == "LE":
-                globdat.model.takeAction("GET_INT_VECTOR", globdat)
+                globdat.model.takeAction(Action.GET_INT_VECTOR, globdat)
             else:
                 raise ValueError("{} not implemented !".format(self.nrkey))
 
@@ -369,22 +472,21 @@ class NonlinModule(Module):
             r = fext - globdat.get("fint")
             nrm = norm(r[fdof])
             print("    Iteration {}: norm = {:.10f} ".format(iter, nrm))
-            
+
             # Check convergence in first iteration
             if iter == 0 and nrm <= self.tiny:
                 print("    Converged in {} iterations".format(iter+1))
                 return Status.OK
             elif iter == 0 and nrm > self.tiny:
                 nrm1 = deepcopy(nrm)
-            
+
             # Check convergence in later iterations
             if nrm < self.tol*nrm1:
                 print("    Converged in {} iterations".format(iter+1))
                 return Status.OK
 
-    def shutdown(self, globdat): 
+    def shutdown(self, globdat):
         pass
-
 
 #===========================================================================
 #   SampleModule
@@ -453,9 +555,11 @@ def Execute(module, conf, props, globdat):
     print("==== Initializing modules ================")
     status = module.init(conf, props, globdat)
     conf.print()
+    conf.writeFile("Examples/conf.pro")
+
     globdat.model.takeAction("PLOT_MESH", globdat)
-    mesh = globdat.get("mesh")
-    mesh.printDofSpace(15)
+    # mesh = globdat.get("mesh")
+    # mesh.printDofSpace(15)
     # Run modules until Status.EXIT is issued
     while status != Status.EXIT:
         print("==== Running modules =====================")

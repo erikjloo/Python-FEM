@@ -88,7 +88,7 @@ class LoadTable(object):
 
                 if flag_c is True and not line.startswith("<Loads>"):
                     dof = re.findall(r"[a-zA-Z]+", line)[0]
-                    [node, rval] = re.findall(r"[-+]?\d *\.\d+|[-+]?\d+", line)
+                    [node, rval] = re.findall(r"[-+]?\d+ *\.\d+|[-+]?\d+", line)
                     print(" {}[{}] = {}".format(dof, node, rval))
                     idof = mesh.getDofIndex(int(node), dof)
                     self.addLoad(idof, float(rval))

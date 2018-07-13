@@ -71,9 +71,9 @@ class Hooke(Material):
         # Create the hookean matrix
         self.H = np.zeros((6, 6))
         self.H[np.ix_([0, 1, 2], [0, 1, 2])] = self.la
-        self.H[0, 0] = self.H[1, 1] = self.H[2, 2] = self.la + 2*self.mu
-        self.H[3, 3] = self.H[4, 4] = self.H[5, 5] = self.mu
-
+        self.H[[0, 1, 2], [0, 1, 2]] = self.la + 2*self.mu
+        self.H[[3, 4, 5], [3, 4, 5]] = self.mu
+        
     def getStress(self, strain):
         stress = self.H.dot(strain)
         return [stress, self.H]
@@ -105,8 +105,8 @@ class PlaneStrain(Material):
 
         #Create the hookean matrix
         self.H = np.zeros((3, 3))
-        self.H[0, 0] = self.H[1, 1] = self.la+2*self.mu
-        self.H[0, 1] = self.H[1, 0] = self.la
+        self.H[[0, 1], [0, 1]] = self.la+2*self.mu
+        self.H[[0, 1], [1, 0]] = self.la
         self.H[2, 2] = self.mu
 
     def getStress(self, strain):
@@ -140,8 +140,8 @@ class PlaneStress(Material):
 
         #Create the hookean matrix
         self.H = np.zeros((3, 3))
-        self.H[0, 0] = self.H[1, 1] = self.la+2*self.mu
-        self.H[0, 1] = self.H[1, 0] = self.la
+        self.H[[0,1], [0,1]] = self.la+2*self.mu
+        self.H[[0,1], [1,0]] = self.la
         self.H[2, 2] = self.mu
 
     def getStress(self, strain):
@@ -176,8 +176,8 @@ class Melro(Material):
         # Create the hookean matrix
         self.H = np.zeros((6, 6))
         self.H[np.ix_([0, 1, 2], [0, 1, 2])] = self.la
-        self.H[0, 0] = self.H[1, 1] = self.H[2, 2] = self.la + 2*self.mu
-        self.H[3, 3] = self.H[4, 4] = self.H[5, 5] = self.mu
+        self.H[[0,1,2], [0,1,2]] = self.la + 2*self.mu
+        self.H[[3,4,5], [3,4,5]] = self.mu
 
     def getStress(self, strain):
         stress = self.H.dot(strain)
