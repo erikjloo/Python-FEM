@@ -1,4 +1,5 @@
 # Import Standard Libraries
+import logging
 import scipy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
@@ -100,21 +101,21 @@ class PBCmodel(Model):
         mesh.addTypes(self.T_doftypes)
 
         # Get specimen dimensions
-        print("    Box dimensions:")
+        logging.info("    Box dimensions:")
         self.__boundingBox(mesh)
         self.__setTolerances()
 
         # Get boundary nodes
-        print("    Boundary Nodes:")
+        logging.info("    Boundary Nodes:")
         self.__findBndNodes(mesh)
         self.__sortBndNodes(mesh)
 
         # Find corner nodes
-        print("    Corner Nodes:")
+        logging.info("    Corner Nodes:")
         self.__findCornerNodes()
 
         # Create traction mesh
-        print("    Traction Nodes:")
+        logging.info("    Traction Nodes:")
         self.__findSmallestElement(mesh)
         self.__createTractionMesh(mesh)
 
@@ -190,8 +191,8 @@ class PBCmodel(Model):
             self.dx[ix] = self.box_[2*ix + 1] - self.box_[2*ix]
 
         # Print to verify
-        print("        box = ", self.box_)
-        print("        dx = ", self.dx)
+        logging.info("        box = {}".format(self.box_))
+        logging.info("        dx = {}".format(self.dx))
 
     #-----------------------------------------------------------------------
     #   __setTolerances
@@ -235,9 +236,9 @@ class PBCmodel(Model):
             self.corner0 = self.bndNodes[0][0]
             self.corner.append(self.bndNodes[1][0])
             self.corner.append(self.bndNodes[3][0])
-            print("        corner0 = ", self.corner0)
-            print("        cornerx = ", self.corner[0])
-            print("        cornery = ", self.corner[1])
+            logging.info("        corner0 = %i", self.corner0)
+            logging.info("        cornerx = %i", self.corner[0])
+            logging.info("        cornery = %i", self.corner[1])
         elif self.rank == 3:
             raise NotImplementedError(" Not yet implemented. ")
             
@@ -258,7 +259,7 @@ class PBCmodel(Model):
             # Perform bubblesort on bndFace
             self.__sortBndFace(mesh, bndFace, index)
             # Print to verify
-            print("         bndNodes[{}] = {}".format(face, self.bndNodes[face]))
+            logging.info("         bndNodes[{}] = {}".format(face, self.bndNodes[face]))
 
     #-----------------------------------------------------------------------
     #   __sortBndFace
@@ -354,7 +355,7 @@ class PBCmodel(Model):
             mesh.addDofs(trFace, self.T_doftypes)
             
             # Print to verify
-            print("        trNodes[{}] = {}".format(ix, self.trNodes[ix]))
+            logging.info("        trNodes[{}] = {}".format(ix, self.trNodes[ix]))
 
 
     #-----------------------------------------------------------------------

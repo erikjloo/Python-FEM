@@ -118,7 +118,7 @@ class Properties(object):
                 self.properties[props[0]][props[1]] = value
             return self.properties[props[0]][props[1]]
         else:
-            print(" Cannot nest deeper than 2 ")
+            raise ValueError(" Cannot nest deeper than 2 ")
 
     def find(self, props, default=None):
         """ Input:  props = string of property names separated by '.'
@@ -136,8 +136,8 @@ class Properties(object):
     def get(self, props, default=None):
         """ Input:  props = string of property names separated by '.'
             Output: value = values of given props or KeyError if None """
-
         tmp = self.find(props, default)
+
         if tmp is None:
             stack = inspect.stack()
             name = stack[1][0].f_locals["self"].__class__

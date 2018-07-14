@@ -1,4 +1,5 @@
 #  Import Standard libraties
+import logging
 import scipy as np
 from enum import IntEnum
 from copy import deepcopy
@@ -41,7 +42,7 @@ class Module(metaclass=ABCMeta):
         self.name = name
 
     def __del__(self):
-        print("Cleaning {} module".format(self.name))
+        logging.debug("Cleaning %s module",self.name)
 
     @abstractmethod
     def init(self, conf, props, globdat):
@@ -173,7 +174,7 @@ class InputModule(Module):
                 cons = Constraints(module, myConf, myProps)
                 globdat.set(module, cons)
             else:
-                raise KeyError("Unknown input type: {}".format(type))
+                raise ValueError("Unknown input type: {}".format(type))
         return Status.DONE
 
     def run(self, globdat): 
@@ -247,7 +248,7 @@ class LinSolveModule(Module):
     def run(self, globdat):
 
         # ADVANCE
-        print("Advancing to the next load step")
+        logging.info("Advancing to the next load step")
         globdat.i += 1
         ndof = globdat.get("ndof")
         globdat.set("fext", np.zeros(ndof))
@@ -326,7 +327,7 @@ class NonlinModule(Module):
     def run(self, globdat):
 
         # ADVANCE
-        print("Advancing to the next load step")
+        logging.info("Advancing to the next load step")
         globdat.i += 1
         ndof = globdat.get("ndof")
         globdat.set("du", np.zeros(ndof))
@@ -372,11 +373,11 @@ class NonlinModule(Module):
             # Find out-of-balance force vector
             r = fext - globdat.get("fint")
             nrm = norm(r[fdof])
-            print("    Iteration {}: norm = {:.10f} ".format(iter, nrm))
+            logging.info("    Iteration {}: norm = {:.10f} ".format(iter, nrm))
             
             # Check convergence
             if (iter == 0 and nrm <= self.tiny) or (iter > 0 and nrm < self.tol*nrm1):
-                print("    Converged in {} iterations".format(iter+1))
+                logging.info("    Converged in {} iterations".format(iter+1))
                 globdat.model.takeAction(Action.COMMIT, globdat)
                 return Status.OK
             elif iter == 0 and nrm > self.tiny:
@@ -426,7 +427,7 @@ class ArclenModule(Module):
     def run(self, globdat):
 
         # ADVANCE
-        print("Advancing to the next load step")
+        logging.info("Advancing to the next load step")
         globdat.i += 1
         ndof = globdat.get("ndof")
         globdat.set("fext", np.zeros(ndof))
@@ -471,18 +472,18 @@ class ArclenModule(Module):
             # Find out-of-balance force vector
             r = fext - globdat.get("fint")
             nrm = norm(r[fdof])
-            print("    Iteration {}: norm = {:.10f} ".format(iter, nrm))
+            logging.info("    Iteration {}: norm = {:.10f} ".format(iter, nrm))
 
             # Check convergence in first iteration
             if iter == 0 and nrm <= self.tiny:
-                print("    Converged in {} iterations".format(iter+1))
+                logging.info("    Converged in {} iterations".format(iter+1))
                 return Status.OK
             elif iter == 0 and nrm > self.tiny:
                 nrm1 = deepcopy(nrm)
 
             # Check convergence in later iterations
             if nrm < self.tol*nrm1:
-                print("    Converged in {} iterations".format(iter+1))
+                logging.info("    Converged in {} iterations".format(iter+1))
                 return Status.OK
 
     def shutdown(self, globdat):
@@ -552,19 +553,17 @@ class SampleModule(Module):
 def Execute(module, conf, props, globdat):
 
     # Initialize all modules
-    print("==== Initializing modules ================")
+    logging.info("==== Initializing modules ================")
     status = module.init(conf, props, globdat)
-    conf.print()
+    # conf.print()
     conf.writeFile("Examples/conf.pro")
 
     globdat.model.takeAction("PLOT_MESH", globdat)
-    # mesh = globdat.get("mesh")
-    # mesh.printDofSpace(15)
     # Run modules until Status.EXIT is issued
     while status != Status.EXIT:
-        print("==== Running modules =====================")
+        logging.info("==== Running modules =====================")
         status = module.run(globdat)
 
     # Shutdown remaining modules
-    print("==== Shutting down modules ===============")
+    logging.info("==== Shutting down modules ===============")
     module.shutdown(globdat)

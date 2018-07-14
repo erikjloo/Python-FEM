@@ -1,5 +1,6 @@
 # Import Standard Libraries
 import re
+import logging
 import scipy as np
 
 #===========================================================================
@@ -76,7 +77,7 @@ class Constraints(object):
         self.rvals = np.empty(self.ndof)
         self.rvals[:] = np.nan
         self.readXML(self.path, mesh)
-        print(self.path, "file read")
+        logging.info(self.path, "file read")
         return self.rvals, self.sdof
 
     #-----------------------------------------------------------------------
@@ -98,7 +99,7 @@ class Constraints(object):
                 if flag_c is True and not line.startswith("<Constraints>"):
                     dof = re.findall(r"[a-zA-Z]+", line)[0]
                     [node, rval] = re.findall(r"[-+]?\d+ *\.\d+|[-+]?\d+", line)
-                    print(" {}[{}] = {}".format(dof, node, rval))
+                    logging.info(" {}[{}] = {}".format(dof, node, rval))
                     idof = mesh.getDofIndex(int(node), dof)
                     self.addConstraint(idof, float(rval))
 

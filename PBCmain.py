@@ -1,5 +1,6 @@
 # Import Standard Libraries
 import time
+import logging
 import argparse
 import scipy as np
 
@@ -15,6 +16,8 @@ from modules import Execute
 np.set_printoptions(precision=4)
 
 def main():
+    logging.basicConfig(level=logging.WARNING, format='%(message)s')
+
     parser = argparse.ArgumentParser()
     parser.add_argument("file_path", help="Path to properties file", type = str)
     file = parser.parse_args().file_path
@@ -38,7 +41,7 @@ def main():
     Execute(module, conf, props, globdat)
 
     stop = time.time()
-    print("Elapsed time is ", stop-start)
+    logging.info("Elapsed time is {}".format(stop-start))
 
     mesh = globdat.get("mesh")
     mesh.plotDeformed(globdat.get("solu"),1)

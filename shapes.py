@@ -1,5 +1,6 @@
 # Import Standard Libraries
 import re
+import logging
 import scipy as np
 from warnings import warn
 from abc import ABCMeta, abstractmethod
@@ -377,9 +378,9 @@ class Shape(metaclass=ABCMeta):
         except:
             AttributeError()
 
-        if (scheme == "Gauss" or scheme == "GaussLegendre"):
+        if scheme.startswith("Gauss"):
             [self.w, self.gp] = gauss_legendre(self.ndim, self.nIP)
-        elif (scheme == "Newton" or scheme == "NewtonCoates"):
+        elif scheme.startswith("Newton"):
             [self.w, self.gp] = newton_cotes(self.ndim, self.nIP)
         else:
             raise NotImplementedError('Int. Scheme does not exist.')
@@ -458,7 +459,7 @@ class Shape(metaclass=ABCMeta):
         myConf.set("scheme", scheme)
 
         message = "Creating {} with {} quadrature"
-        print(message.format(type, scheme))
+        logging.info(message.format(type, scheme))
 
         if type == "Line2":
             return Line2(scheme)

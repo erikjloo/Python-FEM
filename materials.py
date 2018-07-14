@@ -1,4 +1,5 @@
 # Import Standard Libraries
+import logging
 import scipy as np
 from abc import ABCMeta, abstractmethod
 
@@ -34,7 +35,7 @@ class Material(metaclass=ABCMeta):
     def materialFactory(conf, props):
         message = "    Creating {} material"
         type = props.get("material.type")
-        print(message.format(type))
+        logging.info(message.format(type))
 
         if type == "Hooke":
             return Hooke(conf, props)

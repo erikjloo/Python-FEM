@@ -1,5 +1,6 @@
 # Import Standard Libraries
 import re
+import logging
 import scipy as np
 
 # Import Local Libraries
@@ -61,14 +62,14 @@ class SolidModel(Model):
         if self.group != "All":
             key = int(re.search(r'\d+', self.group).group())
             group_name = mesh.groupNames[key]
-            print("    Obtaining elements from {}".format(group_name))
+            logging.info("    Obtaining elements from {}".format(group_name))
             idx = mesh.groupNames.keys().index(key)
             self.ielements = mesh.groups[idx]
-            print("    Elements in mesh.groups[{}]".format(idx))
+            logging.info("    Elements in mesh.groups[{}]".format(idx))
         else:
             group_name = next(iter(mesh.groupNames.values()))
             self.ielements = mesh.groups[0]
-            print("    Obtaining elements from {}".format(group_name))
+            logging.info("    Obtaining elements from {}".format(group_name))
         
     #-----------------------------------------------------------------------
     #   initialize

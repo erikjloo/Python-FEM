@@ -40,7 +40,7 @@ def gauss_legendre(dim,nIP):
             w[2] = 0.3478548451374538;   gp[2] = -0.8611363115940526
             w[3] = 0.3478548451374538;   gp[3] = 0.8611363115940526
         else:
-            raise ValueError('Integration scheme not programmed')
+            raise NotImplementedError('Integration scheme not programmed')
     elif (dim == 2):
         if (nIP == 1):	# 1-point Gauss integration in 2D for triangle
             # Weights

@@ -1,5 +1,6 @@
 # Import Standard Libraries
 import re
+import logging
 import scipy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -105,7 +106,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
         elif type == "XML":
             self.readXML(path, rank, doElemGroups)
         else:
-            raise TypeError("type can only be Gmsh or XML!")
+            raise ValueError("type can only be Gmsh or XML!")
 
     #-----------------------------------------------------------------------
     #   readGmsh
@@ -188,10 +189,10 @@ class Mesh(NodeSet, ElementSet, DofSpace):
 
         # Print nnodes, nele and ngroups
         if self.ngroups == 1:
-            print(("Mesh read with {} nodes, {} elements and 1 group: ").format(
+            logging.info(("Mesh read with {} nodes, {} elements and 1 group: ").format(
                         self.nnod, self.nele))
         else:
-            print(("Mesh read with {} nodes, {} elements and {} groups: ").format(
+            logging.info(("Mesh read with {} nodes, {} elements and {} groups: ").format(
                 self.nnod, self.nele, self.ngroups))
 
         # Print group names and number of elements
@@ -199,7 +200,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
             group_name = self.groupNames[key]
             idx = self.groupNames.keys().index(key)
             group_nele = len(self.groups[idx])
-            print(("    {} with {} elements").format(group_name, group_nele))
+            logging.info(("    {} with {} elements").format(group_name, group_nele))
         
 
     #-----------------------------------------------------------------------
@@ -258,7 +259,7 @@ class Mesh(NodeSet, ElementSet, DofSpace):
                         self.groups[0].append(int(data[0])-1)
                         self.addElement(connect)
 
-        print(("Mesh read with {} nodes, {} elements.").format(
+        logging.info(("Mesh read with {} nodes, {} elements.").format(
             self.nnod, self.nele))
 
     #-----------------------------------------------------------------------

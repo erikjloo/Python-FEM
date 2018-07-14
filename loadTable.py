@@ -1,5 +1,6 @@
 # Import Standard Libraries
 import re
+import logging
 import scipy as np
 
 #===========================================================================
@@ -67,7 +68,7 @@ class LoadTable(object):
     def initialize(self, mesh):
         self.rvals = np.zeros(mesh.dofCount())
         self.readXML(self.path, mesh)
-        print(self.path, "file read")
+        logging.info(self.path, "file read")
         return self.rvals
 
     #-----------------------------------------------------------------------
@@ -89,7 +90,7 @@ class LoadTable(object):
                 if flag_c is True and not line.startswith("<Loads>"):
                     dof = re.findall(r"[a-zA-Z]+", line)[0]
                     [node, rval] = re.findall(r"[-+]?\d+ *\.\d+|[-+]?\d+", line)
-                    print(" {}[{}] = {}".format(dof, node, rval))
+                    logging.info(" {}[{}] = {}".format(dof, node, rval))
                     idof = mesh.getDofIndex(int(node), dof)
                     self.addLoad(idof, float(rval))
 

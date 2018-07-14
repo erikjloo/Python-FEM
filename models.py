@@ -1,6 +1,7 @@
 # Import Standard Libraries
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum
+import logging
 
 #===========================================================================
 #   Status
@@ -36,7 +37,7 @@ class Model(metaclass=ABCMeta):
         self.name = name
 
     def __del__(self):
-        print("Cleaning {} model".format(self.name))
+        logging.debug("Cleaning %s model",self.name)
 
     @abstractmethod
     def takeAction(self, action, globdat):
@@ -46,7 +47,7 @@ class Model(metaclass=ABCMeta):
     def modelFactory(name, conf, props, globdat):
         message = "Creating a {} model named {}"
         type = props.get("{}.type".format(name))
-        print(message.format(type, name))
+        logging.info(message.format(type, name))
 
         if type == "Matrix":
             return MatrixModel(name, conf, props, globdat)
@@ -68,7 +69,7 @@ class Model(metaclass=ABCMeta):
         elif type == "LoadScale":
             return LoadScaleModel(name, conf, props, globdat)
         else:
-            raise KeyError("{} model not implemented".format(type))
+            raise NotImplementedError("{} model not implemented".format(type))
 
 #===========================================================================
 #   MatrixModel
