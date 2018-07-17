@@ -77,7 +77,7 @@ class PBCmodel(Model):
 
         self.type = myProps.get("type", "Periodic")
         self.strain = myProps.find("strainRate", None)
-        self.factor = myProps.get("coarsenFactor",1.0)
+        self.factor = myProps.get("coarsenFactor", 1.0)
 
         myConf.set("type", self.type)
         myConf.set("strainRate", self.strain)
@@ -101,21 +101,17 @@ class PBCmodel(Model):
         mesh.addTypes(self.T_doftypes)
 
         # Get specimen dimensions
-        logging.info("    Box dimensions:")
         self.__boundingBox(mesh)
         self.__setTolerances()
 
         # Get boundary nodes
-        logging.info("    Boundary Nodes:")
         self.__findBndNodes(mesh)
         self.__sortBndNodes(mesh)
 
         # Find corner nodes
-        logging.info("    Corner Nodes:")
         self.__findCornerNodes()
 
         # Create traction mesh
-        logging.info("    Traction Nodes:")
         self.__findSmallestElement(mesh)
         self.__createTractionMesh(mesh)
 
@@ -129,7 +125,7 @@ class PBCmodel(Model):
             msg = "Shape ndim = {}. Should be {}".format(
                 self.localrank, self.rank-1)
             raise ValueError(msg)
-            
+
     #-----------------------------------------------------------------------
     #   takeAction
     #-----------------------------------------------------------------------
@@ -147,11 +143,11 @@ class PBCmodel(Model):
             cons = globdat.get("cons")
             self.__get_Constraints(cons, mesh)
             return True
-        elif action == "PLOT_BOUNDARY":
+        elif action == Action.PLOT_BOUNDARY:
             mesh = globdat.get("mesh")
             self.__plotBoundary(mesh)
             return True
-        elif action == "PLOT_MESH":
+        elif action == Action.PLOT_MESH:
             mesh = globdat.get("mesh")
             self.__plotMeshAndBoundary(mesh)
             return True
@@ -191,8 +187,8 @@ class PBCmodel(Model):
             self.dx[ix] = self.box_[2*ix + 1] - self.box_[2*ix]
 
         # Print to verify
-        logging.info("        box = {}".format(self.box_))
-        logging.info("        dx = {}".format(self.dx))
+        logging.debug("        box = {}".format(self.box_))
+        logging.debug("        dx = {}".format(self.dx))
 
     #-----------------------------------------------------------------------
     #   __setTolerances
@@ -236,12 +232,12 @@ class PBCmodel(Model):
             self.corner0 = self.bndNodes[0][0]
             self.corner.append(self.bndNodes[1][0])
             self.corner.append(self.bndNodes[3][0])
-            logging.info("        corner0 = %i", self.corner0)
-            logging.info("        cornerx = %i", self.corner[0])
-            logging.info("        cornery = %i", self.corner[1])
+            logging.info(
+                "    Corner0 = %i, cornerx = %i, cornery = %i", 
+                self.corner0, self.corner[0], self.corner[1])
         elif self.rank == 3:
             raise NotImplementedError(" Not yet implemented. ")
-            
+
     #-----------------------------------------------------------------------
     #   __sortBndNodes
     #-----------------------------------------------------------------------
@@ -259,7 +255,8 @@ class PBCmodel(Model):
             # Perform bubblesort on bndFace
             self.__sortBndFace(mesh, bndFace, index)
             # Print to verify
-            logging.info("         bndNodes[{}] = {}".format(face, self.bndNodes[face]))
+            logging.debug("         bndNodes[{}] = {}".format(
+                face, self.bndNodes[face]))
 
     #-----------------------------------------------------------------------
     #   __sortBndFace
@@ -353,10 +350,14 @@ class PBCmodel(Model):
 
             # Add dofs to traction mesh
             mesh.addDofs(trFace, self.T_doftypes)
-            
-            # Print to verify
-            logging.info("        trNodes[{}] = {}".format(ix, self.trNodes[ix]))
 
+            # Print to verify
+            logging.debug("        trNodes[{}] = {}".format(
+                ix, self.trNodes[ix]))
+
+        with open('Examples/trCount.dat', 'a') as f:
+            t = (len(self.trNodes[0][0:-1]) + len(self.trNodes[1][0:-1]))/2
+            f.write(" {} ".format(t))
 
     #-----------------------------------------------------------------------
     #   __coarsenMesh
@@ -376,7 +377,7 @@ class PBCmodel(Model):
             c1 = mesh.getCoords(trFace[inod+1])
 
             # Delete indices until c1 - c0 > dx
-            while norm(c1 - c0) < min(dx,self.dx[index]):
+            while norm(c1 - c0) < min(dx, self.dx[index]):
                 # Delete current index
                 del trFace[inod+1]
                 # Assign next node coords to c1
@@ -414,7 +415,7 @@ class PBCmodel(Model):
                 # Check if c0[index] < x[index] < c1[index]
                 if coords[0, index] < x[index] < coords[1, index]:
                     return connect
-            
+
             raise RuntimeError(" No connect found. ")
 
         elif self.rank == 3:
@@ -517,7 +518,7 @@ class PBCmodel(Model):
         # Fix corner
         idofs = mesh.getDofIndices(self.corner0, self.U_doftypes)
         cons.addConstraints(idofs)
-        
+
         # Voigt to tensor
         if self.strain is not None:
             eps = voigt2TensorStrain(self.strain)
@@ -525,7 +526,8 @@ class PBCmodel(Model):
             # Apply strain
             for ix in range(self.rank):
                 for jx in range(self.rank):
-                    idof = mesh.getDofIndex(self.corner[ix], self.U_doftypes[jx])
+                    idof = mesh.getDofIndex(
+                        self.corner[ix], self.U_doftypes[jx])
                     cons.addConstraint(idof, eps[ix, jx]*self.dx[ix])
 
     #-----------------------------------------------------------------------

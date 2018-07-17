@@ -9,12 +9,14 @@ import logging
 
 
 class Action(IntEnum):
-    GET_MATRIX_0 = 0
-    GET_EXT_VECTOR = 1
+    ADVANCE = 0
+    GET_MATRIX_0 = 1
     GET_INT_VECTOR = 2
-    GET_CONSTRAINTS = 3
-    ADVANCE = 4
+    GET_EXT_VECTOR = 3
+    GET_CONSTRAINTS = 4
     COMMIT = 5
+    PLOT_MESH = 6
+    PLOT_BOUNDARY = 7
 
 
 #===========================================================================

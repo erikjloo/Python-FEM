@@ -62,14 +62,14 @@ class SolidModel(Model):
         if self.group != "All":
             key = int(re.search(r'\d+', self.group).group())
             group_name = mesh.groupNames[key]
-            logging.info("    Obtaining elements from {}".format(group_name))
+            logging.debug("    Obtaining elements from {}".format(group_name))
             idx = mesh.groupNames.keys().index(key)
             self.ielements = mesh.groups[idx]
-            logging.info("    Elements in mesh.groups[{}]".format(idx))
+            logging.debug("    Elements in mesh.groups[{}]".format(idx))
         else:
             group_name = next(iter(mesh.groupNames.values()))
             self.ielements = mesh.groups[0]
-            logging.info("    Obtaining elements from {}".format(group_name))
+            logging.debug("    Obtaining elements from {}".format(group_name))
         
     #-----------------------------------------------------------------------
     #   initialize

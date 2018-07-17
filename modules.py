@@ -42,7 +42,7 @@ class Module(metaclass=ABCMeta):
         self.name = name
 
     def __del__(self):
-        logging.debug("Cleaning %s module",self.name)
+        logging.debug("Cleaning %s module", self.name)
 
     @abstractmethod
     def init(self, conf, props, globdat):
@@ -122,9 +122,9 @@ class ControlModule(Module):
     def init(self, conf, props, globdat):
         myProps = props.getProps(self.name)
         myConf = conf.makeProps(self.name)
-        
+
         self.nsteps = myProps.get("nsteps")
-        myConf.set("nsteps",self.nsteps)
+        myConf.set("nsteps", self.nsteps)
 
         return Status.OK
 
@@ -166,7 +166,7 @@ class InputModule(Module):
             type = myProps.get("{}.type".format(module))
             if type == "Gmsh" or type == "XML":
                 mesh = Mesh(myConf, myProps)
-                globdat.set("mesh",mesh)
+                globdat.set("mesh", mesh)
             elif type == "Loads":
                 load = LoadTable(module, myConf, myProps)
                 globdat.set(module, load)
@@ -177,10 +177,10 @@ class InputModule(Module):
                 raise ValueError("Unknown input type: {}".format(type))
         return Status.DONE
 
-    def run(self, globdat): 
+    def run(self, globdat):
         pass
 
-    def shutdown(self, globdat): 
+    def shutdown(self, globdat):
         pass
 
 
@@ -203,19 +203,19 @@ class InitModule(Module):
 
     def init(self, conf, props, globdat):
         globdat.model = Model.modelFactory("model", conf, props, globdat)
-        ndof = globdat.set("ndof",globdat.get("mesh").dofCount())
+        ndof = globdat.set("ndof", globdat.get("mesh").dofCount())
         globdat.set("mbuild", MatrixBuilder(ndof))
         globdat.set("fext", np.zeros(ndof))
         globdat.set("fint", np.zeros(ndof))
         globdat.set("solu", np.zeros(ndof))
-        globdat.set("loadScale",1.0)
+        globdat.set("loadScale", 1.0)
         globdat.i = 0
         return Status.DONE
 
     def run(self, globdat):
         pass
 
-    def shutdown(self, globdat): 
+    def shutdown(self, globdat):
         pass
 
 
@@ -240,7 +240,7 @@ class LinSolveModule(Module):
         myProps = props.getProps(self.name)
         myConf = conf.makeProps(self.name)
 
-        self.type = myProps.get("solver.type", "solve")
+        self.type = myProps.find("solver.type", "solve")
         myConf.set("solver.type", self.type)
 
         return Status.OK
@@ -268,7 +268,7 @@ class LinSolveModule(Module):
 
         old_disp = deepcopy(disp)
         cons.updateSolution(disp)
-        Du = globdat.set("Du",disp - old_disp)
+        Du = globdat.set("Du", disp - old_disp)
 
         K = mbuild.getDenseMatrix()
         r = fext - np.array(K).dot(Du)
@@ -278,7 +278,7 @@ class LinSolveModule(Module):
 
         return Status.EXIT
 
-    def shutdown(self, globdat): 
+    def shutdown(self, globdat):
         pass
 
 
@@ -303,16 +303,16 @@ class NonlinModule(Module):
         myProps = props.getProps(self.name)
         myConf = conf.makeProps(self.name)
 
-        self.nrkey = myProps.get("type", "full")
-        self.niter = myProps.get("niter",20)
-        self.tiny = myProps.get("tiny",1e-10)
-        self.tol = myProps.get("tol", 1e-3)
-        self.type = myProps.get("solver.type", "solve")
+        self.nrkey = myProps.find("type", "NR")
+        self.niter = myProps.find("niter", 20)
+        self.tiny = myProps.find("tiny", 1e-10)
+        self.tol = myProps.find("tol", 1e-3)
+        self.type = myProps.find("solver.type", "solve")
 
-        if self.nrkey not in ["NR","MNR","full","mod"]:
+        if self.nrkey not in ["NR", "MNR", "full", "mod"]:
             raise ValueError("{} not implemented !".format(self.nrkey))
         if self.nrkey == "NR" or self.nrkey == "full":
-            self.action = Action.GET_MATRIX_0 
+            self.action = Action.GET_MATRIX_0
         elif self.nrkey == "MNR" or self.nrkey == "mod":
             self.action = Action.GET_INT_VECTOR
 
@@ -346,7 +346,7 @@ class NonlinModule(Module):
         fint = globdat.get("fint")
         cons = globdat.get("cons")
         disp = globdat.get("solu")
-        
+
         old_disp = deepcopy(disp)
         cons.updateSolution(disp)
         du = globdat.set("du", disp-old_disp)
@@ -367,14 +367,14 @@ class NonlinModule(Module):
             Du[fdof] += du[fdof]
 
             # Find interal force vector
-            globdat.set("fint",np.zeros(ndof))
+            globdat.set("fint", np.zeros(ndof))
             globdat.model.takeAction(self.action, globdat)
 
             # Find out-of-balance force vector
             r = fext - globdat.get("fint")
             nrm = norm(r[fdof])
             logging.info("    Iteration {}: norm = {:.10f} ".format(iter, nrm))
-            
+
             # Check convergence
             if (iter == 0 and nrm <= self.tiny) or (iter > 0 and nrm < self.tol*nrm1):
                 logging.info("    Converged in {} iterations".format(iter+1))
@@ -382,10 +382,10 @@ class NonlinModule(Module):
                 return Status.OK
             elif iter == 0 and nrm > self.tiny:
                 nrm1 = deepcopy(nrm)
-        
+
         return Status.EXIT
 
-    def shutdown(self, globdat): 
+    def shutdown(self, globdat):
         pass
 
 
@@ -410,11 +410,11 @@ class ArclenModule(Module):
         myProps = props.getProps(self.name)
         myConf = conf.makeProps(self.name)
 
-        self.nrkey = myProps.get("type", "full")
-        self.niter = myProps.get("niter", 20)
-        self.tiny = myProps.get("tiny", 1e-10)
-        self.tol = myProps.get("tol", 1e-3)
-        self.type = myProps.get("solver.type", "solve")
+        self.nrkey = myProps.find("type", "full")
+        self.niter = myProps.find("niter", 20)
+        self.tiny = myProps.find("tiny", 1e-10)
+        self.tol = myProps.find("tol", 1e-3)
+        self.type = myProps.find("solver.type", "solve")
 
         myConf.set("type", self.nrkey)
         myConf.set("niter", self.niter)
@@ -512,7 +512,7 @@ class SampleModule(Module):
 
         self.path = myProps.get("file")
         self.dofs = myProps.get("dofs")
-        
+
         myConf.set("file", self.path)
         myConf.set("dofs", self.dofs)
         open(self.path, "w+").close()
@@ -534,15 +534,15 @@ class SampleModule(Module):
                 txt += " {} {} ".format(u_f[0], u_f[1])
             txt += " \n"
         elif len(self.dofs) == 1:
-            txt += " {} {} ".format(u, f)
+            txt += " {} {} \n".format(u, f)
 
         with open(self.path, 'a') as f:
             f.write(txt)
-            
+
         return Status.OK
 
-    def shutdown(self, globdat): 
-        pass 
+    def shutdown(self, globdat):
+        pass
 
 
 #===========================================================================
@@ -553,17 +553,17 @@ class SampleModule(Module):
 def Execute(module, conf, props, globdat):
 
     # Initialize all modules
-    logging.info("==== Initializing modules ================")
+    print("==== Initializing modules ================")
     status = module.init(conf, props, globdat)
-    # conf.print()
+    conf.print()
     conf.writeFile("Examples/conf.pro")
-
-    globdat.model.takeAction("PLOT_MESH", globdat)
+    globdat.model.takeAction(Action.PLOT_MESH, globdat)
+    
     # Run modules until Status.EXIT is issued
     while status != Status.EXIT:
-        logging.info("==== Running modules =====================")
+        print("==== Running modules =====================")
         status = module.run(globdat)
 
     # Shutdown remaining modules
-    logging.info("==== Shutting down modules ===============")
+    print("==== Shutting down modules ===============")
     module.shutdown(globdat)

@@ -458,7 +458,7 @@ class Shape(metaclass=ABCMeta):
         myConf.set("type", type)
         myConf.set("scheme", scheme)
 
-        message = "Creating {} with {} quadrature"
+        message = "    Creating {} with {} quadrature"
         logging.info(message.format(type, scheme))
 
         if type == "Line2":

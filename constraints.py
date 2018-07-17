@@ -77,7 +77,7 @@ class Constraints(object):
         self.rvals = np.empty(self.ndof)
         self.rvals[:] = np.nan
         self.readXML(self.path, mesh)
-        logging.info(self.path, "file read")
+        logging.info("    %s file read",self.path)
         return self.rvals, self.sdof
 
     #-----------------------------------------------------------------------
@@ -99,7 +99,7 @@ class Constraints(object):
                 if flag_c is True and not line.startswith("<Constraints>"):
                     dof = re.findall(r"[a-zA-Z]+", line)[0]
                     [node, rval] = re.findall(r"[-+]?\d+ *\.\d+|[-+]?\d+", line)
-                    logging.info(" {}[{}] = {}".format(dof, node, rval))
+                    logging.debug("    %s[%s] = %s",dof, node, rval)
                     idof = mesh.getDofIndex(int(node), dof)
                     self.addConstraint(idof, float(rval))
 
