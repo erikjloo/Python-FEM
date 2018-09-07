@@ -13,13 +13,15 @@ props.parseFile("Examples/rve.pro")
 coarsen_factors = [0.01592, 0.025, 0.04, 0.063, 0.1, 0.16, 0.25, 0.4, 0.63, 1.0]
 
 with open('Examples/trCount.dat', 'w') as f:
-    f.write(" {} ".format(coarsen_factors))
+    f.write(" {} \n".format(coarsen_factors))
 
 for file in os.listdir(directory):
     filename = os.fsdecode(file)
     pr = props.getProps("input.mesh")
     filename = pr.set("file", "_mshes/"+filename)
     print(filename)
+    with open('Examples/trCount.dat', 'a') as f:
+        f.write(filename)
 
     for cf in coarsen_factors:
         pr = props.getProps("model.pbc")
