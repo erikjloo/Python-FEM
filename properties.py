@@ -84,7 +84,8 @@ class Properties(object):
             return Properties(self.properties[props])
 
     def findProps(self, props):
-        """ Input: props = string of property name """
+        """ Input: props = string of property names separated by '.'
+            Output: properties object (of shallow copy) of given props """
         if isinstance(self.find(props), dict):
             return Properties(self.find(props))
         else:
@@ -106,7 +107,11 @@ class Properties(object):
         """ Input:  props = string of property names separated by '.'
             Output: value = value set to given props """
         props = props.split('.')
-                
+
+        # for key in props[:-1]:
+        #     self.properties.setdefault(key, {})
+        # self.properties[props[-1]] = value
+
         if len(props) is 1:
             self.properties[props[0]] = value
             return self.properties[props[0]]
