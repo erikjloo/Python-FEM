@@ -6,66 +6,36 @@
             "cons"
         ],
         "mesh": {
-            "file": "Examples/rve.msh",
-            "type": "Gmsh",
+            "file": "Examples/truss.xml",
+            "type": "XML",
             "rank": 2,
-            "doElemGroups": true
+            "doElemGroups": false
         },
         "load": {
             "type": "Loads",
-            "file": "Examples/rve.xml"
+            "file": "Examples/truss.xml"
         },
         "cons": {
             "type": "Constraints",
-            "file": "Examples/rve.xml"
+            "file": "Examples/truss.xml"
         }
     },
     "model": {
         "type": "Multi",
         "models": [
-            "matrix",
-            "fibers",
-            "pbc",
+            "truss",
+            "load",
             "cons"
         ],
-        "matrix": {
-            "type": "Solid",
-            "elements": "gmsh1",
-            "thickness": 1,
-            "shape": {
-                "type": "Tri3",
-                "scheme": "Gauss"
-            },
-            "material": {
-                "young": 3760,
-                "poisson": 0.3
-            }
+        "truss": {
+            "type": "Truss",
+            "elements": "All",
+            "area": 1,
+            "young": 10000000
         },
-        "fibers": {
-            "type": "Solid",
-            "elements": "gmsh0",
-            "thickness": 1,
-            "shape": {
-                "type": "Tri3",
-                "scheme": "Gauss"
-            },
-            "material": {
-                "young": 74000,
-                "poisson": 0.2
-            }
-        },
-        "pbc": {
-            "type": "Periodic",
-            "strainRate": [
-                0.0,
-                0.0,
-                0.1
-            ],
-            "coarsenFactor": 0.7,
-            "shape": {
-                "type": "Line2",
-                "scheme": "Gauss"
-            }
+        "load": {
+            "type": "PointLoad",
+            "loadTable": "load"
         },
         "cons": {
             "type": "Constraints",
@@ -73,8 +43,8 @@
         }
     },
     "nonlin": {
-        "type": "NR",
-        "niter": 2,
+        "type": "full",
+        "niter": 6,
         "tiny": 1e-10,
         "tol": 0.0001,
         "solver": {
@@ -82,13 +52,13 @@
         }
     },
     "sample": {
-        "file": "Examples/lodi.dat",
+        "file": "Examples/truss.dat",
         "dofs": [
-            3006,
-            3007
+            2,
+            3
         ]
     },
     "control": {
-        "nsteps": 4
+        "nsteps": 2
     }
 }
