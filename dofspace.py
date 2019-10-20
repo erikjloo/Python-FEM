@@ -14,7 +14,7 @@ class DofSpace(object):
         __type_int__ = "Input is not int!"
         __type_str__ = "Input is not str!"
         __type_int_list__ = "Input is not int or list!"
-        __type_str_list__ = "Input is not list or str!"
+        __type_str_list__ = "Input is not str or list!"
         __type_dof__ = "Input inod is not int or dof is not str!"
         __renumber__ = "Erasing dofs: Dof numbers will be renumbered!"
         
@@ -134,11 +134,11 @@ class DofSpace(object):
     #   Type Methods
     #-------------------------------------------------------------------
 
-    def addType(self, dof):
+    def addType(self, dof_type):
         """ Input: dof = string of dof name """
-        if isinstance(dof, str):
-            if dof not in self.types:
-                self.types.append(dof)
+        if isinstance(dof_type, str):
+            if dof_type not in self.types:
+                self.types.append(dof_type)
         else:
             raise TypeError(self.__type_str__)
         # Check if dofspace has enough columns for all dof types

@@ -45,7 +45,7 @@ def main():
 
     # globdat.mesh.updateGeometry(disp)
     mesh = globdat.get("mesh")
-    mesh.plotDeformed(globdat.get("solu"), 1)
+    mesh.plotDeformed(globdat.get("solu"), 1, rank=2)
 
     print(globdat.get("solu"))
 

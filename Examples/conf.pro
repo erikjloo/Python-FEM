@@ -6,32 +6,39 @@
             "cons"
         ],
         "mesh": {
-            "file": "Examples/truss.xml",
-            "type": "XML",
+            "file": "LinearElastic/2D_semicircle.msh",
+            "type": "Gmsh",
             "rank": 2,
             "doElemGroups": false
         },
         "load": {
             "type": "Loads",
-            "file": "Examples/truss.xml"
+            "file": "LinearElastic/2D_semicircle.xml"
         },
         "cons": {
             "type": "Constraints",
-            "file": "Examples/truss.xml"
+            "file": "LinearElastic/2D_semicircle.xml"
         }
     },
     "model": {
         "type": "Multi",
         "models": [
-            "truss",
+            "model",
             "load",
             "cons"
         ],
-        "truss": {
-            "type": "Truss",
+        "model": {
+            "type": "Solid",
             "elements": "All",
-            "area": 1,
-            "young": 10000000
+            "thickness": 0.1,
+            "shape": {
+                "type": "Tri3",
+                "scheme": "Gauss1"
+            },
+            "material": {
+                "young": 100000,
+                "poisson": 0.2
+            }
         },
         "load": {
             "type": "PointLoad",
@@ -42,23 +49,9 @@
             "conTable": "cons"
         }
     },
-    "nonlin": {
-        "type": "full",
-        "niter": 6,
-        "tiny": 1e-10,
-        "tol": 0.0001,
+    "linsolve": {
         "solver": {
-            "type": "solve"
+            "type": "lstsq"
         }
-    },
-    "sample": {
-        "file": "Examples/truss.dat",
-        "dofs": [
-            2,
-            3
-        ]
-    },
-    "control": {
-        "nsteps": 2
     }
 }
