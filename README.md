@@ -1,5 +1,14 @@
 # Python-FEM
 
+This program is executed from the command line.
+
+The problems are defined in properties files (.pro).
+To execute linear-elastic analyses, type for example:
+python main.py Examples/2D_semicircle.pro
+
+To execute nonlinear analyese, type for example:
+python Nonlin.py MultiScale/rve.pro
+
 Copyright (C) <2018>  <Erik J. Giesen Loo>
 
 This program is free software: you can redistribute it and/or modify
