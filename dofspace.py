@@ -135,7 +135,7 @@ class DofSpace(object):
     #-------------------------------------------------------------------
 
     def addType(self, dof_type):
-        """ Input: dof = string of dof name """
+        """ Input: dof_type = string of dof name """
         if isinstance(dof_type, str):
             if dof_type not in self.types:
                 self.types.append(dof_type)
@@ -148,20 +148,49 @@ class DofSpace(object):
             c_new[:] = np.nan
             self.dofspace = np.hstack((self.dofspace, c_new))
 
-    def addTypes(self, dofs):
-        """ Input: dofs =  (list of) strings of dof names """
-        if isinstance(dofs, (list, tuple, np.ndarray)):
-            for dof in dofs:
-                self.addType(dof)
-        elif isinstance(dofs, str):
-            self.addType(dofs)
+    def addTypes(self, dof_types):
+        """ Input: dof_types = (list of) strings of dof names """
+        if isinstance(dof_types, (list, tuple, np.ndarray)):
+            for dof_type in dof_types:
+                self.addType(dof_type)
+        elif isinstance(dof_types, str):
+            self.addType(dof_types)
         else:
             raise TypeError(self.__type_str_list__)
 
-    def setType(self, jtype, dof):
-        """ Input: jtype = dof type index, dof = string of dof name """
-        if isinstance(dof, str):
-            self.types[jtype] = dof
+    def setType(self, jtype, dof_type):
+        """ Input: jtype = dof type index, dof_type = string of dof name """
+        if isinstance(dof_type, str):
+            self.types[jtype] = dof_type
+        else:
+            raise TypeError(self.__type_str__)
+
+    def getTypeName(self, jtype):
+        """ Input: jtype = dof type index
+            Output: dof_type = string of dof name """
+        if isinstance(jtype, int):
+            return self.types[jtype]
+        else:
+            raise TypeError(self.__type_int__)
+
+    def getTypeNames(self, jtypes):
+        """ Input: jtypes = (list of) dof type indices 
+            Output: dof_types = (list of) strings of dof names """
+        if isinstance(jtypes, (list, tuple, range, np.ndarray)):
+            dof_types = []
+            for jtype in jtypes:
+                dof_types.append(self.types[jtype])
+            return dof_types
+        elif isinstance(jtypes, int):
+            return self.types[jtypes]
+        else:
+            raise TypeError(self.__type_int_list__)
+
+    def findTypeIndex(self, dof_type):
+        """ Input: dof_type = string of dof name
+            Output: jtype = dof type index """
+        if isinstance(dof_type, str):
+            return self.types.index(dof_type)
         else:
             raise TypeError(self.__type_str__)
 
@@ -197,13 +226,8 @@ class DofSpace(object):
             raise TypeError(self.__type_str_list__)
 
     def typeCount(self):
-        """ Output: number of dof types """
+        """ Output: ntyp = number of dof types """
         return len(self.types)
-
-    def getTypeName(self, jtype):
-        """ Input: jtype = dof type index
-            Output: string of dof name """
-        return self.types[jtype]
 
     #-------------------------------------------------------------------
     #   Dof Methods
@@ -234,15 +258,15 @@ class DofSpace(object):
         else:
             raise TypeError(self.__type_int_list__)
 
-    def eraseDof(self, inod, dofs):
+    def eraseDof(self, inodes, dofs):
         """ Input: inodes = (list of) node indices, dofs = (list of) strings of dof names """
         if isinstance(dofs, (list, tuple, np.ndarray)):
             for dof in dofs:
                 jtype = self.types.index(dof)
-                self.dofspace[inod, jtype] = np.nan
-        elif isinstance(dofs, str):
+                self.dofspace[inodes, jtype] = np.nan
+        elif isinstance(dofs, str): # can erase multiple nodes
             jtype = self.types.index(dofs)
-            self.dofspace[inod, jtype] = np.nan
+            self.dofspace[inodes, jtype] = np.nan
         else:
             raise TypeError(self.__type_str_list__)
         warn(self.__renumber__)
@@ -339,6 +363,9 @@ if __name__ == '__main__':
     dofs.addType('u')
     dofs.addTypes(['v', 'j', 'rotx', 'roty', 'rotz'])
     dofs.setType(2, 'w')
+    print(dofs.getTypeName(2))
+    print(dofs.getTypeNames([2,4]))
+    print(dofs.findTypeIndex('w'))
     dofs.addDofs((0, 2, 4, 5), ['u', 'v', 'w', 'rotx'])
     dofs.printDofSpace()
 
