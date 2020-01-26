@@ -165,6 +165,10 @@ class DofSpace(object):
         else:
             raise TypeError(self.__type_str__)
 
+    def setTypes(self, jtypes, dof_types):
+        """ Input: jtypes = (list of) dof type indices, dof_types = (list of) strings of dof names"""
+        raise NotImplementedError
+
     def getTypeName(self, jtype):
         """ Input: jtype = dof type index
             Output: dof_type = string of dof name """
@@ -233,39 +237,39 @@ class DofSpace(object):
     #   Dof Methods
     #-------------------------------------------------------------------
 
-    def addDof(self, inod, dofs):
-        """ Input: inod = node index, dofs = (list of) strings of dof names """
+    def addDof(self, inod, dof_types):
+        """ Input: inod = node index, dof_types = (list of) strings of dof names """
         # Need to check if inod is int or
         # 2 or > dofs will have same idof
-        if isinstance(dofs, (list, tuple, np.ndarray)):
-            for dof in dofs:
-                self.addDof(inod,dof)
-        elif isinstance(dofs, str) and isinstance(inod, int):
-            jtype = self.types.index(dofs)
+        if isinstance(dof_types, (list, tuple, np.ndarray)):
+            for dof_type in dof_types:
+                self.addDof(inod,dof_type)
+        elif isinstance(dof_types, str) and isinstance(inod, int):
+            jtype = self.types.index(dof_types)
             if np.isnan(self.dofspace[inod, jtype]):
                 self.dofspace[inod, jtype] = self.ndof
                 self.ndof += 1
         else:
             raise TypeError(self.__type_dof__)
 
-    def addDofs(self, inodes, dofs):
-        """ Input: inodes = (list of) node indices, dofs = (list of) strings of dof names """
+    def addDofs(self, inodes, dof_types):
+        """ Input: inodes = (list of) node indices, dof_types = (list of) strings of dof names """
         if isinstance(inodes, (list, tuple, range, np.ndarray)):
             for inod in inodes:
-                self.addDof(inod, dofs)
+                self.addDof(inod, dof_types)
         elif isinstance(inodes, int):
-            self.addDof(inodes, dofs)
+            self.addDof(inodes, dof_types)
         else:
             raise TypeError(self.__type_int_list__)
 
-    def eraseDof(self, inodes, dofs):
-        """ Input: inodes = (list of) node indices, dofs = (list of) strings of dof names """
-        if isinstance(dofs, (list, tuple, np.ndarray)):
-            for dof in dofs:
-                jtype = self.types.index(dof)
+    def eraseDof(self, inodes, dof_types):
+        """ Input: inodes = (list of) node indices, dof_types = (list of) strings of dof names """
+        if isinstance(dof_types, (list, tuple, np.ndarray)):
+            for dof_type in dof_types:
+                jtype = self.types.index(dof_type)
                 self.dofspace[inodes, jtype] = np.nan
-        elif isinstance(dofs, str): # can erase multiple nodes
-            jtype = self.types.index(dofs)
+        elif isinstance(dof_types, str): # can erase multiple nodes
+            jtype = self.types.index(dof_types)
             self.dofspace[inodes, jtype] = np.nan
         else:
             raise TypeError(self.__type_str_list__)
