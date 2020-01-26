@@ -1,4 +1,4 @@
- {
+{
     "control": { "nsteps" : 4 },
     "input":
     {
@@ -6,19 +6,19 @@
         "mesh" :
         {
             "type" : "Gmsh",
-            "file" : "Examples/square.msh",
+            "file" : "Examples/rveSquare.msh",
             "rank" : 2,
             "doElemGroups" : false
         },
         "load" : 
         { 
             "type" : "Loads",
-            "file" : "Examples/square.xml"
+            "file" : "Examples/rveSquare.xml"
         },
         "cons":
         {
             "type" : "Constraints",
-            "file" : "Examples/square.xml"
+            "file" : "Examples/rveSquare.xml"
         }
     },
 
@@ -40,6 +40,7 @@
         {
             "type"     : "Periodic",
             "coarsenFactor" : 0.1,
+            "strainRate" : [0.1, -0.0428571428571429, 0.0],
             "shape" : { "type" : "Line2" }
         },
         "load" : 
@@ -64,7 +65,7 @@
     },
     "sample":
     {
-        "file": "Examples/lodi.dat",
+        "file": "Examples/rveSquare.dat",
         "dofs": [2,3]
     }
  }

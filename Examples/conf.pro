@@ -6,52 +6,90 @@
             "cons"
         ],
         "mesh": {
-            "file": "LinearElastic/2D_semicircle.msh",
+            "file": "_mshes/rve26.msh",
             "type": "Gmsh",
             "rank": 2,
-            "doElemGroups": false
+            "doElemGroups": true
         },
         "load": {
             "type": "Loads",
-            "file": "LinearElastic/2D_semicircle.xml"
+            "file": "MultiScale/rve.xml"
         },
         "cons": {
             "type": "Constraints",
-            "file": "LinearElastic/2D_semicircle.xml"
+            "file": "MultiScale/rve.xml"
         }
     },
     "model": {
         "type": "Multi",
         "models": [
-            "model",
-            "load",
+            "matrix",
+            "fibers",
+            "pbc",
             "cons"
         ],
-        "model": {
+        "matrix": {
             "type": "Solid",
-            "elements": "All",
-            "thickness": 0.1,
+            "elements": "gmsh1",
+            "thickness": 1,
             "shape": {
                 "type": "Tri3",
-                "scheme": "Gauss1"
+                "scheme": "Gauss"
             },
             "material": {
-                "young": 100000,
+                "young": 3760,
+                "poisson": 0.3
+            }
+        },
+        "fibers": {
+            "type": "Solid",
+            "elements": "gmsh0",
+            "thickness": 1,
+            "shape": {
+                "type": "Tri3",
+                "scheme": "Gauss"
+            },
+            "material": {
+                "young": 74000,
                 "poisson": 0.2
             }
         },
-        "load": {
-            "type": "PointLoad",
-            "loadTable": "load"
+        "pbc": {
+            "type": "Periodic",
+            "strainRate": [
+                0.0,
+                0.0,
+                0.1
+            ],
+            "coarsenFactor": 0.01,
+            "numTNode": 10,
+            "shape": {
+                "type": "Line2",
+                "scheme": "Gauss"
+            }
         },
         "cons": {
             "type": "Constraints",
             "conTable": "cons"
         }
     },
-    "linsolve": {
+    "nonlin": {
+        "type": "NR",
+        "niter": 2,
+        "tiny": 1e-10,
+        "tol": 0.0001,
         "solver": {
-            "type": "lstsq"
+            "type": "solve"
         }
+    },
+    "sample": {
+        "file": "MultiScale/lodi.dat",
+        "dofs": [
+            3006,
+            3007
+        ]
+    },
+    "control": {
+        "nsteps": 4
     }
 }

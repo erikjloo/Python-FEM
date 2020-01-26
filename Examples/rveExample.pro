@@ -6,19 +6,19 @@
         "mesh" :
         {
             "type" : "Gmsh",
-            "file" : "_mshes/rve26.msh",
+            "file" : "Examples/rveExample.msh",
             "rank" : 2,
             "doElemGroups" : true
         },
         "load" : 
         { 
             "type" : "Loads",
-            "file" : "MultiScale/rve.xml"
+            "file" : "Examples/rveExample.xml"
         },
         "cons":
         {
             "type" : "Constraints",
-            "file" : "MultiScale/rve.xml"
+            "file" : "Examples/rveExample.xml"
         }
     },
 
@@ -62,7 +62,7 @@
         "pbc" :
         {
             "type"     : "Periodic",
-            "coarsenFactor" : 0.01,
+            "coarsenFactor" : 0.7,
             "strain" : [0.1, -0.0428571428571429, 0.0],
             "strainRate" : [0.0, 0.0, 0.1],
             "shape": { "type" : "Line2" }
@@ -87,7 +87,7 @@
     },
     "sample":
     {
-        "file": "MultiScale/lodi.dat",
+        "file": "Examples/lodi.dat",
         "dofs": [3006,3007]
     }
  }

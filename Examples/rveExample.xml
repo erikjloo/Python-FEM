@@ -1,0 +1,9 @@
+<Loads>
+    u[15] = 0.0;
+    v[15] = 0.0;
+</Loads>
+
+<Constraints>
+    u[12] = 0.0;
+    v[12] = 0.0;
+</Constraints>
